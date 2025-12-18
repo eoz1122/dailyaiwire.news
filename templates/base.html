@@ -458,15 +458,23 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const lastVisit = localStorage.getItem('last_visit_time');
-            const now = new Date().toISOString();
-            if (lastVisit) {
-                document.querySelectorAll('.article-card').forEach(art => {
-                    if (art.dataset.published > lastVisit) {
-                        art.querySelector('.new-badge')?.classList.remove('hidden');
-                    }
-                });
-            }
-            localStorage.setItem('last_visit_time', now);
+            const now = new Date();
+            const nowISO = now.toISOString();
+            // Calculate 24 hours ago
+            const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+
+            document.querySelectorAll('.article-card').forEach(art => {
+                const pubDate = art.dataset.published;
+                // Show NEW if published after last visit OR within last 24 hours
+                const isNewSinceVisit = lastVisit && pubDate > lastVisit;
+                const isFresh = pubDate > twentyFourHoursAgo;
+
+                if (isNewSinceVisit || isFresh) {
+                    art.querySelector('.new-badge')?.classList.remove('hidden');
+                }
+            });
+
+            localStorage.setItem('last_visit_time', nowISO);
 
             // Cookie Consent Logic
             const cookieBanner = document.getElementById('cookie-consent');
