@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} | Automation Lab{% endblock %}
+
+{% block content %}
+<article class="container mx-auto px-4 py-16 max-w-4xl">
+    <header class="mb-12">
+        <div class="flex items-center space-x-4 mb-6 text-orange-500 font-bold uppercase text-xs tracking-widest">
+            <a href="/lab" class="hover:text-white transition-colors">Lab Index</a>
+            <span>/</span>
+            <span class="text-zinc-500">Analysis No. {{ post.id }}</span>
+        </div>
+        <h1 class="text-5xl md:text-6xl font-black mb-6 tracking-tighter leading-none">{{ post.title }}</h1>
+        <p class="text-xl text-zinc-400 font-medium leading-relaxed">{{ post.subtitle }}</p>
+    </header>
+
+    {% if post.image %}
+    <div class="mb-12 rounded-3xl overflow-hidden border border-zinc-800 shadow-2xl">
+        <img src="{{ post.image }}" alt="{{ post.title }}" class="w-full object-cover max-h-[500px]">
+    </div>
+    {% endif %}
+
+    <div class="prose prose-invert prose-orange max-w-none">
+        <div class="blog-content text-zinc-300 space-y-8 text-lg leading-relaxed">
+            {{ post.content | safe }}
+        </div>
+    </div>
+
+    <footer class="mt-20 pt-12 border-t border-zinc-800">
+        <div class="glass-card p-8 rounded-3xl flex items-center justify-between">
+            <div>
+                <h4 class="font-bold text-white mb-2 uppercase tracking-widest text-xs">Share this Breakthrough</h4>
+                <div class="flex space-x-4">
+                    <button class="text-zinc-500 hover:text-orange-500 transition-colors">X (Twitter)</button>
+                    <button class="text-zinc-500 hover:text-orange-500 transition-colors">LinkedIn</button>
+                    <button class="text-zinc-500 hover:text-orange-500 transition-colors">Copy Link</button>
+                </div>
+            </div>
+            <a href="/lab"
+                class="bg-zinc-800 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all">
+                More from the Lab
+            </a>
+        </div>
+    </footer>
+</article>
+
+<style>
+    .blog-content h2 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.875rem;
+        font-weight: 800;
+        color: #f4f4f5;
+        margin-top: 3rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #f97316;
+        padding-left: 1rem;
+    }
+
+    .blog-content p {
+        margin-bottom: 1.5rem;
+    }
+
+    .blog-content ul {
+        list-style-type: none;
+        padding-left: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .blog-content li {
+        position: relative;
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+
+    .blog-content li::before {
+        content: "•";
+        color: #f97316;
+        position: absolute;
+        left: 0;
+        font-weight: bold;
+    }
+
+    .blog-content strong {
+        color: #f97316;
+    }
+</style>
+{% endblock %}
