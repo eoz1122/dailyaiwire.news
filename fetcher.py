@@ -83,8 +83,8 @@ def fetch_all_sources() -> List[Dict]:
         print(f"Fetching from {source_name}...")
         feed = feedparser.parse(url)
         
-        # Limit Google News to 15 articles to avoid noise and high token usage
-        entries = feed.entries[:15] if source_name == "Google News" else feed.entries
+        # Limit Google News to 5 articles to avoid noise and high token usage
+        entries = feed.entries[:5] if source_name == "Google News" else feed.entries
         
         for entry in entries:
             if is_spam(entry.title):
@@ -247,9 +247,11 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
     
     for art in processed_articles:
         # Skip articles where AI failed to find content
-        gist = art.get('gist', '')
-        impact = art.get('why_it_matters', '')
-        if "source content missing" in gist.lower() or "source content missing" in impact.lower():
+        gist = str(art.get('gist', '')).lower()
+        impact = str(art.get('why_it_matters', '')).lower()
+        headline = str(art.get('headline', '')).lower()
+        
+        if "source content missing" in gist or "source content missing" in impact or "source content missing" in headline:
             print(f"⚠️ Skipping '{art.get('headline')}' due to missing content signal.")
             continue
 
@@ -265,19 +267,33 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
             source_map = {slugify(it['title']): it for it in original_batch}
             original = source_map.get(lookup_slug, original_batch[0])
         
-        # 1. Prioritize scraped image
+        # 1. Prioritize scraped image (if it's a real external URL)
         image_url = original.get('scraped_image')
         
-        # 2. Category-based fallback if scraping failed or is blocked
-        if not image_url or not image_url.startswith('http') or "google.com" in image_url:
+        # 2. Use image_query if scraped image is missing or is a generic placeholder/blocked tracker
+        is_generic = not image_url or not image_url.startswith('http') or any(x in image_url.lower() for x in ["google", "placeholder", "logo", "icon", "pixel"])
+        
+        if is_generic:
+            query = art.get('image_query', 'technology artificial intelligence')
+            # Use Unsplash Source API for dynamic, relevant images
+            image_url = f"https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200&sig={uuid.uuid4().hex[:8]}" 
+            # Actually, let's use a keyword-based Unsplash fallback
+            keyword = slugify(query).replace('-', ',')
+            image_url = f"https://source.unsplash.com/featured/1200x800?{keyword}"
+            # Note: source.unsplash.com is being deprecated, so we'll use the images.unsplash.com with a specific related ID pattern or just better category fallbacks
             cat = art.get('category', 'Tools')
             cat_map = {
-                "LLMs": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200", # Neural Network
-                "Robotics": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=1200", # Robot arm
-                "Business": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=1200", # Office/Success
-                "Tools": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200"    # Circuit board
+                "LLMs": "https://images.unsplash.com/photo-1677442136019-21780ecad995",
+                "Robotics": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e",
+                "Business": "https://images.unsplash.com/photo-1507679799987-c73779587ccf",
+                "Tools": "https://images.unsplash.com/photo-1518770660439-4636190af475",
+                "Policy": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85",
+                "Science": "https://images.unsplash.com/photo-1532187863486-abf2ad613a00",
+                "Security": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b",
+                "Society": "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620"
             }
-            image_url = cat_map.get(cat, cat_map["Tools"])
+            base_url = cat_map.get(cat, cat_map["Tools"])
+            image_url = f"{base_url}?auto=format&fit=crop&q=80&w=1200"
 
         # 3. Robust Slug Generation (Fixes 'None' slugs)
         final_slug = art.get('seo_slug')
@@ -352,14 +368,15 @@ def main():
         time.sleep(15)
 
 def main_loop():
-    """Runs the main fetcher in a continuous loop every hour."""
+    """Runs the main fetcher in a continuous loop every 4 hours."""
     print("🚀 Starting DailyAIWire Intelligence Service...")
     while True:
         try:
             main()
-            next_run = time.time() + 3600
-            print(f"✅ Run complete. Sleeping for 1 hour. Next run at {time.strftime('%H:%M:%S', time.localtime(next_run))}")
-            time.sleep(3600)
+            # 4 hours = 14400 seconds
+            next_run = time.time() + 14400
+            print(f"✅ Run complete. Sleeping for 4 hours. Next run at {time.strftime('%H:%M:%S', time.localtime(next_run))}")
+            time.sleep(14400)
         except KeyboardInterrupt:
             print("\n👋 Intelligence Service stopped by user.")
             break

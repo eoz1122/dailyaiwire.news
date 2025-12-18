@@ -56,6 +56,10 @@
         padding-left: 1rem;
     }
 
+    .light-mode .blog-content h2 {
+        color: #09090b !important;
+    }
+
     .blog-content p {
         margin-bottom: 1.5rem;
     }
@@ -81,7 +85,12 @@
     }
 
     .blog-content strong {
-        color: #f97316;
+        color: #ca8a04;
+        /* Darker orange for better contrast in light mode */
+    }
+
+    .light-mode .blog-content strong {
+        color: #c2410c;
     }
 </style>
 {% endblock %}
