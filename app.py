@@ -15,16 +15,35 @@ def get_db_connection():
 def index():
     page = request.args.get('page', 1, type=int)
     category = request.args.get('category')
+    q = request.args.get('q', '').strip()
     per_page = 12
     offset = (page - 1) * per_page
     
     conn = get_db_connection()
     
-    # Get all unique categories for the filter bar
-    categories_raw = conn.execute('SELECT DISTINCT category FROM articles WHERE category IS NOT NULL').fetchall()
-    categories = [c['category'] for c in categories_raw]
+    # Get top 12 categories for the filter bar
+    categories_raw = conn.execute('''
+        SELECT category FROM articles 
+        WHERE category IS NOT NULL 
+        GROUP BY category 
+        ORDER BY COUNT(*) DESC 
+        LIMIT 12
+    ''').fetchall()
+    categories = sorted([c['category'] for c in categories_raw])
     
-    if category:
+    if q:
+        # Search query
+        search_pattern = f"%{q}%"
+        articles = conn.execute('''
+            SELECT * FROM articles 
+            WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?
+            ORDER BY published_at DESC LIMIT ? OFFSET ?
+        ''', (search_pattern, search_pattern, search_pattern, per_page, offset)).fetchall()
+        total_articles = conn.execute('''
+            SELECT COUNT(*) FROM articles 
+            WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?
+        ''', (search_pattern, search_pattern, search_pattern)).fetchone()[0]
+    elif category:
         articles = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY published_at DESC LIMIT ? OFFSET ?', (category, per_page, offset)).fetchall()
         total_articles = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (category,)).fetchone()[0]
     else:
@@ -49,7 +68,8 @@ def index():
                           page=page, 
                           total_pages=total_pages,
                           category=category,
-                          categories=categories)
+                          categories=categories,
+                          q=q)
 
 @app.route('/article/<slug>')
 def article(slug):

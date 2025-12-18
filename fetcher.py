@@ -82,7 +82,11 @@ def fetch_all_sources() -> List[Dict]:
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
         feed = feedparser.parse(url)
-        for entry in feed.entries:
+        
+        # Limit Google News to 15 articles to avoid noise and high token usage
+        entries = feed.entries[:15] if source_name == "Google News" else feed.entries
+        
+        for entry in entries:
             if is_spam(entry.title):
                 continue
             
@@ -162,7 +166,8 @@ def process_batch(batch: List[Dict]):
             "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
             "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"
             "* Tone: Authoritative, tech-forward, and urgent. Avoid corporate fluff and emojis.\n"
-            "* Content: Focus on extraction of hard facts, expert quotes, and strategic implications."
+            "* Content: Focus on extraction of hard facts, expert quotes, and strategic implications.\n"
+            "* Formatting: Return PLAIN TEXT for all fields. DO NOT use markdown, bolding (**), or italics in the string values."
         )
     )
 
@@ -170,8 +175,10 @@ def process_batch(batch: List[Dict]):
     for idx, item in enumerate(batch):
         content, og_image = extract_content(item['link'])
         item['scraped_image'] = og_image  # Attach to batch item for save_to_db
-        # Limit content length to save tokens/stay within context
-        batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']}\nSOURCE CONTENT: {content[:3000]}")
+        
+        # Robust context: If scraper failed, use the title/rss snippet to provide at least some signal
+        analysis_context = content[:3000] if content and len(content) > 100 else item['title']
+        batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']}\nSOURCE CONTENT: {analysis_context}")
 
     prompt = (
         f"Process the following {len(batch)} news articles and return a JSON list of objects matching this structure:\n"
@@ -181,7 +188,7 @@ def process_batch(batch: List[Dict]):
         "    \"headline\": \"Clicky Title\",\n"
         "    \"seo_slug\": \"url-safe-slug\",\n"
         "    \"image_query\": \"A concise keyword for an Unsplash image (e.g., 'robot arm', 'server farm')\",\n"
-        "    \"category\": \"Suggest a high-level category (e.g., LLMs, Robotics, Business, Tools, or a new relevant one)\",\n"
+        "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society']\",\n"
         "    \"gist\": \"1-2 sentence bold summary\",\n"
         "    \"key_details\": [\"Bullet 1\", \"Bullet 2\", \"Bullet 3\"],\n"
         "    \"why_it_matters\": \"Brief insight on impact\",\n"
@@ -215,7 +222,10 @@ def process_batch(batch: List[Dict]):
                     output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
                     budget.log_request(input_tokens, output_tokens)
                 
-                return json.loads(response.text)
+                # Cleanup: Strip markdown bolding if Gemini ignored instructions
+                raw_json = response.text
+                clean_json_str = raw_json.replace('**', '')
+                return json.loads(clean_json_str)
             except Exception as e:
                 if "429" in str(e):
                     # Multiplier based on attempt to survive the initial billing sync
@@ -236,6 +246,13 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
     cursor = conn.cursor()
     
     for art in processed_articles:
+        # Skip articles where AI failed to find content
+        gist = art.get('gist', '')
+        impact = art.get('why_it_matters', '')
+        if "source content missing" in gist.lower() or "source content missing" in impact.lower():
+            print(f"⚠️ Skipping '{art.get('headline')}' due to missing content signal.")
+            continue
+
         # Determine the article identifier (Gemini's provided slug or derived from title)
         lookup_slug = art.get('seo_slug') or slugify(art.get('headline', ''))
         
