@@ -270,57 +270,17 @@
             border-color: rgba(185, 28, 28, 0.2) !important;
         }
 
-        /* Cookie Consent Styles */
-        #cookie-consent {
-            transform: translateY(100%);
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        #cookie-consent.show {
-            transform: translateY(0);
-        }
-
-        .cookie-glass {
-            background: rgba(18, 18, 21, 0.9);
+        /* Custom Transitions */
+        .glass-card {
+            background: rgba(18, 18, 21, 0.8);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 -20px 40px -15px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col relative">
-    <!-- Cookie Consent Banner -->
-    <div id="cookie-consent" class="fixed bottom-6 left-6 right-6 md:left-auto md:max-w-md z-[100] hidden">
-        <div class="cookie-glass p-6 rounded-2xl flex flex-col gap-4">
-            <div class="flex items-start gap-4">
-                <div class="p-2 bg-orange-500/20 rounded-lg">
-                    <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                </div>
-                <div>
-                    <h4 class="font-bold text-sm tracking-tight text-white uppercase tracking-widest">Privacy Protocol
-                    </h4>
-                    <p class="text-xs text-zinc-300 font-medium mt-1 leading-relaxed">
-                        We use technical markers to optimize your intelligence feed and ensure seamless site
-                        performance.
-                    </p>
-                </div>
-            </div>
-            <div class="flex gap-3 mt-2">
-                <button id="accept-cookies"
-                    class="flex-1 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-xl transition-all active:scale-95">
-                    Synchronize
-                </button>
-                <button id="decline-cookies"
-                    class="px-4 text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors py-3">
-                    Dismiss
-                </button>
-            </div>
-        </div>
-    </div>
+
     <!-- Top Ticker -->
     <div class="ticker-wrap">
         <div class="ticker-content">
@@ -445,7 +405,7 @@
             </div>
             <div
                 class="border-t border-zinc-900 mt-12 pt-8 text-center text-zinc-600 text-[10px] tracking-[0.3em] uppercase font-bold">
-                &copy; {{ now.year if now else '2024' }} DailyAIWire.news // Intelligence by Google Gemini
+                &copy; {{ current_year }} DailyAIWire.news // Intelligence by Google Gemini
             </div>
         </div>
     </footer>
@@ -501,33 +461,9 @@
             });
 
             localStorage.setItem('last_visit_time', nowISO);
-
-            // Cookie Consent Logic
-            const cookieBanner = document.getElementById('cookie-consent');
-            const acceptBtn = document.getElementById('accept-cookies');
-            const declineBtn = document.getElementById('decline-cookies');
-
-            if (!localStorage.getItem('cookie-consent-choice')) {
-                cookieBanner.classList.remove('hidden');
-                setTimeout(() => cookieBanner.classList.add('show'), 100);
-            }
-
-            const hideBanner = () => {
-                cookieBanner.classList.remove('show');
-                setTimeout(() => cookieBanner.classList.add('hidden'), 600);
-            };
-
-            acceptBtn.addEventListener('click', () => {
-                localStorage.setItem('cookie-consent-choice', 'accepted');
-                hideBanner();
-            });
-
-            declineBtn.addEventListener('click', () => {
-                localStorage.setItem('cookie-consent-choice', 'declined');
-                hideBanner();
-            });
         });
     </script>
 </body>
 
 </html>
+```

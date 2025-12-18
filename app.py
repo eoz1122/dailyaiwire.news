@@ -16,7 +16,10 @@ def get_db_connection():
 
 @app.context_processor
 def inject_config():
-    return {'config_ga_id': os.getenv('GA_MEASUREMENT_ID')}
+    return {
+        'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
+        'current_year': datetime.now().year
+    }
 
 @app.route('/')
 def index():
