@@ -44,25 +44,62 @@ def sitemap():
     xml.append('</url>')
     
     # Articles
+    now = datetime.now()
     for article in articles:
         xml.append('<url>')
         xml.append(f'<loc>https://dailyaiwire.news/article/{article["slug"]}</loc>')
+        
+        # Calculate age for dynamic changefreq
+        changefreq = "monthly"
+        priority = "0.7"
+        
         if article['published_at']:
-            pub_date = article['published_at'][:10] if isinstance(article['published_at'], str) else datetime.now().strftime("%Y-%m-%d")
-            xml.append(f'<lastmod>{pub_date}</lastmod>')
-        xml.append('<changefreq>monthly</changefreq>')
-        xml.append('<priority>0.7</priority>')
+            try:
+                # Handle potential formats (ISO string)
+                pub_dt = datetime.fromisoformat(article['published_at'].replace('Z', '+00:00'))
+                age_days = (now - pub_dt).days
+                
+                if age_days < 1:
+                    changefreq = "hourly"
+                    priority = "0.9"
+                elif age_days < 7:
+                    changefreq = "daily"
+                    priority = "0.8"
+                else:
+                    changefreq = "weekly"
+                    priority = "0.6"
+                    
+                pub_date = pub_dt.strftime("%Y-%m-%d")
+            except:
+                pub_date = article['published_at'][:10]
+        else:
+            pub_date = now.strftime("%Y-%m-%d")
+            
+        xml.append(f'<lastmod>{pub_date}</lastmod>')
+        xml.append(f'<changefreq>{changefreq}</changefreq>')
+        xml.append(f'<priority>{priority}</priority>')
         xml.append('</url>')
     
     # Blog posts
     for post in blog_posts:
         xml.append('<url>')
         xml.append(f'<loc>https://dailyaiwire.news/lab/{post["slug"]}</loc>')
+        
+        changefreq = "weekly"
         if post['published_at']:
-            pub_date = post['published_at'][:10] if isinstance(post['published_at'], str) else datetime.now().strftime("%Y-%m-%d")
-            xml.append(f'<lastmod>{pub_date}</lastmod>')
-        xml.append('<changefreq>monthly</changefreq>')
-        xml.append('<priority>0.6</priority>')
+            try:
+                pub_dt = datetime.fromisoformat(post['published_at'].replace('Z', '+00:00'))
+                if (now - pub_dt).days < 30:
+                    changefreq = "daily"
+                pub_date = pub_dt.strftime("%Y-%m-%d")
+            except:
+                pub_date = post['published_at'][:10]
+        else:
+            pub_date = now.strftime("%Y-%m-%d")
+            
+        xml.append(f'<lastmod>{pub_date}</lastmod>')
+        xml.append(f'<changefreq>{changefreq}</changefreq>')
+        xml.append('<priority>0.8</priority>')
         xml.append('</url>')
     
     xml.append('</urlset>')

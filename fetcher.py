@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from typing import List, Dict, Tuple
 from bs4 import BeautifulSoup
 
+from social_distributor import SocialDistributor
+
 # Load environment variables
 load_dotenv()
 
@@ -244,6 +246,7 @@ def process_batch(batch: List[Dict]):
 def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    distributor = SocialDistributor()
     
     for art in processed_articles:
         # Skip articles where AI failed to find content
@@ -302,6 +305,9 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
             final_slug = slugify(original.get('title', 'article'))
         if not final_slug:
             final_slug = f"article-{uuid.uuid4().hex[:8]}"
+        
+        # Important: Sync the slug so the social distributor uses the same one
+        art['seo_slug'] = final_slug
 
         try:
             cursor.execute('''
@@ -325,6 +331,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
                 json.dumps(art),
                 original.get('published')
             ))
+            
+            # Post to Social Media Channels
+            distributor.distribute(art)
+            
         except Exception as e:
             print(f"Error saving article {art.get('headline')}: {e}")
             
