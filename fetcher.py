@@ -153,7 +153,7 @@ def extract_content(url: str) -> Tuple[str, str]:
 
 def process_batch(batch: List[Dict]):
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-1.5-flash-latest",
         system_instruction=(
             "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
