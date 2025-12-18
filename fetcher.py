@@ -153,11 +153,11 @@ def extract_content(url: str) -> Tuple[str, str]:
 
 def process_batch(batch: List[Dict]):
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-1.5-flash",
         system_instruction=(
             "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
-            "Mandate: Use the optimized capabilities of Gemini 1.5 Flash to ensure maximum analytical quality while maintaining high processing efficiency.\n"
+            "Mandate: Use the optimized capabilities of Gemini 1.5 Flash for high-throughput intelligence analysis.\n"
             "Editorial Standards:\n"
             "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
             "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"
@@ -202,7 +202,7 @@ def process_batch(batch: List[Dict]):
             return []
         
         # Retry logic for quota issues (429)
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 response = model.generate_content(
                     prompt,
@@ -218,11 +218,14 @@ def process_batch(batch: List[Dict]):
                 return json.loads(response.text)
             except Exception as e:
                 if "429" in str(e):
-                    wait_time = (attempt + 1) * 30
+                    # Multiplier based on attempt to survive the initial billing sync
+                    wait_time = (attempt + 1) * 45
                     print(f"Quota hit! Waiting {wait_time}s and retrying...")
                     time.sleep(wait_time)
                     continue
-                raise e
+                print(f"API Error: {e}")
+                time.sleep(10)
+                continue
         return []
     except Exception as e:
         print(f"Error processing batch: {e}")
@@ -318,8 +321,8 @@ def main():
         print("Everything up to date. No new intelligence to process.")
         return
 
-    # Process in batches of 3
-    batch_size = 3
+    # Process in batches of 2 for maximum stability during import
+    batch_size = 2
     for i in range(0, len(new_articles), batch_size):
         batch = new_articles[i:i + batch_size]
         print(f"Processing batch {i//batch_size + 1} ({len(batch)} articles)...")
@@ -328,8 +331,8 @@ def main():
             save_to_db(processed, batch)
             print(f"Saved {len(processed)} articles from batch.")
         
-        # Sleep 10s between batches to avoid rate limits
-        time.sleep(10)
+        # Sleep 15s between batches to avoid rate limits
+        time.sleep(15)
 
 def main_loop():
     """Runs the main fetcher in a continuous loop every hour."""
