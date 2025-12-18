@@ -5,6 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Google Analytics -->
+    {% if config_ga_id %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config_ga_id }}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', '{{ config_ga_id }}');
+    </script>
+    {% endif %}
+
     <!-- Primary Meta Tags -->
     <title>{% block title %}DailyAIWire.news - AI Intelligence & Automation Insights{% endblock %}</title>
     <meta name="title"

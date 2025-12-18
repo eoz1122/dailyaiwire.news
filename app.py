@@ -12,6 +12,12 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+    return conn
+
+@app.context_processor
+def inject_config():
+    return {'config_ga_id': os.getenv('GA_MEASUREMENT_ID')}
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
