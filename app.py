@@ -1,7 +1,8 @@
 import os
 import sqlite3
 import json
-from flask import Flask, render_template, abort, request
+from datetime import datetime
+from flask import Flask, render_template, abort, request, Response
 
 app = Flask(__name__)
 DB_PATH = "news.db"
@@ -102,6 +103,29 @@ def lab_post(slug):
     if post is None:
         abort(404)
     return render_template('lab_post.html', post=post)
+
+@app.route('/rss')
+def rss():
+    conn = get_db_connection()
+    articles = conn.execute('SELECT * FROM articles ORDER BY published_at DESC LIMIT 50').fetchall()
+    conn.close()
+    
+    processed_articles = []
+    for art in articles:
+        article_dict = dict(art)
+        # Format date for RSS (RFC 822)
+        try:
+            dt = datetime.fromisoformat(art['published_at'])
+            article_dict['pub_date_rss'] = dt.strftime('%a, %d %b %Y %H:%M:%S GMT')
+        except:
+            article_dict['pub_date_rss'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
+        processed_articles.append(article_dict)
+    
+    # Template rendering for XML
+    rss_xml = render_template('rss.xml', 
+                             articles=processed_articles, 
+                             build_date=datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT'))
+    return Response(rss_xml, mimetype='application/xml')
 
 @app.route('/privacy')
 def privacy():

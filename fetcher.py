@@ -271,16 +271,15 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
         image_url = original.get('scraped_image')
         
         # 2. Use image_query if scraped image is missing or is a generic placeholder/blocked tracker
+        source_name = original.get('source', '')
         is_generic = not image_url or not image_url.startswith('http') or any(x in image_url.lower() for x in ["google", "placeholder", "logo", "icon", "pixel"])
         
+        # KILL SWITCH: If it's Google News and has no real unique image, skip it entirely
+        if source_name == "Google News" and is_generic:
+            print(f"⚠️ Skipping Google News article '{art.get('headline')}' - No unique image found.")
+            continue
+
         if is_generic:
-            query = art.get('image_query', 'technology artificial intelligence')
-            # Use Unsplash Source API for dynamic, relevant images
-            image_url = f"https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200&sig={uuid.uuid4().hex[:8]}" 
-            # Actually, let's use a keyword-based Unsplash fallback
-            keyword = slugify(query).replace('-', ',')
-            image_url = f"https://source.unsplash.com/featured/1200x800?{keyword}"
-            # Note: source.unsplash.com is being deprecated, so we'll use the images.unsplash.com with a specific related ID pattern or just better category fallbacks
             cat = art.get('category', 'Tools')
             cat_map = {
                 "LLMs": "https://images.unsplash.com/photo-1677442136019-21780ecad995",
