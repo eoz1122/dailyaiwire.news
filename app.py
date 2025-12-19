@@ -37,9 +37,14 @@ def index():
     page = request.args.get('page', 1, type=int)
     category = request.args.get('category')
     q = request.args.get('q', '').strip()
-    per_page = 17  # 8 for carousel + 9 for grid
-    offset = (page - 1) * per_page
-    
+    # Dynamic per_page and offset to handle Carousel vs Grid layout
+    if page == 1:
+        per_page = 14 # 8 for carousel + 6 for grid
+        offset = 0
+    else:
+        per_page = 12 # Standard grid size for deeper pages
+        offset = 14 + (page - 2) * per_page
+
     conn = get_db_connection()
     
     # Get top 12 categories for the filter bar
@@ -71,7 +76,12 @@ def index():
         articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET ?', (per_page, offset)).fetchall()
         total_articles = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
         
-    total_pages = (total_articles + per_page - 1) // per_page
+    # Calculate total pages (adjusting for irregular page 1)
+    if total_articles <= 14:
+        total_pages = 1
+    else:
+        total_pages = 1 + ((total_articles - 14 + per_page - 1) // per_page)
+        
     conn.close()
     
     # Process JSON fields for template
@@ -84,14 +94,13 @@ def index():
             article_dict['key_details'] = []
         processed_articles.append(article_dict)
     
-    # Separate carousel articles (first 8) from grid articles (next 9+)
-    # We now show ALL articles in the grid to ensure visibility, with top 8 also in carousel
+    # Selection logic for Carousel (unique to page 1)
     if page == 1:
         carousel_articles = processed_articles[:8]
-        grid_articles = processed_articles  # Show everything in the grid
+        grid_articles = processed_articles[8:14] # Exactly 6 unique tiles
     else:
         carousel_articles = []
-        grid_articles = processed_articles
+        grid_articles = processed_articles # Full grid on deeper pages
         
     return render_template('index.html', 
                           articles=grid_articles,
