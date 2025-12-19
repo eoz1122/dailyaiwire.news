@@ -3,6 +3,9 @@ import sqlite3
 import json
 from datetime import datetime
 from flask import Flask, render_template, abort, request, Response
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 DB_PATH = "news.db"
@@ -14,9 +17,19 @@ def get_db_connection():
 
 @app.context_processor
 def inject_config():
+    def category_color(cat):
+        cat = (cat or "").lower()
+        if any(w in cat for w in ['sec', 'cyb', 'hack']): return 'bg-red-600'
+        if any(w in cat for w in ['robot', 'hard', 'auto']): return 'bg-orange-600'
+        if any(w in cat for w in ['llm', 'gen', 'gpt', 'model', 'res']): return 'bg-purple-600'
+        if any(w in cat for w in ['fin', 'mark', 'invest', 'biz', 'ent']): return 'bg-blue-700'
+        if any(w in cat for w in ['med', 'bio', 'health']): return 'bg-teal-600'
+        return 'bg-indigo-600'
+
     return {
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
-        'current_year': datetime.now().year
+        'current_year': datetime.now().year,
+        'category_color': category_color
     }
 
 @app.route('/')

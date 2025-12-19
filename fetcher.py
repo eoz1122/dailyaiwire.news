@@ -84,7 +84,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     headline_list = "\n".join([f"- {a['title']}" for a in articles])
     
     prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to select the TOP 6 MOST NEWSWORTHY articles from this list.
+    You are an elite AI Intelligence Officer. Your task is to select the TOP 10 MOST NEWSWORTHY articles from this list.
     
     Prioritize articles that represent:
     - Major AI breakthroughs or research milestones
@@ -98,8 +98,8 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     - Low-impact announcements
     - Tutorial/how-to content
     
-    Return EXACTLY 6 indices (starting from 0) of the most important articles as a comma-separated list.
-    If there are fewer than 6 worthy articles, return only those indices.
+    Return EXACTLY 10 indices (starting from 0) of the most important articles as a comma-separated list.
+    If there are fewer than 10 worthy articles, return only those indices.
     
     Example Input:
     - OpenAI releases Sora API
