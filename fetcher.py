@@ -398,7 +398,6 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                     f"Optimistic Outlook: {art.get('optimistic_outlook')}. "
                     f"Risk Factors: {art.get('pessimistic_outlook')}. "
                     f"Key Details: {key_details_text}. "
-                    f"Deep Analysis: {art.get('deep_analysis')}"
                 )
                 am, af = audio_gen.generate_audio_reads(final_slug, text_to_read)
 
