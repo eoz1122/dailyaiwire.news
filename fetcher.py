@@ -12,6 +12,7 @@ from typing import List, Dict, Tuple
 from bs4 import BeautifulSoup
 
 from social_distributor import SocialDistributor
+from audio_generator import AudioGenerator
 
 # Load environment variables
 load_dotenv()
@@ -47,7 +48,9 @@ def init_db():
             source TEXT,
             source_url TEXT UNIQUE,
             full_json TEXT,
-            published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            audio_male TEXT, -- Path to generated male audio
+            audio_female TEXT -- Path to generated female audio
         )
     ''')
     cursor.execute('''
@@ -102,7 +105,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     """
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
         # Parse indices
         indices_str = response.text.replace('Indices:', '').strip()
@@ -229,7 +232,7 @@ def process_batch(batch: List[Dict]):
         system_instruction=(
             "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
-            "Mandate: Use the optimized capabilities of Gemini 1.5 Flash for high-throughput intelligence analysis.\n"
+            "Mandate: Use the optimized capabilities of Gemini 2.0 Flash for high-throughput intelligence analysis.\n"
             "Editorial Standards:\n"
             "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
             "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"
@@ -309,7 +312,7 @@ def process_batch(batch: List[Dict]):
         print(f"Error processing batch: {e}")
         return []
 
-def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0):
+def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0, audio_gen=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -375,10 +378,16 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         art['seo_slug'] = final_slug
 
         try:
+            # Generate Audio Reads
+            am, af = None, None
+            if audio_gen:
+                text_to_read = f"{art.get('headline')}. {art.get('gist')}. {art.get('why_it_matters')}"
+                am, af = audio_gen.generate_audio_reads(final_slug, text_to_read)
+
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -394,7 +403,9 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 original.get('source'),
                 original.get('link'),
                 json.dumps(art),
-                original.get('published')
+                original.get('published'),
+                am,
+                af
             ))
             
             # Post to Social Media Channels (limit to 2 per run)
@@ -434,6 +445,7 @@ def main():
     # Process in batches of 2 for maximum stability during import
     batch_size = 2
     distributor = SocialDistributor()
+    audio_gen = AudioGenerator()
     total_posts_sent = 0
     
     for i in range(0, len(new_articles), batch_size):
@@ -441,7 +453,7 @@ def main():
         print(f"Processing batch {i//batch_size + 1} ({len(batch)} articles)...")
         processed = process_batch(batch)
         if processed:
-            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=2, posts_count=total_posts_sent)
+            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=2, posts_count=total_posts_sent, audio_gen=audio_gen)
             print(f"Saved {len(processed)} articles from batch. Social posts sent so far: {total_posts_sent}")
         
         # Sleep 15s between batches to avoid rate limits

@@ -108,6 +108,48 @@
                 </p>
             </div>
 
+            <!-- Audio Intelligence Section -->
+            {% if article.audio_male or article.audio_female %}
+            <div
+                class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 bg-zinc-900 rounded-xl text-orange-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15L4 14a1 1 0 010-2l1.586-1L7 10.414V13.586L5.586 15z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Intelligence
+                            Audio</h3>
+                        <p class="text-[11px] font-bold text-zinc-300">Listen to the signal summary</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-4">
+                    {% if article.audio_male %}
+                    <div class="flex flex-col space-y-2">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600 text-center">Male
+                            Reader</span>
+                        <audio controls class="h-8 w-48 opacity-80 hover:opacity-100 transition-opacity">
+                            <source src="{{ article.audio_male }}" type="audio/mpeg">
+                        </audio>
+                    </div>
+                    {% endif %}
+
+                    {% if article.audio_female %}
+                    <div class="flex flex-col space-y-2">
+                        <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600 text-center">Female
+                            Reader</span>
+                        <audio controls class="h-8 w-48 opacity-80 hover:opacity-100 transition-opacity">
+                            <source src="{{ article.audio_female }}" type="audio/mpeg">
+                        </audio>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- ELI5 Section (Now Prominent) -->
             {% if article.eli5 %}
             <div
