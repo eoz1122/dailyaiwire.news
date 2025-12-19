@@ -70,6 +70,51 @@ def is_spam(title: str) -> bool:
     title_lower = title.lower()
     return any(keyword in title_lower for keyword in spam_keywords)
 
+def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
+    """Uses Gemini to filter for high-value AI news headlines before full extraction."""
+    if not articles:
+        return []
+
+    print(f"🧠 AI Pre-Filtering {len(articles)} headlines for signal quality...")
+    
+    # Bundle headlines for efficient batch checking
+    headline_list = "\n".join([f"- {a['title']}" for a in articles])
+    
+    prompt = f"""
+    You are an elite AI Intelligence Officer. Your task is to filter a list of news headlines.
+    Identify only the articles that represent significant AI developments, research breakthroughs, major corporate strategy, or critical industry shifts.
+    
+    Exclude: 
+    - Generic general tech news
+    - Brief product updates with no industry impact
+    - Gossip or minor personnel changes (unless C-suite level)
+    - Low-signal "how-to" guides
+    
+    Return the indices (starting from 0) of the high-signal articles as a comma-separated list.
+    Example Input:
+    - OpenAI releases Sora API
+    - Local coffee shop uses AI for menu
+    - DeepMind breakthrough in protein folding
+    Example Output: 0, 2
+    
+    HEADLINES:
+    {headline_list}
+    """
+    
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(prompt)
+        # Parse indices
+        indices_str = response.text.replace('Indices:', '').strip()
+        indices = [int(i.strip()) for i in indices_str.split(',') if i.strip().isdigit()]
+        
+        filtered = [articles[i] for i in indices if i < len(articles)]
+        print(f"✅ Filtered down to {len(filtered)} high-signal articles.")
+        return filtered
+    except Exception as e:
+        print(f"⚠️ Headline filtering failed: {e}. Proceeding with all unique articles.")
+        return articles
+
 def fetch_all_sources() -> List[Dict]:
     """Fetches news from multiple specific AI feeds and Google News."""
     sources = [
@@ -99,38 +144,43 @@ def fetch_all_sources() -> List[Dict]:
     
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
-        feed = feedparser.parse(url)
-        
-        # Limit Google News to 5 articles to avoid noise and high token usage
-        entries = feed.entries[:5] if source_name == "Google News" else feed.entries
-        
-        for entry in entries:
-            if is_spam(entry.title):
-                continue
+        try:
+            feed = feedparser.parse(url)
+            # Limit Google News to 10 articles (AI filter will select the best ones)
+            entries = feed.entries[:10] if source_name == "Google News" else feed.entries
             
-            # Clean title
-            title = entry.title
-            if " - " in title and source_name == "Google News":
-                title = title.rsplit(" - ", 1)[0]
+            for entry in entries:
+                if is_spam(entry.title):
+                    continue
                 
-            link = entry.link
-            if link not in unique_articles:
-                # Normalize date to ISO format for frontend comparison
-                from datetime import datetime
-                pub_date = getattr(entry, 'published_parsed', None)
-                if pub_date:
-                    iso_date = datetime(*pub_date[:6]).isoformat()
-                else:
-                    iso_date = datetime.now().isoformat()
+                # Clean title
+                title = entry.title
+                if " - " in title and source_name == "Google News":
+                    title = title.rsplit(" - ", 1)[0]
                     
-                unique_articles[link] = {
-                    "title": title,
-                    "source": source_name,
-                    "link": link,
-                    "published": iso_date
-                }
+                link = entry.link
+                if link not in unique_articles:
+                    # Normalize date to ISO format
+                    from datetime import datetime
+                    pub_date = getattr(entry, 'published_parsed', None)
+                    if pub_date:
+                        iso_date = datetime(*pub_date[:6]).isoformat()
+                    else:
+                        iso_date = datetime.now().isoformat()
+                        
+                    unique_articles[link] = {
+                        "title": title,
+                        "source": source_name,
+                        "link": link,
+                        "published": iso_date
+                    }
+        except Exception as e:
+            print(f"Error fetching {source_name}: {e}")
     
-    return list(unique_articles.values())
+    all_articles = list(unique_articles.values())
+    
+    # ACTIVATE AI FILTERING
+    return filter_high_signal_headlines(all_articles)
 
 def extract_content(url: str) -> Tuple[str, str]:
     """Extracts text content and social image from a URL with multiple fallbacks."""
