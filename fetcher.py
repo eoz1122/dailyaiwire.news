@@ -78,7 +78,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     if not articles:
         return []
 
-    print(f"🧠 AI Pre-Filtering {len(articles)} headlines for signal quality...")
+    print(f"AI Pre-Filtering {len(articles)} headlines for signal quality...")
     
     # Bundle headlines for efficient batch checking
     headline_list = "\n".join([f"- {a['title']}" for a in articles])
@@ -112,10 +112,10 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
         indices = [int(i.strip()) for i in indices_str.split(',') if i.strip().isdigit()]
         
         filtered = [articles[i] for i in indices if i < len(articles)]
-        print(f"✅ Filtered down to {len(filtered)} high-signal articles.")
+        print(f"Filtered down to {len(filtered)} high-signal articles.")
         return filtered
     except Exception as e:
-        print(f"⚠️ Headline filtering failed: {e}. Proceeding with all unique articles.")
+        print(f"Headline filtering failed: {e}. Proceeding with all unique articles.")
         return articles
 
 def fetch_all_sources() -> List[Dict]:
@@ -276,7 +276,7 @@ def process_batch(batch: List[Dict]):
         # Budget check before making API call
         estimated_tokens = len(prompt) // 4 + 2000
         if not budget.can_make_request(estimated_tokens):
-            print("⛔ Skipping batch due to budget cap. Run will resume next month.")
+            print("Skipping batch due to budget cap. Run will resume next month.")
             return []
         
         # Retry logic for quota issues (429)
@@ -323,7 +323,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         headline = str(art.get('headline', '')).lower()
         
         if "source content missing" in gist or "source content missing" in impact or "source content missing" in headline:
-            print(f"⚠️ Skipping '{art.get('headline')}' due to missing content signal.")
+            print(f"Skipping '{art.get('headline')}' due to missing content signal.")
             continue
 
         # Determine the article identifier (Gemini's provided slug or derived from title)
@@ -347,7 +347,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         
         # KILL SWITCH: If it's Google News and has no real unique image, skip it entirely
         if source_name == "Google News" and is_generic:
-            print(f"⚠️ Skipping Google News article '{art.get('headline')}' - No unique image found.")
+            print(f"Skipping Google News article '{art.get('headline')}' - No unique image found.")
             continue
 
         if is_generic:
@@ -461,20 +461,20 @@ def main():
 
 def main_loop():
     """Runs the main fetcher in a continuous loop every 4 hours."""
-    print("🚀 Starting DailyAIWire Intelligence Service...")
+    print("Starting DailyAIWire Intelligence Service...")
     while True:
         try:
             main()
             # 4 hours = 14400 seconds
             next_run = time.time() + 14400
-            print(f"✅ Run complete. Sleeping for 4 hours. Next run at {time.strftime('%H:%M:%S', time.localtime(next_run))}")
+            print(f"Run complete. Sleeping for 4 hours. Next run at {time.strftime('%H:%M:%S', time.localtime(next_run))}")
             time.sleep(14400)
         except KeyboardInterrupt:
-            print("\n👋 Intelligence Service stopped by user.")
+            print("\nIntelligence Service stopped by user.")
             break
         except Exception as e:
-            print(f"❌ Error in main loop: {e}")
-            print("🔄 Retrying in 5 minutes...")
+            print(f"Error in main loop: {e}")
+            print("Retrying in 5 minutes...")
             time.sleep(300)
 
 if __name__ == "__main__":

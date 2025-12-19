@@ -15,13 +15,13 @@ class AudioGenerator:
         try:
             if self.credentials_path and os.path.exists(self.credentials_path):
                 self.client = texttospeech.TextToSpeechClient()
-                print("✅ Google Cloud TTS Client Initialized.")
+                print("Google Cloud TTS Client Initialized.")
             else:
                 self.client = None
-                print("⚠️ GOOGLE_APPLICATION_CREDENTIALS not set or file missing. Skipping audio.")
+                print("GOOGLE_APPLICATION_CREDENTIALS not set or file missing. Skipping audio.")
         except Exception as e:
             self.client = None
-            print(f"❌ Error initializing Google TTS: {e}")
+            print(f"Error initializing Google TTS: {e}")
 
     def generate_audio_reads(self, slug, text):
         """Generates male and female audio reads using Google Neural2 voices."""
@@ -48,7 +48,7 @@ class AudioGenerator:
         try:
             # 1. Generate Male (Neutral Neural2)
             if not male_path.exists():
-                print(f"🎙️ Generating Male Audio (Google): {male_filename}")
+                print(f"Generating Male Audio (Google): {male_filename}")
                 voice = texttospeech.VoiceSelectionParams(
                     language_code="en-US",
                     name="en-US-Neural2-J" # High-quality Neutral Male
@@ -59,7 +59,7 @@ class AudioGenerator:
             
             # 2. Generate Female (Neutral Neural2)
             if not female_path.exists():
-                print(f"🎙️ Generating Female Audio (Google): {female_filename}")
+                print(f"Generating Female Audio (Google): {female_filename}")
                 voice = texttospeech.VoiceSelectionParams(
                     language_code="en-US",
                     name="en-US-Neural2-F" # High-quality Neutral Female
@@ -71,7 +71,7 @@ class AudioGenerator:
             return f"/static/audio/{male_filename}", f"/static/audio/{female_filename}"
             
         except Exception as e:
-            print(f"❌ Error during Google audio generation: {e}")
+            print(f"Error during Google audio generation: {e}")
             return None, None
 
 if __name__ == "__main__":
