@@ -210,7 +210,7 @@ def extract_content(url: str) -> Tuple[str, str]:
             
         # 2. Try Twitter:Image
         if not og_image:
-            twitter_tag = soup.find("meta", name="twitter:image")
+            twitter_tag = soup.find("meta", attrs={"name": "twitter:image"})
             if twitter_tag:
                 og_image = twitter_tag.get("content", "")
 
