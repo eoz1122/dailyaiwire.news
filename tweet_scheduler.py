@@ -88,4 +88,4 @@ if __name__ == "__main__":
         print(f"❌ Immediate post failed: {e}")
 
     # Enter loop
-    scheduler_loop()
+    main_loop()
