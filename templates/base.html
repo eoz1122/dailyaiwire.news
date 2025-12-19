@@ -75,13 +75,13 @@
     {% block head_extra %}{% endblock %}
     <style>
         :root {
-            --bg-primary: #09090b;
-            --bg-secondary: #18181b;
+            --bg-primary: #050505;
+            --bg-secondary: #0a0a0a;
             --text-primary: #f4f4f5;
             --text-secondary: #a1a1aa;
-            --border-color: #27272a;
-            --card-bg: rgba(24, 24, 27, 0.7);
-            --header-bg: rgba(9, 9, 11, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --card-bg: rgba(15, 15, 18, 0.4);
+            --header-bg: rgba(5, 5, 5, 0.7);
             --accent-blue: #2563eb;
         }
 
@@ -140,15 +140,16 @@
 
         .glass-card {
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(25px) saturate(180%);
             border: 1px solid var(--border-color);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .glass-card:hover {
-            border-color: var(--accent-blue);
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+            border-color: rgba(37, 99, 235, 0.4);
+            transform: translateY(-6px) scale(1.01);
+            background: rgba(25, 25, 30, 0.5);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
         }
 
         .light-mode .glass-card:hover {
