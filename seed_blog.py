@@ -26,6 +26,11 @@ def seed_blog():
     content = """
     <p>Think of this automation as a tireless member of the finance team who works 24/7. It lives inside a tool called <strong>n8n</strong> and handles the entire life cycle of an invoice without anyone lifting a finger:</p>
     
+    <div class="my-8 rounded-2xl overflow-hidden border border-zinc-800 shadow-2xl">
+        <img src="/static/n8n-workflow.png" alt="n8n AI Invoice Automation Workflow" class="w-full">
+        <p class="text-center text-xs text-zinc-500 py-4 bg-zinc-900/50 italic">The actual n8n logic map showing the Gemini AI Agent handling the decision matrix.</p>
+    </div>
+
     <h2>What Exactly Is This "Magic"? ✨</h2>
     <ul>
         <li><strong>The Watchman:</strong> Every few hours, it peeks into our Google Drive folders to see if any new invoices have landed.</li>
@@ -60,7 +65,7 @@ def seed_blog():
     <p>We’re so excited to keep pushing the boundaries of what AI can do for us. It’s not about replacing people; it’s about giving people their time back to do the creative, strategic work they enjoy!</p>
     """
     
-    image = "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=1200" # Data/Chart visualization
+    image = "/static/n8n-workflow.png" # Real n8n workflow screenshot
     
     cursor.execute('''
         INSERT OR REPLACE INTO blog_posts (slug, title, subtitle, content, image)
