@@ -73,9 +73,25 @@ def is_spam(title: str) -> bool:
 def fetch_all_sources() -> List[Dict]:
     """Fetches news from multiple specific AI feeds and Google News."""
     sources = [
+        # // PRIMARY WIRE
         ("The Verge", "https://www.theverge.com/rss/artificial-intelligence/index.xml"),
         ("TechCrunch", "https://techcrunch.com/category/artificial-intelligence/feed/"),
         ("Wired", "https://www.wired.com/feed/tag/ai/latest/rss"),
+        
+        # // RESEARCH LABS
+        ("OpenAI", "https://openai.com/news/rss"),
+        ("DeepMind", "https://deepmind.com/blog/feed/basic/"),
+        ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml"),
+        
+        # // ENTERPRISE & MARKETS
+        ("VentureBeat", "https://venturebeat.com/category/ai/feed/"),
+        ("AI Business", "https://aibusiness.com/rss.xml"),
+        
+        # // DEV TERMINAL
+        ("NVIDIA Dev", "https://developer.nvidia.com/blog/feed/"),
+        ("ML Mastery", "https://machinelearningmastery.com/blog/feed/"),
+
+        # // AGGREGATOR
         ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
     ]
     
