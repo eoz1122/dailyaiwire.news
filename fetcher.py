@@ -353,10 +353,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         source_name = original.get('source', '')
         is_generic = not image_url or not image_url.startswith('http') or any(x in image_url.lower() for x in ["google", "placeholder", "logo", "icon", "pixel"])
         
-        # KILL SWITCH: If it's Google News and has no real unique image, skip it entirely
+        # DOWNGRADED KILL SWITCH: Only warned, not skipped, to ensure content flows
         if source_name == "Google News" and is_generic:
-            print(f"Skipping Google News article '{art.get('headline')}' - No unique image found.")
-            continue
+            print(f"⚠️ Google News article '{art.get('headline')}' has no unique image. Using AI fallback.")
+            # Don't continue, let it fall through to Unsplash fallback
 
         if is_generic:
             cat = art.get('category', 'Tools')
@@ -452,7 +452,13 @@ def main():
     existing_urls = {row[0] for row in cursor.fetchall()}
     conn.close()
     
-    new_articles = [art for art in raw_articles if art['link'] not in existing_urls]
+    new_articles = []
+    for art in raw_articles:
+        if art['link'] in existing_urls:
+            # print(f"  - Already have: {art['title'][:40]}...")
+            continue
+        new_articles.append(art)
+        
     print(f"Total Unique Articles Found: {len(raw_articles)}")
     print(f"New Articles to Process: {len(new_articles)}")
     

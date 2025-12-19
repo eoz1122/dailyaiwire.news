@@ -84,11 +84,11 @@ def index():
             article_dict['key_details'] = []
         processed_articles.append(article_dict)
     
-    # Separate carousel articles (first 8) from grid articles (next 9)
-    # ONLY on the first page (home/category root). On deeper pages, show all as grid.
+    # Separate carousel articles (first 8) from grid articles (next 9+)
+    # We now show ALL articles in the grid to ensure visibility, with top 8 also in carousel
     if page == 1:
         carousel_articles = processed_articles[:8]
-        grid_articles = processed_articles[8:17]
+        grid_articles = processed_articles  # Show everything in the grid
     else:
         carousel_articles = []
         grid_articles = processed_articles
