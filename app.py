@@ -74,8 +74,13 @@ def index():
         processed_articles.append(article_dict)
     
     # Separate carousel articles (first 8) from grid articles (next 9)
-    carousel_articles = processed_articles[:8]
-    grid_articles = processed_articles[8:17]
+    # ONLY on the first page (home/category root). On deeper pages, show all as grid.
+    if page == 1:
+        carousel_articles = processed_articles[:8]
+        grid_articles = processed_articles[8:17]
+    else:
+        carousel_articles = []
+        grid_articles = processed_articles
         
     return render_template('index.html', 
                           articles=grid_articles,

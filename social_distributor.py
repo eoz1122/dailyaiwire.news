@@ -59,11 +59,13 @@ class SocialDistributor:
             print(tweet_text)
             print("-" * 30)
             
-            if not all([self.x_api_key, self.x_api_secret, self.x_access_token, self.x_access_secret]):
-                print("⚠️ X credentials missing. Skipping live post.")
-                return
+            # Send the tweet
+            response = client.create_tweet(text=tweet_text)
+            print(f"✅ Posted to X! ID: {response.data['id']}")
+            return True
         except Exception as e:
             print(f"❌ Error posting to X: {e}")
+            return False
 
     def post_to_linkedin(self, article):
         """Posts deep analysis summary to LinkedIn (Placeholder for API integration)."""
