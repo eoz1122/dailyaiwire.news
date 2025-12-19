@@ -84,21 +84,29 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     headline_list = "\n".join([f"- {a['title']}" for a in articles])
     
     prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to filter a list of news headlines.
-    Identify only the articles that represent significant AI developments, research breakthroughs, major corporate strategy, or critical industry shifts.
+    You are an elite AI Intelligence Officer. Your task is to select the TOP 6 MOST NEWSWORTHY articles from this list.
+    
+    Prioritize articles that represent:
+    - Major AI breakthroughs or research milestones
+    - Significant corporate announcements or strategic shifts
+    - Critical industry developments with broad impact
+    - Groundbreaking product launches
     
     Exclude: 
-    - Generic general tech news
-    - Brief product updates with no industry impact
-    - Gossip or minor personnel changes (unless C-suite level)
-    - Low-signal "how-to" guides
+    - Generic tech news
+    - Minor product updates
+    - Low-impact announcements
+    - Tutorial/how-to content
     
-    Return the indices (starting from 0) of the high-signal articles as a comma-separated list.
+    Return EXACTLY 6 indices (starting from 0) of the most important articles as a comma-separated list.
+    If there are fewer than 6 worthy articles, return only those indices.
+    
     Example Input:
     - OpenAI releases Sora API
     - Local coffee shop uses AI for menu
     - DeepMind breakthrough in protein folding
-    Example Output: 0, 2
+    - Google announces Gemini 2.0
+    Example Output: 0, 2, 3
     
     HEADLINES:
     {headline_list}
