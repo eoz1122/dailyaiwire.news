@@ -58,17 +58,17 @@ def index():
         articles = conn.execute('''
             SELECT * FROM articles 
             WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?
-            ORDER BY published_at DESC LIMIT ? OFFSET ?
+            ORDER BY id DESC LIMIT ? OFFSET ?
         ''', (search_pattern, search_pattern, search_pattern, per_page, offset)).fetchall()
         total_articles = conn.execute('''
             SELECT COUNT(*) FROM articles 
             WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?
         ''', (search_pattern, search_pattern, search_pattern)).fetchone()[0]
     elif category:
-        articles = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY published_at DESC LIMIT ? OFFSET ?', (category, per_page, offset)).fetchall()
+        articles = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (category, per_page, offset)).fetchall()
         total_articles = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (category,)).fetchone()[0]
     else:
-        articles = conn.execute('SELECT * FROM articles ORDER BY published_at DESC LIMIT ? OFFSET ?', (per_page, offset)).fetchall()
+        articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET ?', (per_page, offset)).fetchall()
         total_articles = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
         
     total_pages = (total_articles + per_page - 1) // per_page
