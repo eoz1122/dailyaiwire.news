@@ -5,7 +5,7 @@
 {% block content %}
 <article class="container mx-auto px-4 py-16 max-w-4xl">
     <header class="mb-12">
-        <div class="flex items-center space-x-4 mb-6 text-orange-500 font-bold uppercase text-xs tracking-widest">
+        <div class="flex items-center space-x-4 mb-6 text-blue-600 font-bold uppercase text-xs tracking-widest">
             <a href="/lab" class="hover:text-white transition-colors">Lab Index</a>
             <span>/</span>
             <span class="text-zinc-500">Analysis No. {{ post.id }}</span>
@@ -33,18 +33,18 @@
                 <div class="flex space-x-4">
                     <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.url|urlencode }}"
                         target="_blank"
-                        class="text-zinc-500 hover:text-orange-500 transition-colors uppercase text-[10px] font-bold tracking-widest">Share
+                        class="text-zinc-500 hover:text-blue-600 transition-colors uppercase text-[10px] font-bold tracking-widest">Share
                         on X</a>
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
                         target="_blank"
-                        class="text-zinc-500 hover:text-orange-500 transition-colors uppercase text-[10px] font-bold tracking-widest">LinkedIn</a>
+                        class="text-zinc-500 hover:text-blue-600 transition-colors uppercase text-[10px] font-bold tracking-widest">LinkedIn</a>
                     <button onclick="navigator.clipboard.writeText(window.location.href); alert('Lab Link Copied!')"
-                        class="text-zinc-500 hover:text-orange-500 transition-colors uppercase text-[10px] font-bold tracking-widest">Copy
+                        class="text-zinc-500 hover:text-blue-600 transition-colors uppercase text-[10px] font-bold tracking-widest">Copy
                         Link</button>
                 </div>
             </div>
             <a href="/lab"
-                class="bg-zinc-800 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all">
+                class="bg-zinc-800 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all">
                 More from the Lab
             </a>
         </div>
@@ -59,7 +59,7 @@
         color: #f4f4f5;
         margin-top: 3rem;
         margin-bottom: 1rem;
-        border-left: 4px solid #f97316;
+        border-left: 4px solid #2563eb;
         padding-left: 1rem;
     }
 
@@ -85,7 +85,7 @@
 
     .blog-content li::before {
         content: "•";
-        color: #f97316;
+        color: #2563eb;
         position: absolute;
         left: 0;
         font-weight: bold;

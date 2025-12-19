@@ -5,14 +5,65 @@
     <!-- Filter Bar -->
     <div class="flex flex-wrap items-center gap-3 mb-10 overflow-x-auto pb-4">
         <a href="/"
-            class="px-5 py-2 rounded-full {% if not category %}bg-orange-600 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">ALL
+            class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">ALL
             WIRE</a>
         {% for cat in categories %}
         <a href="/?category={{ cat }}"
-            class="px-5 py-2 rounded-full {% if category == cat %}bg-orange-600 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">{{
+            class="px-5 py-2 rounded-full {% if category == cat %}bg-blue-700 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">{{
             cat }}</a>
         {% endfor %}
     </div>
+
+    <!-- Featured Carousel (8 Recent Articles) -->
+    {% if articles|length >= 8 %}
+    <div class="mb-8 lg:col-span-3 relative overflow-hidden rounded-2xl glass-card" id="carousel-container">
+        <div class="relative h-96" id="carousel">
+            {% for art in articles[:8] %}
+            <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100{% else %}opacity-0{% endif %}"
+                data-index="{{ loop.index0 }}">
+                <a href="/article/{{ art.slug }}" class="block h-full relative">
+                    <img src="{{ art.image }}" alt="{{ art.title }}" class="w-full h-full object-cover"
+                        onerror="this.src='https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                    <div class="absolute bottom-0 left-0 right-0 p-8">
+                        <span
+                            class="inline-block px-3 py-1 bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-md mb-3">
+                            {{ art.category }}
+                        </span>
+                        <h2 class="text-3xl font-black text-white mb-3 leading-tight">{{ art.title }}</h2>
+                        <p class="text-white/80 text-sm line-clamp-2">{{ art.gist.replace('**', '') }}</p>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Carousel Controls -->
+        <button onclick="changeSlide(-1)"
+            class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-all"
+            aria-label="Previous slide">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </button>
+        <button onclick="changeSlide(1)"
+            class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-all"
+            aria-label="Next slide">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+
+        <!-- Carousel Indicators -->
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {% for art in articles[:8] %}
+            <button onclick="goToSlide({{ loop.index0 }})"
+                class="carousel-indicator w-2 h-2 rounded-full bg-white/50 hover:bg-white transition-all {% if loop.index0 == 0 %}bg-white{% endif %}"
+                data-index="{{ loop.index0 }}" aria-label="Go to slide {{ loop.index }}"></button>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Bento Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -34,7 +85,7 @@
                 <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent"></div>
                 <div class="absolute bottom-4 left-4">
                     <span
-                        class="px-3 py-1 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg">
+                        class="px-3 py-1 bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg">
                         {{ art.category }}
                     </span>
                 </div>
@@ -59,7 +110,7 @@
                             <span class="text-white text-[8px] font-black">W</span>
                         </div>
                         {% else %}
-                        <div class="w-5 h-5 rounded bg-orange-600 flex items-center justify-center">
+                        <div class="w-5 h-5 rounded bg-blue-700 flex items-center justify-center">
                             <span class="text-white text-[8px] font-black">AI</span>
                         </div>
                         {% endif %}
@@ -73,18 +124,18 @@
 
                 <a href="/article/{{ art.slug }}" class="group/link">
                     <h2
-                        class="text-lg font-bold leading-tight group-hover/link:text-orange-500 transition-colors mb-3 line-clamp-2">
+                        class="text-lg font-bold leading-tight group-hover/link:text-blue-600 transition-colors mb-3 line-clamp-2">
                         {{ art.title }}
                     </h2>
                 </a>
 
                 <p class="text-zinc-400 text-xs mb-2 leading-relaxed line-clamp-none">
-                    <strong class="text-[9px] uppercase tracking-widest text-orange-500 font-black">THE GIST:</strong>
+                    <strong class="text-[9px] uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
                     {{ art.gist.replace('**', '') }}
                 </p>
 
                 <div class="text-[10px] font-medium text-zinc-300 leading-snug mb-4 flex-grow line-clamp-none">
-                    <span class="text-orange-500 font-black uppercase tracking-widest text-[9px]">IMPACT:</span>
+                    <span class="text-blue-600 font-black uppercase tracking-widest text-[9px]">IMPACT:</span>
                     {{ art.why_it_matters.replace('**', '') }}
                 </div>
 
@@ -138,7 +189,7 @@
                 </div>
             </div>
             <a href="/article/{{ art.slug }}"
-                class="bg-zinc-800/50 hover:bg-orange-600 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all">
+                class="bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all">
                 Deep Dive // Full Analysis
             </a>
         </div>
@@ -150,7 +201,7 @@
     <div class="flex items-center justify-center space-x-4 mt-12 pb-8">
         {% if page > 1 %}
         <a href="/?page={{ page - 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-orange-600 transition-all">Previous</a>
+            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">Previous</a>
         {% else %}
         <span
             class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Previous</span>
@@ -162,7 +213,7 @@
 
         {% if page < total_pages %} <a
             href="/?page={{ page + 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-orange-600 transition-all">
+            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">
             Next</a>
             {% else %}
             <span
@@ -174,7 +225,7 @@
     {% if q %}
     <div class="mb-10 flex items-center justify-between">
         <h2 class="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">Search Results for: <span
-                class="text-orange-500">"{{ q }}"</span></h2>
+                class="text-blue-600">"{{ q }}"</span></h2>
         <a href="/"
             class="text-zinc-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
             Clear Search <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,4 +250,48 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.carousel-slide');
+    const indicators = document.querySelectorAll('.carousel-indicator');
+    let autoRotate;
+
+    function showSlide(index) {
+        slides.forEach((slide, i) => {
+            slide.classList.toggle('opacity-100', i === index);
+            slide.classList.toggle('opacity-0', i !== index);
+        });
+
+        indicators.forEach((indicator, i) => {
+            indicator.classList.toggle('bg-white', i === index);
+            indicator.classList.toggle('bg-white/50', i !== index);
+        });
+    }
+
+    function changeSlide(direction) {
+        currentSlide = (currentSlide + direction + slides.length) % slides.length;
+        showSlide(currentSlide);
+        resetAutoRotate();
+    }
+
+    function goToSlide(index) {
+        currentSlide = index;
+        showSlide(currentSlide);
+        resetAutoRotate();
+    }
+
+    function resetAutoRotate() {
+        clearInterval(autoRotate);
+        autoRotate = setInterval(() => {
+            currentSlide = (currentSlide + 1) % slides.length;
+            showSlide(currentSlide);
+        }, 5000);
+    }
+
+    // Start auto-rotation on page load
+    if (slides.length > 0) {
+        resetAutoRotate();
+    }
+</script>
 {% endblock %}

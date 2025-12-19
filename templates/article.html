@@ -54,7 +54,7 @@
 <div class="container mx-auto px-4 py-12 max-w-4xl">
     <!-- Breadcrumb / Back Navigation -->
     <a href="/"
-        class="inline-flex items-center space-x-2 text-zinc-500 hover:text-orange-500 transition-colors mb-8 font-bold text-xs uppercase tracking-widest">
+        class="inline-flex items-center space-x-2 text-zinc-500 hover:text-blue-600 transition-colors mb-8 font-bold text-xs uppercase tracking-widest">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
@@ -69,7 +69,7 @@
         <div class="absolute inset-0 hero-container-gradient"></div>
         <div class="absolute bottom-10 left-10 pr-10">
             <div
-                class="inline-block px-4 py-1.5 bg-orange-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-full mb-4 shadow-xl">
+                class="inline-block px-4 py-1.5 bg-blue-700 text-white text-xs font-black uppercase tracking-[0.2em] rounded-full mb-4 shadow-xl">
                 {{ article.category }}
             </div>
             <h1 class="text-4xl md:text-5xl font-black leading-tight text-white max-w-3xl hero-title drop-shadow-2xl">
@@ -83,10 +83,10 @@
         <div class="lg:col-span-8">
             <div class="flex items-center space-x-4 mb-8 text-zinc-500 text-sm font-bold uppercase tracking-widest">
                 <span>Source: <a href="{{ article.source_url }}" target="_blank"
-                        class="text-orange-500 hover:underline">{{ article.source }}</a></span>
+                        class="text-blue-600 hover:underline">{{ article.source }}</a></span>
                 <span>•</span>
                 <span class="text-zinc-600">Summarized by <a href="{{ article.source_url }}" target="_blank"
-                        class="text-orange-500 hover:underline">Gemini</a></span>
+                        class="text-blue-600 hover:underline">Gemini</a></span>
             </div>
 
             <!-- Ad Space: Top Content -->
@@ -101,8 +101,8 @@
 
             <!-- The Gist summary box -->
             <div
-                class="border-l-4 border-orange-500 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
-                <h3 class="text-orange-500 font-black uppercase text-xs tracking-widest mb-4">The Gist</h3>
+                class="border-l-4 border-blue-600 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
+                <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist</h3>
                 <p class="text-xl font-semibold leading-relaxed text-zinc-100">
                     {{ article.gist.replace('**', '') }}
                 </p>
@@ -113,7 +113,7 @@
             <div
                 class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
                 <div class="flex items-center space-x-4">
-                    <div class="p-3 bg-zinc-900 rounded-xl text-orange-500">
+                    <div class="p-3 bg-zinc-900 rounded-xl text-blue-600">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15L4 14a1 1 0 010-2l1.586-1L7 10.414V13.586L5.586 15z" />
@@ -153,8 +153,8 @@
             <!-- ELI5 Section (Now Prominent) -->
             {% if article.eli5 %}
             <div
-                class="bg-orange-600/10 border border-orange-600/20 rounded-2xl p-6 mb-12 flex items-start space-x-4 shadow-sm">
-                <div class="bg-orange-600 p-2 rounded-lg text-white">
+                class="bg-blue-700/10 border border-blue-700/20 rounded-2xl p-6 mb-12 flex items-start space-x-4 shadow-sm">
+                <div class="bg-blue-700 p-2 rounded-lg text-white">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -162,7 +162,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-orange-500 font-black uppercase text-[10px] tracking-[0.2em] mb-2">Explain Like I'm
+                    <h3 class="text-blue-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">Explain Like I'm
                         Five</h3>
                     <p class="text-zinc-200 text-lg italic leading-relaxed font-medium">
                         "{{ article.eli5.replace('**', '') }}"
@@ -174,7 +174,7 @@
             <!-- Deep Analysis Section -->
             <section class="mb-12">
                 <h3
-                    class="text-white font-black uppercase text-xs tracking-widest mb-6 border-l-4 border-orange-600 pl-4 py-1">
+                    class="text-white font-black uppercase text-xs tracking-widest mb-6 border-l-4 border-blue-700 pl-4 py-1">
                     Deep Intelligence Analysis</h3>
                 <div class="text-zinc-300 text-lg leading-relaxed space-y-4">
                     {{ article.deep_analysis | replace('\n', '<br>') | safe }}
@@ -189,8 +189,8 @@
                 <h3 class="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mb-4">Premium Sponsorship</h3>
                 <div
                     class="aspect-[4/5] bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-6 text-center">
-                    <div class="w-16 h-16 bg-orange-600/20 rounded-full flex items-center justify-center mb-4">
-                        <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-16 h-16 bg-blue-700/20 rounded-full flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
@@ -199,7 +199,7 @@
                     <p class="text-zinc-500 text-xs mb-4 uppercase tracking-tighter font-medium">Reach 50,000+ AI
                         Architects and Industry Leaders Daily.</p>
                     <button
-                        class="w-full py-2 bg-zinc-800 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-colors">Digital
+                        class="w-full py-2 bg-zinc-800 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-colors">Digital
                         Media Kit</button>
                 </div>
 
@@ -210,11 +210,11 @@
                     <div class="flex flex-col gap-3">
                         <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
                             target="_blank"
-                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-orange-500 transition-all group">
+                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Share
                                 on X</span>
-                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-orange-500" fill="currentColor"
+                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-blue-600" fill="currentColor"
                                 viewBox="0 0 24 24">
                                 <path
                                     d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -222,11 +222,11 @@
                         </a>
                         <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
                             target="_blank"
-                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-orange-500 transition-all group">
+                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Post
                                 to LinkedIn</span>
-                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-orange-500" fill="currentColor"
+                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-blue-600" fill="currentColor"
                                 viewBox="0 0 24 24">
                                 <path
                                     d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -234,11 +234,11 @@
                         </a>
                         <button
                             onclick="navigator.clipboard.writeText(window.location.href); alert('Signal Link Copied!')"
-                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-orange-500 transition-all group w-full text-left">
+                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 transition-all group w-full text-left">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Internal
                                 Link</span>
-                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-orange-500" fill="none"
+                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-blue-600" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -257,7 +257,7 @@
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-xs text-zinc-400 font-bold uppercase tracking-tighter">Signal</span>
-                            <span class="text-xs text-orange-500 font-mono">ENCRYPTED</span>
+                            <span class="text-xs text-blue-600 font-mono">ENCRYPTED</span>
                         </div>
                     </div>
                 </div>
@@ -275,7 +275,7 @@
 
         <!-- Prominent Link to Source -->
         <a href="{{ article.source_url }}" target="_blank"
-            class="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-orange-500/20 group">
+            class="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 group">
             <span>Read Full Story on {{ article.source }}</span>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -291,7 +291,7 @@
         <ul class="space-y-4">
             {% for detail in article.key_details %}
             <li class="flex items-start">
-                <span class="text-orange-500 mr-3 mt-1 text-lg">●</span>
+                <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
                 <span class="text-zinc-300 text-lg">{{ detail }}</span>
             </li>
             {% endfor %}

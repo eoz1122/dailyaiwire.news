@@ -78,7 +78,7 @@
             --border-color: #27272a;
             --card-bg: rgba(24, 24, 27, 0.7);
             --header-bg: rgba(9, 9, 11, 0.85);
-            --accent-orange: #f97316;
+            --accent-blue: #2563eb;
         }
 
         .light-mode {
@@ -89,7 +89,7 @@
             --border-color: #e5e7eb;
             --card-bg: rgba(255, 255, 255, 0.9);
             --header-bg: rgba(255, 255, 255, 0.9);
-            --accent-orange: #ea580c;
+            --accent-blue: #1d4ed8;
         }
 
         body {
@@ -106,8 +106,8 @@
             font-family: 'Outfit', sans-serif;
         }
 
-        .orange-accent {
-            color: var(--accent-orange);
+        .blue-accent {
+            color: var(--accent-blue);
         }
 
         .ticker-wrap {
@@ -115,7 +115,7 @@
             overflow: hidden;
             background: var(--bg-secondary);
             padding: 0.5rem 0;
-            border-bottom: 2px solid var(--accent-orange);
+            border-bottom: 2px solid var(--accent-blue);
         }
 
         .ticker-content {
@@ -142,7 +142,7 @@
         }
 
         .glass-card:hover {
-            border-color: var(--accent-orange);
+            border-color: var(--accent-blue);
             transform: translateY(-4px);
             box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
         }
@@ -178,7 +178,7 @@
             color: #111827 !important;
         }
 
-        .light-mode .text-white:not(.bg-red-600):not(.bg-orange-600):not(.bg-green-600):not(.bg-blue-600):not(.hero-title),
+        .light-mode .text-white:not(.bg-red-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-blue-600):not(.hero-title),
         .light-mode h1:not(.hero-title),
         .light-mode h2,
         .light-mode h3,
@@ -219,8 +219,8 @@
             border-color: #d1d5db !important;
         }
 
-        .light-mode .bg-orange-600\/10,
-        .light-mode .bg-orange-500\/10 {
+        .light-mode .bg-blue-700\/10,
+        .light-mode .bg-blue-600\/10 {
             background-color: rgba(234, 88, 12, 0.15) !important;
         }
 
@@ -248,7 +248,7 @@
             color: #1d4ed8 !important;
         }
 
-        .light-mode .text-orange-500 {
+        .light-mode .text-blue-600 {
             color: #c2410c !important;
         }
 
@@ -313,7 +313,7 @@
         }
 
         .light-mode .article-card a[class*="bg-zinc-800\/50"]:hover {
-            background-color: #ea580c !important;
+            background-color: #1d4ed8 !important;
             color: #ffffff !important;
         }
 
@@ -330,8 +330,8 @@
     <!-- Top Ticker -->
     <div class="ticker-wrap">
         <div class="ticker-content">
-            <span id="local-time" class="mx-4 font-mono text-xs text-orange-400"></span>
-            <span class="mx-4 font-bold text-orange-500 uppercase tracking-tighter">BREAKING:</span>
+            <span id="local-time" class="mx-4 font-mono text-xs text-blue-500"></span>
+            <span class="mx-4 font-bold text-blue-600 uppercase tracking-tighter">BREAKING:</span>
             {% if articles %}
             {% for art in articles[:5] %}
             <span class="mx-4 font-medium">• {{ art.title }}</span>
@@ -349,7 +349,7 @@
                 <a href="/" class="flex items-center space-x-3 group min-h-[44px]" aria-label="DailyAIWire Home">
                     <svg width="40" height="40" viewBox="0 0 100 100"
                         class="group-hover:rotate-12 transition-transform duration-300">
-                        <circle cx="50" cy="50" r="8" fill="#f97316" />
+                        <circle cx="50" cy="50" r="8" fill="#2563eb" />
                         <circle cx="20" cy="20" r="6" class="fill-current text-[var(--text-primary)] opacity-50" />
                         <circle cx="80" cy="20" r="6" class="fill-current text-[var(--text-primary)] opacity-50" />
                         <circle cx="20" cy="80" r="6" class="fill-current text-[var(--text-primary)] opacity-50" />
@@ -366,18 +366,18 @@
                     <div class="flex flex-col">
                         <span
                             class="text-2xl font-bold tracking-tighter brand-font leading-none text-[var(--text-primary)]">DailyAI<span
-                                class="orange-accent">Wire</span></span>
+                                class="blue-accent">Wire</span></span>
                         <span class="text-[10px] text-zinc-500 font-medium tracking-widest uppercase">Essential
                             Intelligence</span>
                     </div>
                 </a>
                 <nav class="hidden lg:flex space-x-6 text-sm font-bold tracking-widest text-zinc-400">
-                    <a href="/" class="hover:text-orange-500 transition-colors uppercase py-2 px-1">Wire</a>
-                    <a href="/lab" class="hover:text-orange-500 transition-colors uppercase py-2 px-1">Lab</a>
+                    <a href="/" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Wire</a>
+                    <a href="/lab" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Lab</a>
                     <a href="/?category=Tools"
-                        class="hover:text-orange-500 transition-colors uppercase py-2 px-1">Terminal</a>
+                        class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Terminal</a>
                     <a href="/?category=Business"
-                        class="hover:text-orange-500 transition-colors uppercase py-2 px-1">Reports</a>
+                        class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Reports</a>
                 </nav>
             </div>
 
@@ -385,9 +385,9 @@
                 <!-- Search Bar -->
                 <form action="/" method="GET" class="hidden md:flex items-center relative group">
                     <input type="text" name="q" placeholder="Search Intelligence..." value="{{ q or '' }}"
-                        class="bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full w-48 focus:w-64 focus:border-orange-500 focus:outline-none transition-all duration-300 placeholder:text-zinc-600">
+                        class="bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full w-48 focus:w-64 focus:border-blue-600 focus:outline-none transition-all duration-300 placeholder:text-zinc-600">
                     <button type="submit" aria-label="Search"
-                        class="absolute right-3 text-zinc-600 group-focus-within:text-orange-500 transition-colors">
+                        class="absolute right-3 text-zinc-600 group-focus-within:text-blue-600 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -410,7 +410,7 @@
                 </button>
                 <div class="hidden sm:block text-right border-l pl-4 border-zinc-500/20">
                     <div id="display-date"
-                        class="text-[10px] font-black uppercase tracking-widest text-orange-500 leading-tight"></div>
+                        class="text-[10px] font-black uppercase tracking-widest text-blue-600 leading-tight"></div>
                     <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-tighter">Status: Active</div>
                 </div>
             </div>
@@ -426,7 +426,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
                 <div>
                     <span class="text-xl font-bold tracking-tighter brand-font">DailyAI<span
-                            class="orange-accent">Wire</span></span>
+                            class="blue-accent">Wire</span></span>
                     <p class="text-zinc-500 mt-4 text-sm leading-relaxed">Automated intelligence for the next generation
                         of industry leaders. Essential data, processed instantly by Gemini.</p>
                 </div>
@@ -435,10 +435,10 @@
                         class="font-black mb-4 uppercase text-xs tracking-[0.2em] text-[var(--text-primary)] border-b border-zinc-500/20 pb-2">
                         Wire Navigation</h3>
                     <ul class="text-zinc-500 text-sm space-y-3 font-semibold">
-                        <li><a href="/" class="hover:text-orange-500 transition-colors uppercase">Home</a></li>
-                        <li><a href="/privacy" class="hover:text-orange-500 transition-colors uppercase">Privacy
+                        <li><a href="/" class="hover:text-blue-600 transition-colors uppercase">Home</a></li>
+                        <li><a href="/privacy" class="hover:text-blue-600 transition-colors uppercase">Privacy
                                 Policy</a></li>
-                        <li><a href="#" class="hover:text-orange-500 transition-colors uppercase">Media Kit</a></li>
+                        <li><a href="#" class="hover:text-blue-600 transition-colors uppercase">Media Kit</a></li>
                     </ul>
                 </div>
                 <div>
@@ -446,7 +446,7 @@
                         class="font-black mb-4 uppercase text-xs tracking-[0.2em] text-[var(--text-primary)] border-b border-zinc-500/20 pb-2">
                         Signal Feed</h3>
                     <ul class="text-zinc-500 text-sm space-y-3 font-semibold">
-                        <li><a href="/rss" class="hover:text-orange-500 transition-colors uppercase italic">RSS // XML
+                        <li><a href="/rss" class="hover:text-blue-600 transition-colors uppercase italic">RSS // XML
                                 Feed</a></li>
                     </ul>
                 </div>
@@ -478,7 +478,13 @@
         }
 
         themeToggle.addEventListener('click', () => setTheme(!document.body.classList.contains('light-mode')));
-        if (localStorage.getItem('theme') === 'light') setTheme(true);
+
+        // Set light mode as default
+        if (!localStorage.getItem('theme')) {
+            setTheme(true);
+        } else if (localStorage.getItem('theme') === 'light') {
+            setTheme(true);
+        }
 
         function updateTime() {
             const now = new Date();
