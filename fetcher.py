@@ -172,18 +172,25 @@ def fetch_all_sources() -> List[Dict]:
                 link = entry.link
                 if link not in unique_articles:
                     # Normalize date to ISO format
-                    from datetime import datetime
-                    pub_date = getattr(entry, 'published_parsed', None)
-                    if pub_date:
-                        iso_date = datetime(*pub_date[:6]).isoformat()
+                    from datetime import datetime, timedelta
+                    pub_date_struct = getattr(entry, 'published_parsed', None)
+                    
+                    if pub_date_struct:
+                        dt_published = datetime(*pub_date_struct[:6])
                     else:
-                        iso_date = datetime.now().isoformat()
-                        
+                        dt_published = datetime.now()
+
+                    # --- FRESHNESS CHECK: Limit to last 48 hours ---
+                    two_days_ago = datetime.now() - timedelta(hours=48)
+                    if dt_published < two_days_ago:
+                        # print(f"  - Skipping old news: {entry.title[:50]}...")
+                        continue
+
                     unique_articles[link] = {
                         "title": title,
                         "source": source_name,
                         "link": link,
-                        "published": iso_date
+                        "published": dt_published.isoformat()
                     }
         except Exception as e:
             print(f"Error fetching {source_name}: {e}")
