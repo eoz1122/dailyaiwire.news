@@ -26,7 +26,7 @@ def index():
     page = request.args.get('page', 1, type=int)
     category = request.args.get('category')
     q = request.args.get('q', '').strip()
-    per_page = 12
+    per_page = 17  # 8 for carousel + 9 for grid
     offset = (page - 1) * per_page
     
     conn = get_db_connection()
@@ -72,9 +72,14 @@ def index():
         except:
             article_dict['key_details'] = []
         processed_articles.append(article_dict)
+    
+    # Separate carousel articles (first 8) from grid articles (next 9)
+    carousel_articles = processed_articles[:8] if len(processed_articles) >= 8 else []
+    grid_articles = processed_articles[8:17] if len(processed_articles) > 8 else processed_articles
         
     return render_template('index.html', 
-                          articles=processed_articles, 
+                          articles=grid_articles,
+                          carousel_articles=carousel_articles,
                           page=page, 
                           total_pages=total_pages,
                           category=category,

@@ -15,23 +15,24 @@
     </div>
 
     <!-- Featured Carousel (8 Recent Articles) -->
-    {% if articles|length >= 8 %}
+    {% if carousel_articles|length >= 8 %}
     <div class="mb-8 lg:col-span-3 relative overflow-hidden rounded-2xl glass-card" id="carousel-container">
         <div class="relative h-96" id="carousel">
-            {% for art in articles[:8] %}
+            {% for art in carousel_articles %}
             <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100{% else %}opacity-0{% endif %}"
                 data-index="{{ loop.index0 }}">
                 <a href="/article/{{ art.slug }}" class="block h-full relative">
                     <img src="{{ art.image }}" alt="{{ art.title }}" class="w-full h-full object-cover"
                         onerror="this.src='https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200'">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-8">
                         <span
                             class="inline-block px-3 py-1 bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-md mb-3">
                             {{ art.category }}
                         </span>
-                        <h2 class="text-3xl font-black text-white mb-3 leading-tight">{{ art.title }}</h2>
-                        <p class="text-white/80 text-sm line-clamp-2">{{ art.gist.replace('**', '') }}</p>
+                        <h2 class="text-3xl font-black text-white mb-3 leading-tight drop-shadow-lg">{{ art.title }}
+                        </h2>
+                        <p class="text-white text-sm line-clamp-2 drop-shadow-md">{{ art.gist.replace('**', '') }}</p>
                     </div>
                 </a>
             </div>
@@ -56,7 +57,7 @@
 
         <!-- Carousel Indicators -->
         <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-            {% for art in articles[:8] %}
+            {% for art in carousel_articles %}
             <button onclick="goToSlide({{ loop.index0 }})"
                 class="carousel-indicator w-2 h-2 rounded-full bg-white/50 hover:bg-white transition-all {% if loop.index0 == 0 %}bg-white{% endif %}"
                 data-index="{{ loop.index0 }}" aria-label="Go to slide {{ loop.index }}"></button>
