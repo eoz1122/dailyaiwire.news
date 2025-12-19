@@ -43,6 +43,7 @@ class AudioGenerator:
 
         # Synthesis parameters
         input_text = texttospeech.SynthesisInput(text=clean_text[:4500])
+        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
 
         try:
             # 1. Generate Male (Neutral Neural2)
@@ -52,7 +53,6 @@ class AudioGenerator:
                     language_code="en-US",
                     name="en-US-Neural2-J" # High-quality Neutral Male
                 )
-                audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
                 response = self.client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
                 with open(male_path, "wb") as out:
                     out.write(response.audio_content)
