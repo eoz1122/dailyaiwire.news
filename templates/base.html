@@ -173,7 +173,10 @@
         }
 
         .light-mode .text-white:not(.bg-red-600):not(.bg-orange-600):not(.bg-green-600):not(.bg-blue-600):not(.hero-title),
-        .light-mode h1:not(.hero-title) {
+        .light-mode h1:not(.hero-title),
+        .light-mode h2,
+        .light-mode h3,
+        .light-mode h4 {
             color: #09090b !important;
         }
 
@@ -271,11 +274,47 @@
             border-color: rgba(185, 28, 28, 0.2) !important;
         }
 
+        /* Light Mode Glass Card Override */
+        .light-mode .glass-card {
+            background: #ffffff !important;
+            border-color: #e5e7eb !important;
+            box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .light-mode .article-card {
+            background: #ffffff !important;
+        }
+
+        .light-mode .article-card a h2 {
+            color: #09090b !important;
+        }
+
+        .light-mode .article-card .border-t {
+            border-color: #f3f4f6 !important;
+        }
+
+        /* Tooltip Arrows in Light Mode */
+        .light-mode .group\/tooltip div[class*="rotate-45"] {
+            background-color: #ffffff !important;
+            border-color: #e5e7eb !important;
+        }
+
+        /* Full Analysis Button in Light Mode */
+        .light-mode .article-card a[class*="bg-zinc-800\/50"] {
+            background-color: #f9fafb !important;
+            color: #4b5563 !important;
+            border-top: 1px solid #f3f4f6 !important;
+        }
+
+        .light-mode .article-card a[class*="bg-zinc-800\/50"]:hover {
+            background-color: #ea580c !important;
+            color: #ffffff !important;
+        }
+
         /* Custom Transitions */
         .glass-card {
-            background: rgba(18, 18, 21, 0.8);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
     </style>
 </head>

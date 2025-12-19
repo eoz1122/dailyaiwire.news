@@ -243,10 +243,9 @@ def process_batch(batch: List[Dict]):
         print(f"Error processing batch: {e}")
         return []
 
-def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
+def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    distributor = SocialDistributor()
     
     for art in processed_articles:
         # Skip articles where AI failed to find content
@@ -332,14 +331,17 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict]):
                 original.get('published')
             ))
             
-            # Post to Social Media Channels
-            distributor.distribute(art)
+            # Post to Social Media Channels (limit to 2 per run)
+            if distributor and posts_count < social_limit:
+                distributor.distribute(art)
+                posts_count += 1
             
         except Exception as e:
             print(f"Error saving article {art.get('headline')}: {e}")
             
     conn.commit()
     conn.close()
+    return posts_count
 
 def main():
     print("Initializing Database...")
@@ -365,13 +367,16 @@ def main():
 
     # Process in batches of 2 for maximum stability during import
     batch_size = 2
+    distributor = SocialDistributor()
+    total_posts_sent = 0
+    
     for i in range(0, len(new_articles), batch_size):
         batch = new_articles[i:i + batch_size]
         print(f"Processing batch {i//batch_size + 1} ({len(batch)} articles)...")
         processed = process_batch(batch)
         if processed:
-            save_to_db(processed, batch)
-            print(f"Saved {len(processed)} articles from batch.")
+            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=2, posts_count=total_posts_sent)
+            print(f"Saved {len(processed)} articles from batch. Social posts sent so far: {total_posts_sent}")
         
         # Sleep 15s between batches to avoid rate limits
         time.sleep(15)
