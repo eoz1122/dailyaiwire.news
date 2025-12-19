@@ -12,8 +12,6 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-    return conn
-
 @app.context_processor
 def inject_config():
     return {
