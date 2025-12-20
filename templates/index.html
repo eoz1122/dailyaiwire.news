@@ -10,7 +10,7 @@
             WIRE</a>
         {% for cat in categories %}
         <a href="/?category={{ cat }}"
-            class="px-5 py-2 rounded-full {% if category == cat %}bg-blue-700 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">{{
+            class="px-5 py-2 rounded-full {% if category == cat %}{{ category_color(cat) }} text-white hover:brightness-110{% else %}bg-zinc-800 text-zinc-400 hover:bg-blue-600 hover:text-white{% endif %} font-bold text-xs uppercase tracking-widest transition-all">{{
             cat }}</a>
         {% endfor %}
     </div>
@@ -138,13 +138,13 @@
                     </h2>
                 </a>
 
-                <p class="text-zinc-400 text-xs mb-2 leading-relaxed line-clamp-none">
-                    <strong class="text-[9px] uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
+                <p class="text-zinc-400 text-sm mb-3 leading-relaxed line-clamp-none">
+                    <strong class="text-[10px] uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
                     {{ art.gist.replace('**', '') }}
                 </p>
 
-                <div class="text-[10px] font-medium text-zinc-300 leading-snug mb-4 flex-grow line-clamp-none">
-                    <span class="text-blue-600 font-black uppercase tracking-widest text-[9px]">IMPACT:</span>
+                <div class="text-xs font-medium text-zinc-300 leading-snug mb-4 flex-grow line-clamp-none">
+                    <span class="text-blue-600 font-black uppercase tracking-widest text-[10px]">IMPACT:</span>
                     {{ art.why_it_matters.replace('**', '') }}
                 </div>
 

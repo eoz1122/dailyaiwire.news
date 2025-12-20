@@ -16,17 +16,32 @@ def get_db_connection():
 def inject_config():
     local_img = os.path.join(app.static_folder, 'emre.jpg')
     img = '/static/emre.jpg' if os.path.exists(local_img) else "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
+    
+    def get_cat_color(c):
+        colors = {
+            'Business': 'bg-blue-600',
+            'Technology': 'bg-emerald-600',
+            'Policy': 'bg-red-600',
+            'Science': 'bg-teal-600',
+            'Tools': 'bg-amber-600',
+            'Security': 'bg-indigo-600',
+            'Finance': 'bg-green-600',
+            'Health': 'bg-rose-600',
+            'Energy': 'bg-yellow-600'
+        }
+        return colors.get(c, 'bg-blue-600')
+
     return {
         'current_year': datetime.now().year,
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'emre': {
             'name': 'Emre Ozen',
             'title': 'VP, Head of Ad Operations & Analytics',
-            'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.',
+            'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I\'m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.',
             'linkedin': 'https://www.linkedin.com/in/emreozen/',
             'image': img
         },
-        'category_color': lambda c: 'bg-blue-600'
+        'category_color': get_cat_color
     }
 
 @app.route('/')
