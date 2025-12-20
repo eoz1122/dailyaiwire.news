@@ -62,6 +62,11 @@ def init_db():
             subtitle TEXT,
             content TEXT,
             image TEXT,
+            author_name TEXT,
+            author_title TEXT,
+            author_image TEXT,
+            author_linkedin TEXT,
+            meta_description TEXT,
             published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
