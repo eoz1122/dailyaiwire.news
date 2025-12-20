@@ -45,7 +45,8 @@ def inject_config():
     # Author Metadata: Local first, stable CDN fallback
     img_path = '/static/emre.jpg'
     local_img = os.path.join(os.path.dirname(__file__), 'static', 'emre.jpg')
-    stable_fallback = 'https://images.unsplash.com/photo-1519085185758-2ad311a68731?auto=format&fit=crop&q=80&w=300'
+    # Use a more reliable Gravatar-style or persistent placeholder if local fails
+    stable_fallback = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
     
     emre_profile = {
         'name': 'Emre Ozen',
