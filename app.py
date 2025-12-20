@@ -2,7 +2,7 @@ import os
 import sqlite3
 import json
 from datetime import datetime
-from flask import Flask, render_template, abort, request, Response
+from flask import Flask, render_template, abort, request, Response, make_response
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,6 +33,11 @@ def inject_config():
         'linkedin': 'https://www.linkedin.com/in/emreozen/',
         'image': '/static/emre.jpg'
     }
+
+    # Verify image exists or use fallback
+    if not os.path.exists(os.path.join(app.static_folder, 'emre.jpg')):
+        emre_data['image'] = 'https://media.licdn.com/dms/image/v2/C4D03AQEa1z_lV0c9vQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516260952865?e=1740009600&v=beta&t=H-W6z6x9x-x-x-x-x-x-x-x'
+
 
     try:
         conn = get_db_connection()
@@ -202,8 +207,39 @@ def not_found(e):
 def server_error(e):
     return render_template('500.html'), 500
 
-# Import SEO routes (sitemap, robots.txt)
-import seo_routes
+# SEO Routes (Integrated from seo_routes.py)
+@app.route('/sitemap.xml')
+def sitemap():
+    conn = get_db_connection()
+    articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
+    blog_posts = conn.execute('SELECT slug, published_at FROM blog_posts ORDER BY published_at DESC').fetchall()
+    conn.close()
+    
+    xml = ['<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    xml.append(f'<url><loc>https://dailyaiwire.news/</loc><priority>1.0</priority></url>')
+    xml.append(f'<url><loc>https://dailyaiwire.news/lab</loc><priority>0.8</priority></url>')
+    xml.append(f'<url><loc>https://dailyaiwire.news/about</loc><priority>0.8</priority></url>')
+    
+    for article in articles:
+        xml.append(f'<url><loc>https://dailyaiwire.news/article/{article["slug"]}</loc><priority>0.7</priority></url>')
+    for post in blog_posts:
+        xml.append(f'<url><loc>https://dailyaiwire.news/lab/{post["slug"]}</loc><priority>0.8</priority></url>')
+    
+    xml.append('</urlset>')
+    response = make_response('\n'.join(xml))
+    response.headers['Content-Type'] = 'application/xml'
+    return response
+
+@app.route('/robots.txt')
+def robots():
+    try:
+        with open('static/robots.txt', 'r') as f:
+            content = f.read()
+    except:
+        content = "User-agent: *\nAllow: /\nSitemap: https://dailyaiwire.news/sitemap.xml"
+    response = make_response(content)
+    response.headers['Content-Type'] = 'text/plain'
+    return response
 
 if __name__ == '__main__':
     # Development server
