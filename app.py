@@ -44,6 +44,7 @@ def inject_config():
 
     # Author Metadata: Local first, stable CDN fallback
     img_path = '/static/emre.jpg'
+    local_img = os.path.join(os.path.dirname(__file__), 'static', 'emre.jpg')
     stable_fallback = 'https://images.unsplash.com/photo-1519085185758-2ad311a68731?auto=format&fit=crop&q=80&w=300'
     
     emre_profile = {
@@ -51,7 +52,7 @@ def inject_config():
         'title': 'VP, Head of Ad Operations & Analytics',
         'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising. I’m a self-motivated builder who loves using smart tech to make marketing more strategic and efficient.',
         'linkedin': 'https://www.linkedin.com/in/emreozen/',
-        'image': img_path if os.path.exists(os.path.join(app.static_folder, 'emre.jpg')) else stable_fallback
+        'image': img_path if os.path.exists(local_img) else stable_fallback
     }
 
     return {

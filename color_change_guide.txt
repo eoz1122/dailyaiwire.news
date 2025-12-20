@@ -1,0 +1,20 @@
+# Color Replacement Guide
+# Replace all instances of orange with blue
+
+OLD_COLORS = {
+    "orange-500": "blue-600",
+    "orange-600": "blue-700", 
+    "orange-400": "blue-500",
+    "#f97316": "#2563eb",  # orange-500 hex
+    "#ea580c": "#1d4ed8",  # orange-600 hex
+    "var(--accent-orange)": "var(--accent-blue)"
+}
+
+# CSS Variables to update in base.html:
+# --accent-orange: #f97316;  →  --accent-blue: #2563eb;
+# --accent-orange: #ea580c;  →  --accent-blue: #1d4ed8; (light mode)
+
+# Files to update:
+# - templates/base.html (CSS variables, all orange classes)
+# - templates/index.html (all orange classes)
+# - templates/article.html (all orange classes)
