@@ -1,29 +1,10 @@
-import os
-import sqlite3
-import json
+import os, sqlite3, json
 from datetime import datetime
-import logging
-from logging.handlers import RotatingFileHandler
-from flask import Flask, render_template, abort, request, Response, make_response
+from flask import Flask, render_template, abort, request
 from dotenv import load_dotenv
 
-# Setup logging with permission safety
-try:
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
-    file_handler.setLevel(logging.INFO)
-except Exception:
-    file_handler = logging.NullHandler()
-
+load_dotenv()
 app = Flask(__name__)
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000 # 1 year cache for static
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-app.logger.info('DailyAIWire startup')
 DB_PATH = os.path.join(os.path.dirname(__file__), "news.db")
 
 def get_db_connection():
@@ -33,130 +14,102 @@ def get_db_connection():
 
 @app.context_processor
 def inject_config():
-    def category_color(cat):
-        cat = (cat or "").lower()
-        if any(w in cat for w in ['sec', 'cyb', 'hack']): return 'bg-red-600'
-        if any(w in cat for w in ['robot', 'hard', 'auto']): return 'bg-orange-600'
-        if any(w in cat for w in ['llm', 'gen', 'gpt', 'model', 'res']): return 'bg-purple-600'
-        if any(w in cat for w in ['fin', 'mark', 'invest', 'biz', 'ent']): return 'bg-blue-700'
-        if any(w in cat for w in ['med', 'bio', 'health']): return 'bg-teal-600'
-        return 'bg-indigo-600'
-
-    # Author Metadata: Local first, stable CDN fallback
-    img_path = '/static/emre.jpg'
-    local_img = os.path.join(os.path.dirname(__file__), 'static', 'emre.jpg')
-    # Use a more reliable Gravatar-style or persistent placeholder if local fails
-    stable_fallback = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
-    
-    emre_profile = {
-        'name': 'Emre Ozen',
-        'title': 'VP, Head of Ad Operations & Analytics',
-        'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising. I’m a self-motivated builder who loves using smart tech to make marketing more strategic and efficient.',
-        'linkedin': 'https://www.linkedin.com/in/emreozen/',
-        'image': img_path if os.path.exists(local_img) else stable_fallback
-    }
-
+    local_img = os.path.join(app.static_folder, 'emre.jpg')
+    img = '/static/emre.jpg' if os.path.exists(local_img) else "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
     return {
-        'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'current_year': datetime.now().year,
-        'category_color': category_color,
-        'emre': emre_profile
+        'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
+        'emre': {
+            'name': 'Emre Ozen',
+            'title': 'VP, Head of Ad Operations & Analytics',
+            'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.',
+            'linkedin': 'https://www.linkedin.com/in/emreozen/',
+            'image': img
+        },
+        'category_color': lambda c: 'bg-blue-600'
     }
 
 @app.route('/')
 def index():
-    page = request.args.get('page', 1, type=int)
-    category = request.args.get('category')
-    q = request.args.get('q', '').strip()
-    # Dynamic per_page and offset to handle Carousel vs Grid layout
-    if page == 1:
-        per_page = 14 # 8 for carousel + 6 for grid
-        offset = 0
-    else:
-        per_page = 12 # Standard grid size for deeper pages
-        offset = 14 + (page - 2) * per_page
-
     conn = get_db_connection()
+    cats = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category LIMIT 12').fetchall()
+    categories = sorted([c['category'] for c in cats])
     
-    # Get top 12 categories for the filter bar
-    categories_raw = conn.execute('''
-        SELECT category FROM articles 
-        WHERE category IS NOT NULL 
-        GROUP BY category 
-        ORDER BY COUNT(*) DESC 
-        LIMIT 12
-    ''').fetchall()
-    categories = sorted([c['category'] for c in categories_raw])
+    page = request.args.get('page', 1, type=int)
+    cat_arg = request.args.get('category')
     
-    if q:
-        # Search query
-        search_pattern = f"%{q}%"
-        articles = conn.execute('''
-            SELECT * FROM articles 
-            WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?
-            ORDER BY id DESC LIMIT ? OFFSET ?
-        ''', (search_pattern, search_pattern, search_pattern, per_page, offset)).fetchall()
-        total_articles = conn.execute('''
-            SELECT COUNT(*) FROM articles 
-            WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?
-        ''', (search_pattern, search_pattern, search_pattern)).fetchone()[0]
-    elif category:
-        articles = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (category, per_page, offset)).fetchall()
-        total_articles = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (category,)).fetchone()[0]
+    ITEMS_PER_PAGE = 9
+    offset = (page - 1) * ITEMS_PER_PAGE
+
+    if cat_arg:
+        # Category view: No carousel, just grid
+        total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (cat_arg,)).fetchone()[0]
+        arts = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
+        carousel = []
+        grid = arts
     else:
-        articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET ?', (per_page, offset)).fetchall()
-        total_articles = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
-        
-    # Calculate total pages (adjusting for irregular page 1)
-    if total_articles <= 14:
-        total_pages = 1
-    else:
-        total_pages = 1 + ((total_articles - 14 + per_page - 1) // per_page)
-        
+        # Homepage: Carousel (only page 1) + Grid
+        if page == 1:
+            # First fetch 5 for carousel
+            carousel_raw = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 5').fetchall()
+            carousel = carousel_raw
+            
+            # Then fetch next 9 for grid
+            grid_raw = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET 5', (ITEMS_PER_PAGE,)).fetchall()
+            grid = grid_raw
+            
+            # Total count excluding the carousel items
+            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+            total_arts = max(0, total_arts_count - 5)
+        else:
+            # Subsequent pages: No carousel, just grid, offset by 5 (carousel) + previous pages
+            # Offset = 5 (carousel) + ((page-1) * 9) -> but page 1 logic handled above.
+            # actually logic: page 2 starts after 5+9 = 14 items.
+            # Page 1: 0-5 (carousel), 5-14 (grid)
+            # Page 2: 14-23 (grid)
+            # so offset = 5 + ((page - 1) * 9)
+            
+            db_offset = 5 + ((page - 1) * ITEMS_PER_PAGE)
+            grid = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
+            carousel = []
+            
+            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+            total_arts = max(0, total_arts_count - 5)
+
+    import math
+    total_pages = math.ceil(total_arts / ITEMS_PER_PAGE)
+
     conn.close()
-    
-    # Process JSON fields for template
-    processed_articles = []
-    for art in articles:
-        article_dict = dict(art)
-        try:
-            article_dict['key_details'] = json.loads(art['key_details'])
-        except:
-            article_dict['key_details'] = []
-        processed_articles.append(article_dict)
-    
-    # Selection logic for Carousel (unique to page 1)
-    if page == 1:
-        carousel_articles = processed_articles[:8]
-        grid_articles = processed_articles[8:14] # Exactly 6 unique tiles
-    else:
-        carousel_articles = []
-        grid_articles = processed_articles # Full grid on deeper pages
-        
-    return render_template('index.html', 
-                          articles=grid_articles,
-                          carousel_articles=carousel_articles,
-                          page=page, 
-                          total_pages=total_pages,
-                          category=category,
-                          categories=categories,
-                          q=q)
+
+    processed_grid = []
+    for a in grid:
+        d = dict(a)
+        try: d['key_details'] = json.loads(d['key_details'])
+        except: d['key_details'] = []
+        processed_grid.append(d)
+
+    processed_carousel = []
+    for a in carousel:
+        d = dict(a)
+        try: d['key_details'] = json.loads(d['key_details'])
+        except: d['key_details'] = []
+        processed_carousel.append(d)
+
+    return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg)
 
 @app.route('/article/<slug>')
 def article(slug):
     conn = get_db_connection()
-    article = conn.execute('SELECT * FROM articles WHERE slug = ?', (slug,)).fetchone()
+    art = conn.execute('SELECT * FROM articles WHERE slug = ?', (slug,)).fetchone()
     conn.close()
-    
-    if article is None:
-        abort(404)
-        
-    article_dict = dict(article)
-    try:
-        article_dict['key_details'] = json.loads(article['key_details'])
-    except:
-        article_dict['key_details'] = []
-    return render_template('article.html', article=article_dict)
+    if not art: abort(404)
+    d = dict(art)
+    try: d['key_details'] = json.loads(art['key_details'])
+    except: d['key_details'] = []
+    return render_template('article.html', article=d)
+
+@app.route('/about')
+def about(): return render_template('about.html')
 
 @app.route('/lab')
 def lab_index():
@@ -170,94 +123,13 @@ def lab_post(slug):
     conn = get_db_connection()
     post = conn.execute('SELECT * FROM blog_posts WHERE slug = ?', (slug,)).fetchone()
     conn.close()
-    if post is None:
-        abort(404)
+    if not post: abort(404)
     return render_template('lab_post.html', post=post)
 
-@app.route('/rss')
-def rss():
-    conn = get_db_connection()
-    articles = conn.execute('SELECT * FROM articles ORDER BY published_at DESC LIMIT 50').fetchall()
-    conn.close()
-    
-    processed_articles = []
-    for art in articles:
-        article_dict = dict(art)
-        # Format date for RSS (RFC 822)
-        try:
-            dt = datetime.fromisoformat(art['published_at'])
-            article_dict['pub_date_rss'] = dt.strftime('%a, %d %b %Y %H:%M:%S GMT')
-        except:
-            article_dict['pub_date_rss'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
-        processed_articles.append(article_dict)
-    
-    # Template rendering for XML
-    rss_xml = render_template('rss.xml', 
-                             articles=processed_articles, 
-                             build_date=datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT'))
-    return Response(rss_xml, mimetype='application/xml')
-
-@app.route('/about')
-def about():
-    # We can pull from the context processor 'emre' data
-    return render_template('about.html')
-
-@app.route('/privacy')
-def privacy():
-    return render_template('privacy.html')
-
 @app.after_request
-def add_header(response):
-    if 'Cache-Control' not in response.headers:
-        if request.path.startswith('/static/'):
-            response.headers['Cache-Control'] = 'public, max-age=31536000'
-        else:
-            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-    return response
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(e):
-    return render_template('404.html'), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    return render_template('500.html'), 500
-
-# SEO Routes (Integrated from seo_routes.py)
-@app.route('/sitemap.xml')
-def sitemap():
-    conn = get_db_connection()
-    articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
-    blog_posts = conn.execute('SELECT slug, published_at FROM blog_posts ORDER BY published_at DESC').fetchall()
-    conn.close()
-    
-    xml = ['<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    xml.append(f'<url><loc>https://dailyaiwire.news/</loc><priority>1.0</priority></url>')
-    xml.append(f'<url><loc>https://dailyaiwire.news/lab</loc><priority>0.8</priority></url>')
-    xml.append(f'<url><loc>https://dailyaiwire.news/about</loc><priority>0.8</priority></url>')
-    
-    for article in articles:
-        xml.append(f'<url><loc>https://dailyaiwire.news/article/{article["slug"]}</loc><priority>0.7</priority></url>')
-    for post in blog_posts:
-        xml.append(f'<url><loc>https://dailyaiwire.news/lab/{post["slug"]}</loc><priority>0.8</priority></url>')
-    
-    xml.append('</urlset>')
-    response = make_response('\n'.join(xml))
-    response.headers['Content-Type'] = 'application/xml'
-    return response
-
-@app.route('/robots.txt')
-def robots():
-    try:
-        with open('static/robots.txt', 'r') as f:
-            content = f.read()
-    except:
-        content = "User-agent: *\nAllow: /\nSitemap: https://dailyaiwire.news/sitemap.xml"
-    response = make_response(content)
-    response.headers['Content-Type'] = 'text/plain'
-    return response
+def add_header(r):
+    r.headers['Cache-Control'] = 'no-store'
+    return r
 
 if __name__ == '__main__':
-    # Development server
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=8000)
