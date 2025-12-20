@@ -443,18 +443,21 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 af
             ))
             
-            # Post to Social Media Channels (limit to 2 per run)
+            # Track articles to schedule for social posting
             if posts_count < social_limit:
-                # Staggered Scheduling: 1st immediate (0 delay), 2nd after 60 mins
+                # Store for later scheduling (after commit)
                 delay_minutes = posts_count * 60
                 scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
                 
-                print(f"Scheduling social post for '{art.get('headline')}' at {scheduled_time}")
+                # Store tuple for batch insert after commit
+                if 'social_posts_to_schedule' not in locals():
+                    social_posts_to_schedule = []
                 
-                cursor.execute('''
-                    INSERT INTO social_queue (slug, headline, status, scheduled_time)
-                    VALUES (?, ?, 'PENDING', ?)
-                ''', (final_slug, art.get('headline'), scheduled_time))
+                social_posts_to_schedule.append({
+                    'slug': final_slug,
+                    'headline': art.get('headline'),
+                    'scheduled_time': scheduled_time
+                })
                 
                 posts_count += 1
             
@@ -462,6 +465,17 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             print(f"Error saving article {art.get('headline')}: {e}")
             
     conn.commit()
+    
+    # Now schedule social posts AFTER articles are committed
+    if 'social_posts_to_schedule' in locals() and social_posts_to_schedule:
+        for post in social_posts_to_schedule:
+            print(f"Scheduling social post for '{post['headline']}' at {post['scheduled_time']}")
+            cursor.execute('''
+                INSERT INTO social_queue (slug, headline, status, scheduled_time)
+                VALUES (?, ?, 'PENDING', ?)
+            ''', (post['slug'], post['headline'], post['scheduled_time'].isoformat()))
+        conn.commit()
+    
     conn.close()
     return posts_count
 
@@ -474,7 +488,7 @@ def process_social_queue():
     cursor.execute('''
         SELECT id, slug, headline FROM social_queue 
         WHERE status='PENDING' AND scheduled_time <= ?
-    ''', (datetime.now(),))
+    ''', (datetime.now().isoformat(),))
     
     pending = cursor.fetchall()
     
