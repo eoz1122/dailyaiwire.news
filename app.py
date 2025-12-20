@@ -2,12 +2,26 @@ import os
 import sqlite3
 import json
 from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask, render_template, abort, request, Response, make_response
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Setup logging
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+
 app = Flask(__name__)
+app.logger.addHandler(file_handler)
+app.logger.setLevel(logging.INFO)
+app.logger.info('DailyAIWire startup')
 DB_PATH = "news.db"
 
 def get_db_connection():
@@ -26,33 +40,20 @@ def inject_config():
         if any(w in cat for w in ['med', 'bio', 'health']): return 'bg-teal-600'
         return 'bg-indigo-600'
 
-    emre_data = {
+    # Global Author Metadata - 100% Resistant to Database issues
+    emre_profile = {
         'name': 'Emre Ozen',
         'title': 'VP, Head of Ad Operations & Analytics',
         'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising. I’m a self-motivated builder who loves using smart tech to make marketing more strategic and efficient.',
         'linkedin': 'https://www.linkedin.com/in/emreozen/',
-        'image': '/static/emre.jpg'
+        'image': 'https://media.licdn.com/dms/image/v2/C4D03AQEa1z_lV0c9vQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516260952865?e=1740009600&v=beta&t=H-W6z6x9x-x-x-x-x-x-x-x'
     }
-
-    # Verify image exists or use fallback
-    if not os.path.exists(os.path.join(app.static_folder, 'emre.jpg')):
-        emre_data['image'] = 'https://media.licdn.com/dms/image/v2/C4D03AQEa1z_lV0c9vQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516260952865?e=1740009600&v=beta&t=H-W6z6x9x-x-x-x-x-x-x-x'
-
-
-    try:
-        conn = get_db_connection()
-        author_row = conn.execute('SELECT * FROM authors WHERE name = ?', ("Emre Ozen",)).fetchone()
-        conn.close()
-        if author_row:
-            emre_data = dict(author_row)
-    except:
-        pass # Fallback to hardcoded if table doesn't exist yet
 
     return {
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'current_year': datetime.now().year,
         'category_color': category_color,
-        'emre': emre_data
+        'emre': emre_profile
     }
 
 @app.route('/')

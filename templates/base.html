@@ -5,6 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Google CMP (Funding Choices) -->
+    <script async src="https://fundingchoicesmessages.google.com/i/pub-5494088572540096?ers=1"></script>
+    <script>
+        (function () {
+            function signals() {
+                window.googleFC = window.googleFC || {};
+                window.googleFC.callbackQueue = window.googleFC.callbackQueue || [];
+            }
+            signals();
+        })();
+    </script>
+
     <!-- Google Analytics -->
     {% if config_ga_id %}
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ config_ga_id }}"></script>
