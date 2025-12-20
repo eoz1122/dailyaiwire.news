@@ -1,10 +1,16 @@
-import os, sqlite3, json, math
+import os, sqlite3, json, math, re
 from datetime import datetime
 from flask import Flask, render_template, abort, request
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
+
+def remove_emojis(text):
+    if not text: return ""
+    return re.sub(r'[\U00010000-\U0010ffff]', '', text)
+
+app.jinja_env.filters['remove_emojis'] = remove_emojis
 DB_PATH = os.path.join(os.path.dirname(__file__), "news.db")
 
 def get_db_connection():
