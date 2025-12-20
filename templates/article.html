@@ -81,12 +81,19 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <!-- Main Content (8 cols) -->
         <div class="lg:col-span-8">
-            <div class="flex items-center space-x-4 mb-8 text-zinc-500 text-sm font-bold uppercase tracking-widest">
+            <div
+                class="flex items-center space-x-4 mb-8 text-zinc-500 text-sm font-bold uppercase tracking-widest flex-wrap gap-y-2">
                 <span>Source: <a href="{{ article.source_url }}" target="_blank"
                         class="text-blue-600 hover:underline">{{ article.source }}</a></span>
-                <span>•</span>
-                <span class="text-zinc-600">Summarized by <a href="{{ article.source_url }}" target="_blank"
-                        class="text-blue-600 hover:underline">Gemini</a></span>
+
+                {% if article.author %}
+                <span class="hidden md:inline">•</span>
+                <span class="w-full md:w-auto">By <span class="text-zinc-300">{{ article.author }}</span></span>
+                {% endif %}
+
+                <span class="hidden md:inline">•</span>
+                <span class="text-zinc-600 w-full md:w-auto">Summarized by <a href="{{ article.source_url }}"
+                        target="_blank" class="text-blue-600 hover:underline">Gemini</a></span>
             </div>
 
             <!-- Ad Space: Top Content -->
@@ -127,25 +134,77 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-4">
-                    {% if article.audio_male %}
-                    <div class="flex flex-col space-y-2">
-                        <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600 text-center">Male
-                            Reader</span>
-                        <audio controls class="h-8 w-48 opacity-80 hover:opacity-100 transition-opacity">
-                            <source src="{{ article.audio_male }}" type="audio/mpeg">
-                        </audio>
-                    </div>
-                    {% endif %}
+                    <div class="flex flex-wrap items-center gap-6">
+                        {% if article.audio_male %}
+                        <div class="flex flex-col items-center space-y-2">
+                            <button id="btn-audio-male" onclick="toggleAudio('male')"
+                                class="w-12 h-12 rounded-full glass-card flex items-center justify-center hover:bg-blue-600 hover:text-white text-blue-500 transition-all shadow-lg border border-blue-500/30 group">
+                                <svg id="icon-play-male" class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg id="icon-pause-male" class="w-5 h-5 hidden" fill="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                            </button>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600">Male</span>
+                            <audio id="audio-male" src="{{ article.audio_male }}" preload="none"></audio>
+                        </div>
+                        {% endif %}
 
-                    {% if article.audio_female %}
-                    <div class="flex flex-col space-y-2">
-                        <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600 text-center">Female
-                            Reader</span>
-                        <audio controls class="h-8 w-48 opacity-80 hover:opacity-100 transition-opacity">
-                            <source src="{{ article.audio_female }}" type="audio/mpeg">
-                        </audio>
+                        {% if article.audio_female %}
+                        <div class="flex flex-col items-center space-y-2">
+                            <button id="btn-audio-female" onclick="toggleAudio('female')"
+                                class="w-12 h-12 rounded-full glass-card flex items-center justify-center hover:bg-pink-600 hover:text-white text-pink-500 transition-all shadow-lg border border-pink-500/30 group">
+                                <svg id="icon-play-female" class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg id="icon-pause-female" class="w-5 h-5 hidden" fill="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                            </button>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600">Female</span>
+                            <audio id="audio-female" src="{{ article.audio_female }}" preload="none"></audio>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
+
+                    <script>
+                        function toggleAudio(gender) {
+                            const audio = document.getElementById(`audio-${gender}`);
+                            const btn = document.getElementById(`btn-audio-${gender}`);
+                            const iconPlay = document.getElementById(`icon-play-${gender}`);
+                            const iconPause = document.getElementById(`icon-pause-${gender}`);
+
+                            // Stop other audio if playing
+                            const otherGender = gender === 'male' ? 'female' : 'male';
+                            const otherAudio = document.getElementById(`audio-${otherGender}`);
+                            if (otherAudio) {
+                                otherAudio.pause();
+                                document.getElementById(`icon-pause-${otherGender}`)?.classList.add('hidden');
+                                document.getElementById(`icon-play-${otherGender}`)?.classList.remove('hidden');
+                            }
+
+                            if (audio.paused) {
+                                audio.play();
+                                iconPlay.classList.add('hidden');
+                                iconPause.classList.remove('hidden');
+                                btn.classList.add('animate-pulse');
+                            } else {
+                                audio.pause();
+                                iconPlay.classList.remove('hidden');
+                                iconPause.classList.add('hidden');
+                                btn.classList.remove('animate-pulse');
+                            }
+
+                            audio.onended = function () {
+                                iconPlay.classList.remove('hidden');
+                                iconPause.classList.add('hidden');
+                                btn.classList.remove('animate-pulse');
+                            };
+                        }
+                    </script>
                 </div>
             </div>
             {% endif %}
@@ -203,31 +262,31 @@
                         Media Kit</button>
                 </div>
 
-                <!-- Social Share -->
-                <div class="mt-8 bg-zinc-950/50 p-6 rounded-xl border border-zinc-800">
+                <div class="mt-8 bg-zinc-950/50 p-6 rounded-xl border border-zinc-800 relative z-0">
                     <h3 class="text-zinc-500 font-black uppercase text-[10px] tracking-widest mb-4">Distribute Signal
                     </h3>
                     <div class="flex flex-col gap-3">
                         <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
                             target="_blank"
-                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 transition-all group">
+                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Share
                                 on X</span>
-                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-blue-600" fill="currentColor"
-                                viewBox="0 0 24 24">
+                            <!-- Dynamic X Logo (White on Dark, Black on Light handle via text-current) -->
+                            <svg class="w-5 h-5 text-white dark:text-white light-mode:text-black" fill="currentColor"
+                                viewBox="0 0 24 24" aria-hidden="true">
                                 <path
-                                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+                                </path>
                             </svg>
                         </a>
                         <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
                             target="_blank"
-                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 transition-all group">
+                            class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Post
                                 to LinkedIn</span>
-                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-blue-600" fill="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 text-[#0077b5]" fill="currentColor" viewBox="0 0 24 24">
                                 <path
                                     d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                             </svg>
@@ -238,7 +297,7 @@
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Internal
                                 Link</span>
-                            <svg class="w-4 h-4 text-zinc-600 group-hover:text-blue-600" fill="none"
+                            <svg class="w-5 h-5 text-zinc-600 group-hover:text-blue-600" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -248,7 +307,7 @@
                 </div>
 
                 <!-- Sidebar Content -->
-                <div class="mt-8 bg-zinc-950/50 p-6 rounded-xl border border-zinc-800">
+                <div class="mt-8 bg-zinc-950/50 p-6 rounded-xl border border-zinc-800 relative z-0">
                     <h3 class="text-zinc-500 font-black uppercase text-[10px] tracking-widest mb-4">Wire Status</h3>
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">

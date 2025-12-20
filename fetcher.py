@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from social_distributor import SocialDistributor
 from audio_generator import AudioGenerator
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -62,6 +63,16 @@ def init_db():
             content TEXT,
             image TEXT,
             published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS social_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT,
+            headline TEXT,
+            status TEXT DEFAULT 'PENDING', -- PENDING, SENT, FAILED
+            scheduled_time TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_source_url ON articles(source_url)')
@@ -276,7 +287,7 @@ def process_batch(batch: List[Dict]):
         "    \"image_query\": \"A concise keyword for an Unsplash image (e.g., 'robot arm', 'server farm')\",\n"
         "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society']\",\n"
         "    \"gist\": \"1-2 sentence bold summary\",\n"
-        "    \"key_details\": [\"Bullet 1\", \"Bullet 2\", \"Bullet 3\"],\n"
+        "    \"key_details\": [\"Extract 3-5 specific facts, figures, or spec details\", \"Include direct numbers (e.g. $10M, 1M users, 50% faster)\", \"Mention specific relevant entities or technical terms\"],\n"
         "    \"why_it_matters\": \"Brief insight on impact\",\n"
         "    \"optimistic_outlook\": \"Upside analysis and positive potential\",\n"
         "    \"pessimistic_outlook\": \"Downside/Risk analysis and critical concerns\",\n"
@@ -433,8 +444,18 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             ))
             
             # Post to Social Media Channels (limit to 2 per run)
-            if distributor and posts_count < social_limit:
-                distributor.distribute(art)
+            if posts_count < social_limit:
+                # Staggered Scheduling: 1st immediate (0 delay), 2nd after 60 mins
+                delay_minutes = posts_count * 60
+                scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
+                
+                print(f"Scheduling social post for '{art.get('headline')}' at {scheduled_time}")
+                
+                cursor.execute('''
+                    INSERT INTO social_queue (slug, headline, status, scheduled_time)
+                    VALUES (?, ?, 'PENDING', ?)
+                ''', (final_slug, art.get('headline'), scheduled_time))
+                
                 posts_count += 1
             
         except Exception as e:
@@ -443,6 +464,52 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
     conn.commit()
     conn.close()
     return posts_count
+
+def process_social_queue():
+    """Checks for pending social posts that are due."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Get pending posts due now or in past
+    cursor.execute('''
+        SELECT id, slug, headline FROM social_queue 
+        WHERE status='PENDING' AND scheduled_time <= ?
+    ''', (datetime.now(),))
+    
+    pending = cursor.fetchall()
+    
+    if not pending:
+        conn.close()
+        return
+
+    distributor = SocialDistributor()
+    
+    for row in pending:
+        queue_id, slug, headline = row
+        print(f"🚀 Processing scheduled post: {headline}")
+        
+        # Fetch full article data to send to distributor
+        cursor.execute('SELECT full_json FROM articles WHERE slug = ?', (slug,))
+        art_row = cursor.fetchone()
+        
+        if art_row:
+            try:
+                article_data = json.loads(art_row[0])
+                # Ensure slug is correct in data
+                article_data['seo_slug'] = slug
+                distributor.distribute(article_data)
+                
+                cursor.execute("UPDATE social_queue SET status='SENT' WHERE id=?", (queue_id,))
+                print(f"✅ Successfully posted: {headline}")
+            except Exception as e:
+                print(f"❌ Failed to post {headline}: {e}")
+                cursor.execute("UPDATE social_queue SET status='FAILED' WHERE id=?", (queue_id,))
+        else:
+            print(f"⚠️ Article data missing for slug: {slug}")
+            cursor.execute("UPDATE social_queue SET status='FAILED_MISSING_DATA' WHERE id=?", (queue_id,))
+            
+    conn.commit()
+    conn.close()
 
 def main():
     print("Initializing Database...")
@@ -490,22 +557,35 @@ def main():
         time.sleep(15)
 
 def main_loop():
-    """Runs the main fetcher in a continuous loop every 4 hours."""
+    """Runs the main fetcher loop with queued social posting."""
     print("Starting DailyAIWire Intelligence Service...")
+    
+    last_fetch_time = 0
+    fetch_interval = 14400 # 4 hours
+    
     while True:
         try:
-            main()
-            # 4 hours = 14400 seconds
-            next_run = time.time() + 14400
-            print(f"Run complete. Sleeping for 4 hours. Next run at {time.strftime('%H:%M:%S', time.localtime(next_run))}")
-            time.sleep(14400)
+            current_time = time.time()
+            
+            # Run Fetcher if interval passed
+            if current_time - last_fetch_time > fetch_interval:
+                print(f"⏰ Starting scheduled fetch cycle at {time.strftime('%H:%M:%S')}")
+                main()
+                last_fetch_time = time.time()
+            
+            # Process Social Queue (checks every minute)
+            process_social_queue()
+            
+            # Sleep for 1 minute before next tick
+            time.sleep(60)
+            
         except KeyboardInterrupt:
             print("\nIntelligence Service stopped by user.")
             break
         except Exception as e:
             print(f"Error in main loop: {e}")
-            print("Retrying in 5 minutes...")
-            time.sleep(300)
+            print("Retrying in 1 minute...")
+            time.sleep(60)
 
 if __name__ == "__main__":
     import sys

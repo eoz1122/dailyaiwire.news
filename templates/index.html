@@ -3,7 +3,8 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <!-- Filter Bar -->
-    <div class="flex flex-wrap items-center gap-3 mb-10 overflow-x-auto pb-4">
+    <!-- Filter Bar -->
+    <div class="flex flex-nowrap items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
         <a href="/"
             class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">ALL
             WIRE</a>
@@ -47,16 +48,16 @@
 
         <!-- Carousel Controls -->
         <button onclick="changeSlide(-1)"
-            class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-3 rounded-full transition-all shadow-lg z-20"
+            class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full transition-all shadow-lg z-20 scale-90"
             aria-label="Previous slide">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
         </button>
         <button onclick="changeSlide(1)"
-            class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-3 rounded-full transition-all shadow-lg z-20"
+            class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 p-2 rounded-full transition-all shadow-lg z-20 scale-90"
             aria-label="Next slide">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
         </button>
