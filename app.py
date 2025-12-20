@@ -24,7 +24,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000 # 1 year cache for static
 app.logger.addHandler(file_handler)
 app.logger.setLevel(logging.INFO)
 app.logger.info('DailyAIWire startup')
-DB_PATH = "news.db"
+DB_PATH = os.path.join(os.path.dirname(__file__), "news.db")
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
