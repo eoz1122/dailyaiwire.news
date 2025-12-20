@@ -26,10 +26,27 @@ def inject_config():
         if any(w in cat for w in ['med', 'bio', 'health']): return 'bg-teal-600'
         return 'bg-indigo-600'
 
+    conn = get_db_connection()
+    author_row = conn.execute('SELECT * FROM authors WHERE name = ?', ("Emre Ozen",)).fetchone()
+    conn.close()
+    
+    if author_row:
+        emre_data = dict(author_row)
+    else:
+        # Emergency Fallback
+        emre_data = {
+            'name': 'Emre Ozen',
+            'title': 'VP, Head of Ad Operations & Analytics',
+            'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising. I’m a self-motivated builder who loves using smart tech to make marketing more strategic and efficient.',
+            'linkedin': 'https://www.linkedin.com/in/emreozen/',
+            'image': 'https://media.licdn.com/dms/image/v2/C4D03AQEa1z_lV0c9vQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516260952865?e=1740009600&v=beta&t=H-W6z6x9x-x-x-x-x-x-x-x'
+        }
+
     return {
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'current_year': datetime.now().year,
-        'category_color': category_color
+        'category_color': category_color,
+        'emre': emre_data
     }
 
 @app.route('/')
@@ -165,6 +182,11 @@ def rss():
                              articles=processed_articles, 
                              build_date=datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT'))
     return Response(rss_xml, mimetype='application/xml')
+
+@app.route('/about')
+def about():
+    # We can pull from the context processor 'emre' data
+    return render_template('about.html')
 
 @app.route('/privacy')
 def privacy():

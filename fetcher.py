@@ -81,6 +81,25 @@ def init_db():
         )
     ''')
     cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_source_url ON articles(source_url)')
+    
+    # Add original_author if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE articles ADD COLUMN original_author TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    # Authors Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS authors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            title TEXT,
+            bio TEXT,
+            image TEXT,
+            linkedin TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -254,8 +273,12 @@ def extract_content(url: str) -> Tuple[str, str]:
             from urllib.parse import urljoin
             og_image = urljoin(url, og_image)
             
-        return (content if content else ""), og_image
-    return "", ""
+        # 5. Extract Metadata (Author)
+        metadata = trafilatura.extract_metadata(downloaded)
+        author = metadata.author if metadata else None
+            
+        return (content if content else ""), og_image, (author if author else "")
+    return "", "", ""
 
 def process_batch(batch: List[Dict]):
     model = genai.GenerativeModel(
@@ -275,8 +298,9 @@ def process_batch(batch: List[Dict]):
 
     batch_input = []
     for idx, item in enumerate(batch):
-        content, og_image = extract_content(item['link'])
+        content, og_image, author = extract_content(item['link'])
         item['scraped_image'] = og_image  # Attach to batch item for save_to_db
+        item['original_author'] = author
         
         # Robust context: If scraper failed, use the title/rss snippet to provide at least some signal
         analysis_context = content[:3000] if content and len(content) > 100 else item['title']
@@ -426,8 +450,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, original_author)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -445,7 +469,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 json.dumps(art),
                 original.get('published'),
                 am,
-                af
+                af,
+                original.get('original_author')
             ))
             
             # Track articles to schedule for social posting
