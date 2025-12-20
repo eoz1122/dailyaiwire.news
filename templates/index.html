@@ -6,11 +6,13 @@
     <!-- Filter Bar -->
     <div class="flex flex-nowrap items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
         <a href="/"
-            class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 text-white{% else %}bg-zinc-900 text-white hover:bg-zinc-800{% endif %} font-bold text-xs uppercase tracking-widest transition-all">ALL
+            class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 text-white{% else %}bg-zinc-200 text-zinc-900 hover:bg-zinc-300{% endif %} font-bold text-xs uppercase tracking-widest transition-all"
+            style="{% if not category %}color: white !important;{% endif %}">ALL
             WIRE</a>
         {% for cat in categories %}
         <a href="/?category={{ cat }}"
-            class="px-5 py-2 rounded-full {% if category == cat %}{{ category_color(cat) }} text-white hover:brightness-110{% else %}bg-zinc-900 text-white hover:bg-zinc-800{% endif %} font-bold text-xs uppercase tracking-widest transition-all">{{
+            class="px-5 py-2 rounded-full {% if category == cat %}{{ category_color(cat) }} text-white hover:brightness-110{% else %}bg-zinc-200 text-zinc-900 hover:bg-zinc-300{% endif %} font-bold text-xs uppercase tracking-widest transition-all"
+            style="{% if category == cat %}color: white !important;{% endif %}">{{
             cat }}</a>
         {% endfor %}
     </div>
@@ -138,13 +140,13 @@
                     </h2>
                 </a>
 
-                <p class="text-zinc-400 text-sm mb-3 leading-relaxed line-clamp-none">
-                    <strong class="text-xs uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
+                <p class="text-zinc-400 text-base mb-3 leading-relaxed line-clamp-none">
+                    <strong class="text-sm uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
                     {{ art.gist.replace('**', '') }}
                 </p>
 
-                <div class="text-sm font-medium text-zinc-300 leading-snug mb-4 flex-grow line-clamp-none">
-                    <span class="text-blue-600 font-black uppercase tracking-widest text-xs">IMPACT:</span>
+                <div class="text-base font-medium text-zinc-300 leading-snug mb-4 flex-grow line-clamp-none">
+                    <span class="text-blue-600 font-black uppercase tracking-widest text-sm">IMPACT:</span>
                     {{ art.why_it_matters.replace('**', '') }}
                 </div>
 
