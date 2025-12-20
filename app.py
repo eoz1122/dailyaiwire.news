@@ -19,15 +19,18 @@ def inject_config():
     
     def get_cat_color(c):
         colors = {
-            'Business': 'bg-blue-600',
+            'Business': 'bg-indigo-600',
             'Technology': 'bg-emerald-600',
             'Policy': 'bg-red-600',
             'Science': 'bg-teal-600',
             'Tools': 'bg-amber-600',
-            'Security': 'bg-indigo-600',
+            'Security': 'bg-violet-600',
             'Finance': 'bg-green-600',
             'Health': 'bg-rose-600',
-            'Energy': 'bg-yellow-600'
+            'Energy': 'bg-yellow-600',
+            'LLMs': 'bg-purple-600',
+            'Robotics': 'bg-cyan-600',
+            'Society': 'bg-pink-600'
         }
         return colors.get(c, 'bg-blue-600')
 
