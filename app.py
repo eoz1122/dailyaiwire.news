@@ -7,18 +7,20 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, render_template, abort, request, Response, make_response
 from dotenv import load_dotenv
 
-load_dotenv()
-
-# Setup logging
-if not os.path.exists('logs'):
-    os.makedirs('logs')
-file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
-file_handler.setLevel(logging.INFO)
+# Setup logging with permission safety
+try:
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+except Exception:
+    file_handler = logging.NullHandler()
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000 # 1 year cache for static
 app.logger.addHandler(file_handler)
 app.logger.setLevel(logging.INFO)
 app.logger.info('DailyAIWire startup')
@@ -40,13 +42,16 @@ def inject_config():
         if any(w in cat for w in ['med', 'bio', 'health']): return 'bg-teal-600'
         return 'bg-indigo-600'
 
-    # Global Author Metadata - 100% Resistant to Database issues
+    # Author Metadata: Local first, stable CDN fallback
+    img_path = '/static/emre.jpg'
+    stable_fallback = 'https://images.unsplash.com/photo-1519085185758-2ad311a68731?auto=format&fit=crop&q=80&w=300'
+    
     emre_profile = {
         'name': 'Emre Ozen',
         'title': 'VP, Head of Ad Operations & Analytics',
         'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising. I’m a self-motivated builder who loves using smart tech to make marketing more strategic and efficient.',
         'linkedin': 'https://www.linkedin.com/in/emreozen/',
-        'image': 'https://media.licdn.com/dms/image/v2/C4D03AQEa1z_lV0c9vQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516260952865?e=1740009600&v=beta&t=H-W6z6x9x-x-x-x-x-x-x-x'
+        'image': img_path if os.path.exists(os.path.join(app.static_folder, 'emre.jpg')) else stable_fallback
     }
 
     return {
@@ -198,6 +203,15 @@ def about():
 @app.route('/privacy')
 def privacy():
     return render_template('privacy.html')
+
+@app.after_request
+def add_header(response):
+    if 'Cache-Control' not in response.headers:
+        if request.path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=31536000'
+        else:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    return response
 
 # Error handlers
 @app.errorhandler(404)
