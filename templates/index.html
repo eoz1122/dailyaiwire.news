@@ -6,11 +6,11 @@
     <!-- Filter Bar -->
     <div class="flex flex-nowrap items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
         <a href="/"
-            class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 text-white{% else %}bg-zinc-800 text-zinc-400{% endif %} font-bold text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">ALL
+            class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 text-white{% else %}bg-zinc-900 text-white hover:bg-zinc-800{% endif %} font-bold text-xs uppercase tracking-widest transition-all">ALL
             WIRE</a>
         {% for cat in categories %}
         <a href="/?category={{ cat }}"
-            class="px-5 py-2 rounded-full {% if category == cat %}{{ category_color(cat) }} text-white hover:brightness-110{% else %}bg-zinc-800 text-zinc-400 hover:bg-blue-600 hover:text-white{% endif %} font-bold text-xs uppercase tracking-widest transition-all">{{
+            class="px-5 py-2 rounded-full {% if category == cat %}{{ category_color(cat) }} text-white hover:brightness-110{% else %}bg-zinc-900 text-white hover:bg-zinc-800{% endif %} font-bold text-xs uppercase tracking-widest transition-all">{{
             cat }}</a>
         {% endfor %}
     </div>
