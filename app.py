@@ -1,4 +1,4 @@
-import os, sqlite3, json
+import os, sqlite3, json, math
 from datetime import datetime
 from flask import Flask, render_template, abort, request
 from dotenv import load_dotenv
@@ -39,47 +39,30 @@ def index():
     cat_arg = request.args.get('category')
     
     ITEMS_PER_PAGE = 9
-    offset = (page - 1) * ITEMS_PER_PAGE
 
     if cat_arg:
-        # Category view: No carousel, just grid
-        total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (cat_arg,)).fetchone()[0]
+        offset = (page - 1) * ITEMS_PER_PAGE
+        total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (cat_arg,)).fetchone()[0]
+        total_arts = total_arts_count
         arts = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
         grid = arts
     else:
-        # Homepage: Carousel (only page 1) + Grid
         if page == 1:
-            # First fetch 5 for carousel
-            carousel_raw = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 5').fetchall()
-            carousel = carousel_raw
-            
-            # Then fetch next 9 for grid
-            grid_raw = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET 5', (ITEMS_PER_PAGE,)).fetchall()
-            grid = grid_raw
-            
-            # Total count excluding the carousel items
+            carousel = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 5').fetchall()
+            grid = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET 5', (ITEMS_PER_PAGE,)).fetchall()
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
             total_arts = max(0, total_arts_count - 5)
         else:
-            # Subsequent pages: No carousel, just grid, offset by 5 (carousel) + previous pages
-            # Offset = 5 (carousel) + ((page-1) * 9) -> but page 1 logic handled above.
-            # actually logic: page 2 starts after 5+9 = 14 items.
-            # Page 1: 0-5 (carousel), 5-14 (grid)
-            # Page 2: 14-23 (grid)
-            # so offset = 5 + ((page - 1) * 9)
-            
             db_offset = 5 + ((page - 1) * ITEMS_PER_PAGE)
             grid = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
             carousel = []
-            
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
             total_arts = max(0, total_arts_count - 5)
 
-    import math
-    total_pages = math.ceil(total_arts / ITEMS_PER_PAGE)
-
     conn.close()
+    
+    total_pages = math.ceil(total_arts / ITEMS_PER_PAGE) if total_arts > 0 else 1
 
     processed_grid = []
     for a in grid:
