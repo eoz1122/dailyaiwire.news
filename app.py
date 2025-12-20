@@ -31,7 +31,7 @@ def inject_config():
         'title': 'VP, Head of Ad Operations & Analytics',
         'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I’m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising. I’m a self-motivated builder who loves using smart tech to make marketing more strategic and efficient.',
         'linkedin': 'https://www.linkedin.com/in/emreozen/',
-        'image': 'https://media.licdn.com/dms/image/v2/C4D03AQEa1z_lV0c9vQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516260952865?e=1740009600&v=beta&t=H-W6z6x9x-x-x-x-x-x-x-x'
+        'image': '/static/emre.jpg'
     }
 
     try:

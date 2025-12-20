@@ -17,14 +17,14 @@
     <!-- Global Premium Author Block for Lab Reports -->
     <div class="flex items-center space-x-4 mb-12 border-b border-zinc-800 pb-8">
         <div class="relative">
-            <img src="{{ post.author_image or 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150' }}"
-                alt="Author" class="w-16 h-16 rounded-full border-2 border-blue-600 p-1 object-cover">
+            <img src="{{ emre['image'] }}" alt="Author"
+                class="w-16 h-16 rounded-full border-2 border-blue-600 p-1 object-cover">
             <div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-black rounded-full"></div>
         </div>
         <div>
-            <h3 class="text-white font-black uppercase tracking-widest text-sm">{{ emre.name }}</h3>
-            <p class="text-blue-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">{{ emre.title }}</p>
-            <a href="{{ emre.linkedin }}" target="_blank"
+            <h3 class="text-white font-black uppercase tracking-widest text-sm">{{ emre['name'] }}</h3>
+            <p class="text-blue-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">{{ emre['title'] }}</p>
+            <a href="{{ emre['linkedin'] }}" target="_blank"
                 class="inline-flex items-center space-x-2 text-zinc-500 hover:text-white transition-colors">
                 <svg class="w-4 h-4 text-[#0077b5]" fill="currentColor" viewBox="0 0 24 24">
                     <path
