@@ -20,8 +20,20 @@
                             class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500">
                     </div>
                     <div class="p-8 md:w-2/3 flex flex-col justify-center">
-                        <div class="text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Lab Report
-                            // {{ post.published_at[:10] }}</div>
+                        <div class="flex items-center space-x-2 mb-3">
+                            <div class="text-blue-600 text-[10px] font-black uppercase tracking-[0.2em]">Lab Report //
+                                {{ post.published_at[:10] }}</div>
+                        </div>
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
+                                <img src="/static/emre.jpg" alt="Emre Ozen" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <div class="text-white text-[10px] font-bold uppercase tracking-widest">Emre Ozen</div>
+                                <div class="text-zinc-500 text-[9px] font-medium uppercase tracking-widest">VP, Head of
+                                    Ad Ops</div>
+                            </div>
+                        </div>
                         <h2 class="text-3xl font-bold mb-4 group-hover:text-blue-600 transition-colors">
                             <a href="/lab/{{ post.slug }}">{{ post.title }}</a>
                         </h2>
