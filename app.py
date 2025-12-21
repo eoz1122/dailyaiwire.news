@@ -1,6 +1,7 @@
 import os, sqlite3, json, math, re
 from datetime import datetime
-from flask import Flask, render_template, abort, request
+from flask import Flask, render_template, abort, request, Response
+from email.utils import formatdate
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -143,3 +144,24 @@ def add_header(r):
 
 if __name__ == '__main__':
     app.run(debug=False, port=8000)
+
+@app.route('/rss.xml')
+@app.route('/feed')
+def rss_feed():
+    conn = get_db_connection()
+    articles_db = conn.execute('SELECT * FROM articles WHERE published_at IS NOT NULL ORDER BY published_at DESC LIMIT 20').fetchall()
+    conn.close()
+    
+    articles = []
+    for art in articles_db:
+        a = dict(art)
+        try:
+            # Assuming YYYY-MM-DD format in DB
+            dt = datetime.strptime(a['published_at'], '%Y-%m-%d')
+            a['pub_date_rss'] = formatdate(float(dt.timestamp()))
+        except:
+            a['pub_date_rss'] = formatdate()
+        articles.append(a)
+        
+    xml = render_template('rss.xml', articles=articles, build_date=formatdate())
+    return Response(xml, mimetype='application/xml')
