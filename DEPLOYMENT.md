@@ -47,6 +47,15 @@ nano .env  # Add your GEMINI_API_KEY and domain
 python fetcher.py
 ```
 
+### 3b. Setup Audio Generation (Google TTS)
+1. Go to Google Cloud Console and enable **Cloud Text-to-Speech API**.
+2. Create time a **Service Account** and generate a **JSON Key**.
+3. Upload the key file to the server (e.g., `google_credentials.json`).
+4. Update `.env`:
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/home/dailyai/dailyaiwire/google_credentials.json
+```
+
 ### 4. Configure Gunicorn
 
 Create `/home/dailyai/dailyaiwire/gunicorn_config.py`:
@@ -91,6 +100,27 @@ sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl start dailyaiwire
 sudo supervisorctl status
+```
+
+### 5b. Configure Twitter Scheduler (Optional)
+To run the social media scheduler independently (posts every 15 mins):
+
+Create `/etc/supervisor/conf.d/dailyaiwire-twitter.conf`:
+```ini
+[program:dailyaiwire-twitter]
+directory=/home/dailyai/dailyaiwire
+command=/home/dailyai/dailyaiwire/venv/bin/python tweet_scheduler.py
+user=dailyai
+autostart=true
+autorestart=true
+stderr_logfile=/home/dailyai/dailyaiwire/logs/twitter-error.log
+stdout_logfile=/home/dailyai/dailyaiwire/logs/twitter-access.log
+```
+
+Start service:
+```bash
+sudo supervisorctl update
+sudo supervisorctl start dailyaiwire-twitter
 ```
 
 ### 6. Configure Nginx

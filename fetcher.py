@@ -600,6 +600,11 @@ def main():
         # Sleep 15s between batches to avoid rate limits
         time.sleep(15)
 
+    # Final check to send any pending social posts immediately
+    if total_posts_sent > 0 or True: # Always check queue
+        print("Processing Social Queue before exit...")
+        process_social_queue()
+
 def main_loop():
     """Runs the main fetcher loop with queued social posting."""
     print("Starting DailyAIWire Intelligence Service...")
