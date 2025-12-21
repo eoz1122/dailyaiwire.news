@@ -4,18 +4,19 @@ import os
 import json
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 DB_PATH = "news.db"
 
 def ai_deduplicate():
     print("🤖 AI Deduplication Agent Initialized...")
     
-    if not os.getenv("GOOGLE_API_KEY"):
-        print("❌ GOOGLE_API_KEY not found in environment.")
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        print(f"❌ GOOGLE_API_KEY not found. Checked: {os.path.join(os.path.dirname(__file__), '.env')}")
         return
 
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     conn = sqlite3.connect(DB_PATH)
