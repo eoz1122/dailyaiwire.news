@@ -43,11 +43,15 @@ else
     echo "❌ .env file NOT FOUND at $APP_DIR/.env"
 fi
 
-# Check JSON Key existance
-if [ -f "$APP_DIR/google_credentials.json" ]; then
-    echo "✅ google_credentials.json file exists"
+# Check JSON Key existence (Dynamically from .env)
+JSON_KEY_PATH=$(grep "GOOGLE_APPLICATION_CREDENTIALS" "$APP_DIR/.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+
+if [ -n "$JSON_KEY_PATH" ] && [ -f "$JSON_KEY_PATH" ]; then
+    echo "✅ Google Credentials file found at: $JSON_KEY_PATH"
+elif [ -n "$JSON_KEY_PATH" ]; then
+    echo "❌ Google Credentials file referenced in .env NOT FOUND at: $JSON_KEY_PATH"
 else
-    echo "❌ google_credentials.json file NOT FOUND (Required for Audio)"
+    echo "❌ GOOGLE_APPLICATION_CREDENTIALS not set in .env"
 fi
 echo ""
 
