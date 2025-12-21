@@ -147,6 +147,7 @@ if __name__ == '__main__':
 
 @app.route('/rss.xml')
 @app.route('/feed')
+@app.route('/rss')
 def rss_feed():
     conn = get_db_connection()
     articles_db = conn.execute('SELECT * FROM articles WHERE published_at IS NOT NULL ORDER BY published_at DESC LIMIT 20').fetchall()
