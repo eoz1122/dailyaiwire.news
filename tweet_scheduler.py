@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_PATH = "news.db"
-INTERVAL_SECONDS = 900  # 15 minutes
+INTERVAL_SECONDS = 14400  # 4 hours (Max 6 articles per day)
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)

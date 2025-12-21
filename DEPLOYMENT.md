@@ -103,7 +103,7 @@ sudo supervisorctl status
 ```
 
 ### 5b. Configure Twitter Scheduler (Optional)
-To run the social media scheduler independently (posts every 15 mins):
+To run the social media scheduler independently (posts every 4 hours):
 
 Create `/etc/supervisor/conf.d/tweet_scheduler.conf`:
 ```ini
