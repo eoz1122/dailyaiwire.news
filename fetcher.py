@@ -4,6 +4,7 @@ import json
 import time
 import uuid
 import feedparser
+import difflib
 import trafilatura
 import google.generativeai as genai
 from slugify import slugify
@@ -562,18 +563,33 @@ def main():
     print("Aggregating Intelligence from Multiple Sources...")
     raw_articles = fetch_all_sources()
     
-    # Filter out articles we've already processed
+    # Filter out articles we've already processed (URL check + Fuzzy Title check)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT source_url FROM articles')
-    existing_urls = {row[0] for row in cursor.fetchall()}
+    cursor.execute('SELECT source_url, title FROM articles')
+    rows = cursor.fetchall()
+    existing_urls = {row[0] for row in rows}
+    existing_titles = [row[1] for row in rows if row[1]] # Ensure title is not None
     conn.close()
     
     new_articles = []
     for art in raw_articles:
+        # 1. Exact URL Match
         if art['link'] in existing_urls:
-            # print(f"  - Already have: {art['title'][:40]}...")
             continue
+            
+        # 2. Fuzzy Title Match (Deduplication)
+        is_fuzzy_dup = False
+        for et in existing_titles:
+            # Check similarity > 85%
+            if difflib.SequenceMatcher(None, art['title'], et).ratio() > 0.85:
+                # print(f"Skipping fuzzy duplicate: {art['title']} ~= {et}")
+                is_fuzzy_dup = True
+                break
+        
+        if is_fuzzy_dup:
+            continue
+
         new_articles.append(art)
         
     print(f"Total Unique Articles Found: {len(raw_articles)}")
