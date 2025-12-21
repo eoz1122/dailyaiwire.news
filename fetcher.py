@@ -476,39 +476,13 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 original.get('original_author')
             ))
             
-            # Track articles to schedule for social posting
-            if posts_count < social_limit:
-                # Store for later scheduling (after commit)
-                delay_minutes = posts_count * 60
-                scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
-                
-                # Store tuple for batch insert after commit
-                if 'social_posts_to_schedule' not in locals():
-                    social_posts_to_schedule = []
-                
-                social_posts_to_schedule.append({
-                    'slug': final_slug,
-                    'headline': art.get('headline'),
-                    'scheduled_time': scheduled_time
-                })
-                
-                posts_count += 1
+            # [MIGRATED] Social posting is now handled exclusively by tweet_scheduler.py
+            # to prevent duplicates and irregularities.
             
         except Exception as e:
             print(f"Error saving article {art.get('headline')}: {e}")
             
     conn.commit()
-    
-    # Now schedule social posts AFTER articles are committed
-    if 'social_posts_to_schedule' in locals() and social_posts_to_schedule:
-        for post in social_posts_to_schedule:
-            print(f"Scheduling social post for '{post['headline']}' at {post['scheduled_time']}")
-            cursor.execute('''
-                INSERT INTO social_queue (slug, headline, status, scheduled_time)
-                VALUES (?, ?, 'PENDING', ?)
-            ''', (post['slug'], post['headline'], post['scheduled_time'].isoformat()))
-        conn.commit()
-    
     conn.close()
     return posts_count
 
@@ -602,8 +576,6 @@ def main():
     
     if not new_articles:
         print("Everything up to date. No new intelligence to process.")
-        # Still check social queue in case pending posts exist
-        process_social_queue()
         return
 
     # Process in batches of 2 for maximum stability during import
@@ -627,10 +599,10 @@ def main():
     print("Running post-upload deduplication check...")
     remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
 
-    # Final check to send any pending social posts immediately
-    if total_posts_sent > 0 or True: # Always check queue
-        print("Processing Social Queue before exit...")
-        process_social_queue()
+    # [MIGRATED] Social Queue processing is now handled by tweet_scheduler.py
+    # if total_posts_sent > 0 or True: # Always check queue
+    #     print("Processing Social Queue before exit...")
+    #     process_social_queue()
 
 def main_loop():
     """Runs the main fetcher loop with queued social posting."""
@@ -649,8 +621,8 @@ def main_loop():
                 main()
                 last_fetch_time = time.time()
             
-            # Process Social Queue (checks every minute)
-            process_social_queue()
+            # [MIGRATED] Social Queue processing handled by standalone tweet_scheduler.py
+            # process_social_queue()
             
             # Sleep for 1 minute before next tick
             time.sleep(60)
