@@ -11,9 +11,9 @@ DB_PATH = "news.db"
 def ai_deduplicate():
     print("🤖 AI Deduplication Agent Initialized...")
     
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print(f"❌ GOOGLE_API_KEY not found. Checked: {os.path.join(os.path.dirname(__file__), '.env')}")
+        print(f"❌ GEMINI_API_KEY not found in .env ({os.path.join(os.path.dirname(__file__), '.env')})\n   Please ensure GEMINI_API_KEY is set.")
         return
 
     genai.configure(api_key=api_key)
