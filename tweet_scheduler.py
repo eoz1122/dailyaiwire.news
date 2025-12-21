@@ -27,12 +27,17 @@ def mark_as_shared(slug):
     conn.commit()
     conn.close()
 
+from remove_duplicates import remove_duplicates
+
 def main_loop():
     print("🚀 Starting Tweet Scheduler (Interval: 15 mins)...")
     distributor = SocialDistributor()
 
     while True:
         try:
+            # Final safeguard: Clean up any semantic duplicates before picking the next target
+            remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
+            
             article = get_next_article_to_share()
             
             if article:
