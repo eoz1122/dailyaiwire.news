@@ -3,7 +3,7 @@ import difflib
 
 DB_PATH = "news.db"
 
-def remove_duplicates(threshold=0.85):
+def remove_duplicates(threshold=0.75):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -11,7 +11,7 @@ def remove_duplicates(threshold=0.85):
     cursor.execute("SELECT id, title, slug FROM articles ORDER BY id ASC")
     articles = cursor.fetchall()
     
-    print(f"Checking {len(articles)} articles for duplicates...")
+    print(f"Checking {len(articles)} articles for duplicates (Threshold: {threshold})...")
     
     to_delete = []
     seen_titles = [] # List of (id, title, slug)
@@ -20,8 +20,13 @@ def remove_duplicates(threshold=0.85):
         is_dup = False
         for seen_id, seen_title, seen_slug in seen_titles:
             similarity = difflib.SequenceMatcher(None, current_title, seen_title).ratio()
+            
+            # Verbose check for debugging
+            if similarity > 0.6:
+                 print(f"🔍 Checking:\n   A: {seen_title}\n   B: {current_title}\n   Similarity: {similarity:.2f}")
+
             if similarity > threshold:
-                print(f"❌ Duplicate Found:\n   Original ({seen_id}): {seen_title}\n   Duplicate ({current_id}): {current_title}\n   Similarity: {similarity:.2f}")
+                print(f"❌ MARKED FOR DELETION:\n   Duplicate ({current_id}): {current_title}")
                 to_delete.append(current_id)
                 is_dup = True
                 break
