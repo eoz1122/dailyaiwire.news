@@ -117,95 +117,159 @@
             <!-- Audio Intelligence Section -->
             {% if article.audio_male or article.audio_female %}
             <div
-                class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
-                <div class="flex items-center space-x-4">
-                    <div class="p-3 bg-zinc-900 rounded-xl text-blue-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15L4 14a1 1 0 010-2l1.586-1L7 10.414V13.586L5.586 15z" />
-                        </svg>
+                class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-12 flex gap-6 shadow-xl relative overflow-hidden group">
+                <!-- Big Icon -->
+                <div
+                    class="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center shrink-0 border border-zinc-800 shadow-inner">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15L4 14a1 1 0 010-2l1.586-1L7 10.414V13.586L5.586 15z" />
+                    </svg>
+                </div>
+
+                <div class="flex-grow flex flex-col justify-center z-10 w-full">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <h3 class="text-[10px] font-black uppercase tracking-widest text-zinc-500">Intelligence
+                                Audio</h3>
+                            <p class="text-xs font-bold text-zinc-300">Click to listen to the story</p>
+                        </div>
+                        <button id="speed-toggle"
+                            class="text-[10px] font-mono text-zinc-500 hover:text-white bg-zinc-900 px-2 py-1 rounded border border-zinc-800 transition-colors"
+                            onclick="toggleSpeed()">
+                            1.0x
+                        </button>
                     </div>
-                    <div>
-                        <h3 class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Intelligence
-                            Audio</h3>
-                        <p class="text-[11px] font-bold text-zinc-300">Click to listen to the story</p>
+
+                    <!-- Progress Rail -->
+                    <div class="h-1.5 bg-zinc-800 rounded-full w-full mb-3 cursor-pointer relative overflow-hidden"
+                        onclick="seekAudio(event)" id="progress-container">
+                        <div id="progress-fill" class="h-full bg-blue-600 w-0 transition-all duration-100 relative">
+                            <div
+                                class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div class="flex gap-3">
+                            {% if article.audio_male %}
+                            <button onclick="playAudio('male')"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-blue-600 hover:text-white text-zinc-400 text-[10px] font-bold uppercase tracking-widest transition-all border border-zinc-800 audio-btn"
+                                id="btn-male" data-src="{{ article.audio_male }}">
+                                <svg class="w-3 h-3 play-icon" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg class="w-3 h-3 pause-icon hidden" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                                Male
+                            </button>
+                            {% endif %}
+                            {% if article.audio_female %}
+                            <button onclick="playAudio('female')"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-pink-600 hover:text-white text-zinc-400 text-[10px] font-bold uppercase tracking-widest transition-all border border-zinc-800 audio-btn"
+                                id="btn-female" data-src="{{ article.audio_female }}">
+                                <svg class="w-3 h-3 play-icon" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg class="w-3 h-3 pause-icon hidden" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                                Female
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="text-[10px] font-mono text-zinc-500" id="time-display">00:00 / 00:00</div>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-4">
-                    <div class="flex flex-wrap items-center gap-6">
-                        {% if article.audio_male %}
-                        <div class="flex flex-col items-center space-y-2">
-                            <button id="btn-audio-male" onclick="toggleAudio('male')"
-                                class="w-12 h-12 rounded-full glass-card flex items-center justify-center hover:bg-blue-600 hover:text-white text-blue-500 transition-all shadow-lg border border-blue-500/30 group">
-                                <svg id="icon-play-male" class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z" />
-                                </svg>
-                                <svg id="icon-pause-male" class="w-5 h-5 hidden" fill="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                </svg>
-                            </button>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600">Male</span>
-                            <audio id="audio-male" src="{{ article.audio_male }}" preload="none"></audio>
-                        </div>
-                        {% endif %}
-
-                        {% if article.audio_female %}
-                        <div class="flex flex-col items-center space-y-2">
-                            <button id="btn-audio-female" onclick="toggleAudio('female')"
-                                class="w-12 h-12 rounded-full glass-card flex items-center justify-center hover:bg-pink-600 hover:text-white text-pink-500 transition-all shadow-lg border border-pink-500/30 group">
-                                <svg id="icon-play-female" class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z" />
-                                </svg>
-                                <svg id="icon-pause-female" class="w-5 h-5 hidden" fill="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                </svg>
-                            </button>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-zinc-600">Female</span>
-                            <audio id="audio-female" src="{{ article.audio_female }}" preload="none"></audio>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <script>
-                        function toggleAudio(gender) {
-                            const audio = document.getElementById(`audio-${gender}`);
-                            const btn = document.getElementById(`btn-audio-${gender}`);
-                            const iconPlay = document.getElementById(`icon-play-${gender}`);
-                            const iconPause = document.getElementById(`icon-pause-${gender}`);
-
-                            // Stop other audio if playing
-                            const otherGender = gender === 'male' ? 'female' : 'male';
-                            const otherAudio = document.getElementById(`audio-${otherGender}`);
-                            if (otherAudio) {
-                                otherAudio.pause();
-                                document.getElementById(`icon-pause-${otherGender}`)?.classList.add('hidden');
-                                document.getElementById(`icon-play-${otherGender}`)?.classList.remove('hidden');
-                            }
-
-                            if (audio.paused) {
-                                audio.play();
-                                iconPlay.classList.add('hidden');
-                                iconPause.classList.remove('hidden');
-                                btn.classList.add('animate-pulse');
-                            } else {
-                                audio.pause();
-                                iconPlay.classList.remove('hidden');
-                                iconPause.classList.add('hidden');
-                                btn.classList.remove('animate-pulse');
-                            }
-
-                            audio.onended = function () {
-                                iconPlay.classList.remove('hidden');
-                                iconPause.classList.add('hidden');
-                                btn.classList.remove('animate-pulse');
-                            };
-                        }
-                    </script>
-                </div>
+                <audio id="main-audio-player"></audio>
             </div>
+
+            <script>
+                const player = document.getElementById('main-audio-player');
+                const progressFill = document.getElementById('progress-fill');
+                const timeDisplay = document.getElementById('time-display');
+                const speedBtn = document.getElementById('speed-toggle');
+                let currentGender = null;
+
+                function formatTime(seconds) {
+                    if (isNaN(seconds)) return "00:00";
+                    const m = Math.floor(seconds / 60);
+                    const s = Math.floor(seconds % 60);
+                    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                }
+
+                player.addEventListener('timeupdate', () => {
+                    if (player.duration) {
+                        const percent = (player.currentTime / player.duration) * 100;
+                        progressFill.style.width = `${percent}%`;
+                        timeDisplay.textContent = `${formatTime(player.currentTime)} / ${formatTime(player.duration)}`;
+                    }
+                });
+
+                player.addEventListener('loadedmetadata', () => {
+                    timeDisplay.textContent = `${formatTime(player.currentTime)} / ${formatTime(player.duration)}`;
+                });
+
+                player.addEventListener('ended', () => {
+                    resetIcons();
+                });
+
+                function seekAudio(e) {
+                    const container = document.getElementById('progress-container');
+                    const rect = container.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    if (player.duration) {
+                        player.currentTime = percent * player.duration;
+                    }
+                }
+
+                function toggleSpeed() {
+                    const speeds = [1.0, 1.25, 1.5, 2.0];
+                    let idx = speeds.indexOf(player.playbackRate);
+                    let nextSpeed = speeds[(idx + 1) % speeds.length];
+                    player.playbackRate = nextSpeed;
+                    speedBtn.textContent = `${nextSpeed}x`;
+                }
+
+                function resetIcons() {
+                    document.querySelectorAll('.pause-icon').forEach(el => el.classList.add('hidden'));
+                    document.querySelectorAll('.play-icon').forEach(el => el.classList.remove('hidden'));
+                    document.querySelectorAll('.audio-btn').forEach(el => {
+                        el.classList.remove('animate-pulse', 'border-white');
+                    });
+                }
+
+                function playAudio(gender) {
+                    const btn = document.getElementById(`btn-${gender}`);
+                    const src = btn.getAttribute('data-src');
+
+                    if (currentGender === gender && !player.paused) {
+                        player.pause();
+                        resetIcons();
+                    } else if (currentGender === gender && player.paused) {
+                        player.play();
+                        btn.querySelector('.play-icon').classList.add('hidden');
+                        btn.querySelector('.pause-icon').classList.remove('hidden');
+                        btn.classList.add('animate-pulse', 'border-white');
+                    } else {
+                        // Switch source
+                        currentGender = gender;
+                        player.src = src;
+                        player.play();
+                        resetIcons();
+                        // Activate current
+                        btn.querySelector('.play-icon').classList.add('hidden');
+                        btn.querySelector('.pause-icon').classList.remove('hidden');
+                        btn.classList.add('animate-pulse', 'border-white');
+
+                        // Update Speed
+                        player.playbackRate = parseFloat(speedBtn.textContent);
+                    }
+                }
+            </script>
             {% endif %}
 
             <!-- ELI5 Section (Now Prominent) -->
