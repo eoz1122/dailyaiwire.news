@@ -25,8 +25,8 @@ su - dailyai
 ```bash
 # Clone your repository
 cd /home/dailyai
-git clone https://github.com/yourusername/dailyaiwire.git
-cd dailyaiwire
+git clone https://github.com/yourusername/dailyaiwire.news.git
+cd dailyaiwire.news
 
 # Create virtual environment
 python3.11 -m venv venv
@@ -58,7 +58,7 @@ GOOGLE_APPLICATION_CREDENTIALS=/home/dailyai/dailyaiwire/google_credentials.json
 
 ### 4. Configure Gunicorn
 
-Create `/home/dailyai/dailyaiwire/gunicorn_config.py`:
+Create `/home/dailyai/dailyaiwire.news/gunicorn_config.py`:
 
 ```python
 bind = "127.0.0.1:8000"
@@ -67,14 +67,14 @@ worker_class = "sync"
 worker_connections = 1000
 timeout = 30
 keepalive = 2
-errorlog = "/home/dailyai/dailyaiwire/logs/gunicorn-error.log"
-accesslog = "/home/dailyai/dailyaiwire/logs/gunicorn-access.log"
+errorlog = "/home/dailyai/dailyaiwire.news/logs/gunicorn-error.log"
+accesslog = "/home/dailyai/dailyaiwire.news/logs/gunicorn-access.log"
 loglevel = "info"
 ```
 
 Create logs directory:
 ```bash
-mkdir -p /home/dailyai/dailyaiwire/logs
+mkdir -p /home/dailyai/dailyaiwire.news/logs
 ```
 
 ### 5. Configure Supervisor (Process Manager)
@@ -83,15 +83,15 @@ Create `/etc/supervisor/conf.d/dailyaiwire.conf`:
 
 ```ini
 [program:dailyaiwire]
-directory=/home/dailyai/dailyaiwire
-command=/home/dailyai/dailyaiwire/venv/bin/gunicorn -c gunicorn_config.py app:app
+directory=/home/dailyai/dailyaiwire.news
+command=/home/dailyai/dailyaiwire.news/venv/bin/gunicorn -c gunicorn_config.py app:app
 user=dailyai
 autostart=true
 autorestart=true
 stopasgroup=true
 killasgroup=true
-stderr_logfile=/home/dailyai/dailyaiwire/logs/supervisor-error.log
-stdout_logfile=/home/dailyai/dailyaiwire/logs/supervisor-access.log
+stderr_logfile=/home/dailyai/dailyaiwire.news/logs/supervisor-error.log
+stdout_logfile=/home/dailyai/dailyaiwire.news/logs/supervisor-access.log
 ```
 
 Start supervisor:
@@ -105,16 +105,16 @@ sudo supervisorctl status
 ### 5b. Configure Twitter Scheduler (Optional)
 To run the social media scheduler independently (posts every 15 mins):
 
-Create `/etc/supervisor/conf.d/dailyaiwire-twitter.conf`:
+Create `/etc/supervisor/conf.d/tweet_scheduler.conf`:
 ```ini
-[program:dailyaiwire-twitter]
-directory=/home/dailyai/dailyaiwire
-command=/home/dailyai/dailyaiwire/venv/bin/python tweet_scheduler.py
+[program:tweet_scheduler]
+directory=/home/dailyai/dailyaiwire.news
+command=/home/dailyai/dailyaiwire.news/venv/bin/python tweet_scheduler.py
 user=dailyai
 autostart=true
 autorestart=true
-stderr_logfile=/home/dailyai/dailyaiwire/logs/twitter-error.log
-stdout_logfile=/home/dailyai/dailyaiwire/logs/twitter-access.log
+stderr_logfile=/home/dailyai/dailyaiwire.news/logs/twitter-error.log
+stdout_logfile=/home/dailyai/dailyaiwire.news/logs/twitter-access.log
 ```
 
 Start service:
@@ -139,7 +139,7 @@ server {
 
     # Static files
     location /static {
-        alias /home/dailyai/dailyaiwire/static;
+        alias /home/dailyai/dailyaiwire.news/static;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
@@ -185,7 +185,7 @@ crontab -e
 
 Add this line to run fetcher every hour:
 ```cron
-0 * * * * cd /home/dailyai/dailyaiwire && /home/dailyai/dailyaiwire/venv/bin/python fetcher.py >> /home/dailyai/dailyaiwire/logs/fetcher.log 2>&1
+0 * * * * cd /home/dailyai/dailyaiwire.news && /home/dailyai/dailyaiwire.news/venv/bin/python fetcher.py >> /home/dailyai/dailyaiwire.news/logs/fetcher.log 2>&1
 ```
 
 ### 9. Firewall Configuration
@@ -204,11 +204,12 @@ sudo ufw enable
 When you push code changes:
 
 ```bash
-cd /home/dailyai/dailyaiwire
+cd /home/dailyai/dailyaiwire.news
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
 sudo supervisorctl restart dailyaiwire
+sudo supervisorctl restart tweet_scheduler
 ```
 
 ---
