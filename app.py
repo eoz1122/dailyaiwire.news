@@ -44,6 +44,7 @@ def inject_config():
     return {
         'current_year': datetime.now().year,
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
+        'q': request.args.get('q', ''),
         'emre': {
             'name': 'Emre Ozen',
             'title': 'VP, Head of Ad Operations & Analytics',
@@ -62,16 +63,22 @@ def index():
     
     page = request.args.get('page', 1, type=int)
     cat_arg = request.args.get('category')
+    q = request.args.get('q', '')
     
     ITEMS_PER_PAGE = 9
 
-    if cat_arg:
+    if q:
+        query = f"%{q}%"
+        offset = (page - 1) * ITEMS_PER_PAGE
+        total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?', (query, query, query)).fetchone()[0]
+        grid = conn.execute('SELECT * FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
+        carousel = []
+    elif cat_arg:
         offset = (page - 1) * ITEMS_PER_PAGE
         total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (cat_arg,)).fetchone()[0]
         total_arts = total_arts_count
-        arts = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
+        grid = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
-        grid = arts
     else:
         if page == 1:
             carousel = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 5').fetchall()
@@ -103,7 +110,7 @@ def index():
         except: d['key_details'] = []
         processed_carousel.append(d)
 
-    return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg)
+    return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q)
 
 @app.route('/how-it-works')
 def how_it_works():
