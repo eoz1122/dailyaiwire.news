@@ -461,19 +461,5 @@
     <!-- Why It Matters Section -->
 
 </div>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "NewsArticle",
-  "headline": "{{ article.title | replace('"', '\\"') }}",
-  "image": ["{{ article.image }}"],
-  "datePublished": "{{ article.published_at }}",
-  "author": {
-    "@type": "Organization",
-    "name": "DailyAIWire Bot"
-  },
-  "isBasedOn": "{{ article.source_url }}",
-  "backstory": "This article was autonomously discovered, summarized, and analyzed by the Gemini 2.0 Flash model without human editorial intervention to prioritize speed and machine-logic distillation."
-}
-</script>
+
 {% endblock %}
