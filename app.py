@@ -20,8 +20,7 @@ def get_db_connection():
 
 @app.context_processor
 def inject_config():
-    local_img = os.path.join(app.static_folder, 'emre.jpg')
-    img = '/static/emre.jpg' if os.path.exists(local_img) else "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
+    img = '/static/emre.jpg'
     
     def get_cat_color(c):
         colors = {
