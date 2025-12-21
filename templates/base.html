@@ -154,18 +154,27 @@
             background: var(--card-bg);
             backdrop-filter: blur(25px) saturate(180%);
             border: 1px solid var(--border-color);
-            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+            contain: layout style;
+            /* Performance win */
         }
 
-        .glass-card:hover {
-            border-color: rgba(37, 99, 235, 0.4);
-            transform: translateY(-6px) scale(1.01);
-            background: rgba(25, 25, 30, 0.5);
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+        .article-card {
+            contain: content;
+            /* Rendering optimization */
         }
 
-        .light-mode .glass-card:hover {
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+        @media (hover: hover) {
+            .glass-card:hover {
+                border-color: rgba(37, 99, 235, 0.4);
+                transform: translateY(-6px) scale(1.01);
+                background: rgba(25, 25, 30, 0.5);
+                box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+            }
+
+            .light-mode .glass-card:hover {
+                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+            }
         }
 
         header {

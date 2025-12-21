@@ -6,6 +6,8 @@ import uuid
 import feedparser
 import difflib
 import trafilatura
+import re
+from remove_duplicates import get_jaccard_sim, remove_duplicates
 import google.generativeai as genai
 from slugify import slugify
 from dotenv import load_dotenv
@@ -578,12 +580,15 @@ def main():
         if art['link'] in existing_urls:
             continue
             
-        # 2. Fuzzy Title Match (Deduplication)
+        # 2. Hybrid Deduplication (Sequence + Jaccard)
         is_fuzzy_dup = False
         for et in existing_titles:
-            # Check similarity > 85%
-            if difflib.SequenceMatcher(None, art['title'], et).ratio() > 0.85:
-                # print(f"Skipping fuzzy duplicate: {art['title']} ~= {et}")
+            # Check Sequence > 0.75 OR Jaccard > 0.5 (Semantic/Reordered)
+            seq_sim = difflib.SequenceMatcher(None, art['title'], et).ratio()
+            word_sim = get_jaccard_sim(art['title'], et)
+            
+            if seq_sim > 0.75 or word_sim > 0.5:
+                # print(f"Skipping duplicate: {art['title']} ~= {et}")
                 is_fuzzy_dup = True
                 break
         
@@ -617,6 +622,10 @@ def main():
         
         # Sleep 15s between batches to avoid rate limits
         time.sleep(15)
+
+    # Final Safety Check: Run full database deduplication to catch any edge cases
+    print("Running post-upload deduplication check...")
+    remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
 
     # Final check to send any pending social posts immediately
     if total_posts_sent > 0 or True: # Always check queue
