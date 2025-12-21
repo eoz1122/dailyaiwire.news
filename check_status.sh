@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Configuration
-APP_DIR="/home/dailyai/dailyaiwire"
+# Detect directory where script is located
+APP_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 LOG_DIR="$APP_DIR/logs"
 
 echo "======================================"
