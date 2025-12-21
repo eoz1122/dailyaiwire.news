@@ -316,7 +316,7 @@ def process_batch(batch: List[Dict]):
         "    \"image_query\": \"A concise keyword for an Unsplash image (e.g., 'robot arm', 'server farm')\",\n"
         "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society']\",\n"
         "    \"gist\": \"1-2 sentence bold summary\",\n"
-        "    \"key_details\": [\"Extract 3-5 specific facts, figures, or spec details\", \"Include direct numbers (e.g. $10M, 1M users, 50% faster)\", \"Mention specific relevant entities or technical terms\"],\n"
+        "    \"key_details\": [\"Extract 3-5 HARD DATA POINTS (numbers, dates, specs) ONLY. If the source content is vague or lacks specific metrics, return an empty list []. Do NOT output generic summaries here.\"],\n"
         "    \"why_it_matters\": \"Brief insight on impact\",\n"
         "    \"optimistic_outlook\": \"Upside analysis and positive potential\",\n"
         "    \"pessimistic_outlook\": \"Downside/Risk analysis and critical concerns\",\n"

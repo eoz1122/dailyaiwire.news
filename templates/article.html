@@ -325,6 +325,7 @@
             </section>
 
             <!-- Key Details Section -->
+            {% if article.key_details and article.key_details|length > 0 %}
             <section class="mb-12">
                 <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
                     Key
@@ -338,6 +339,7 @@
                     {% endfor %}
                 </ul>
             </section>
+            {% endif %}
 
             <!-- Analysis Grid: Optimistic vs Pessimistic -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
