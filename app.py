@@ -170,3 +170,5 @@ def rss_feed():
         
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
+
+import seo_routes
