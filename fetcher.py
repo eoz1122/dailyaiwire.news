@@ -581,6 +581,8 @@ def main():
     
     if not new_articles:
         print("Everything up to date. No new intelligence to process.")
+        # Still check social queue in case pending posts exist
+        process_social_queue()
         return
 
     # Process in batches of 2 for maximum stability during import
