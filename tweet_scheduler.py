@@ -22,8 +22,10 @@ def get_db_connection():
 
 def get_next_article_to_share():
     conn = get_db_connection()
-    # Get the oldest unshared article (ASC) to maintain chronological order on the timeline
-    article = conn.execute('SELECT * FROM articles WHERE shared_on_x = 0 OR shared_on_x IS NULL ORDER BY published_at ASC LIMIT 1').fetchone()
+    # Breaking News First: Prioritize the absolute newest unshared article (DESC).
+    # Older unshared articles stay in the queue and are only used as 'fillers' 
+    # if no fresher intelligence has arrived by the next posting window.
+    article = conn.execute('SELECT * FROM articles WHERE shared_on_x = 0 OR shared_on_x IS NULL ORDER BY published_at DESC LIMIT 1').fetchone()
     conn.close()
     return dict(article) if article else None
 
