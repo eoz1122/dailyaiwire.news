@@ -105,6 +105,10 @@ def index():
 
     return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg)
 
+@app.route('/how-it-works')
+def how_it_works():
+    return render_template('how_it_works.html')
+
 @app.route('/article/<slug>')
 def article(slug):
     conn = get_db_connection()
