@@ -302,6 +302,73 @@
                     {{ article.deep_analysis | replace('\n', '<br>') | safe }}
                 </div>
             </section>
+            <!-- Why It Matters Section -->
+            <section class="mb-12 mt-16 pt-12 border-t border-zinc-800">
+                <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
+                    Impact
+                    Assessment</h3>
+                <p class="text-zinc-300 text-lg leading-relaxed mb-8">
+                    {{ article.why_it_matters }}
+                </p>
+
+                <!-- Prominent Link to Source -->
+                <a href="{{ article.source_url }}" target="_blank"
+                    class="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 group">
+                    <span>Read Full Story on {{ article.source }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </a>
+            </section>
+
+            <!-- Key Details Section -->
+            <section class="mb-12">
+                <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
+                    Key
+                    Details</h3>
+                <ul class="space-y-4">
+                    {% for detail in article.key_details %}
+                    <li class="flex items-start">
+                        <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
+                        <span class="text-zinc-300 text-lg">{{ detail }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <!-- Analysis Grid: Optimistic vs Pessimistic -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
+                <div class="glass-card p-8 rounded-3xl border-green-500/20 bg-green-500/5">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <div class="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
+                        <h4 class="text-green-500 font-black uppercase tracking-widest">Optimistic Outlook</h4>
+                    </div>
+                    <p class="text-zinc-300">{{ article.bull_case }}</p>
+                </div>
+
+                <div class="glass-card p-8 rounded-3xl border-red-500/20 bg-red-500/5">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <div class="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                    d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
+                            </svg>
+                        </div>
+                        <h4 class="text-red-500 font-black uppercase tracking-widest">Pessimistic Outlook</h4>
+                    </div>
+                    <p class="text-zinc-300">{{ article.bear_case }}</p>
+                </div>
+            </div>
         </div>
 
         <!-- Sidebar (4 cols) -->
@@ -388,67 +455,6 @@
     </div>
 
     <!-- Why It Matters Section -->
-    <section class="mb-12">
-        <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">Impact
-            Assessment</h3>
-        <p class="text-zinc-300 text-lg leading-relaxed mb-8">
-            {{ article.why_it_matters }}
-        </p>
 
-        <!-- Prominent Link to Source -->
-        <a href="{{ article.source_url }}" target="_blank"
-            class="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 group">
-            <span>Read Full Story on {{ article.source }}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-        </a>
-    </section>
-
-    <!-- Key Details Section -->
-    <section class="mb-12">
-        <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">Key
-            Details</h3>
-        <ul class="space-y-4">
-            {% for detail in article.key_details %}
-            <li class="flex items-start">
-                <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
-                <span class="text-zinc-300 text-lg">{{ detail }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </section>
-
-    <!-- Analysis Grid: Optimistic vs Pessimistic -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
-        <div class="glass-card p-8 rounded-3xl border-green-500/20 bg-green-500/5">
-            <div class="flex items-center space-x-2 mb-6">
-                <div class="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                </div>
-                <h4 class="text-green-500 font-black uppercase tracking-widest">Optimistic Outlook</h4>
-            </div>
-            <p class="text-zinc-300">{{ article.bull_case }}</p>
-        </div>
-
-        <div class="glass-card p-8 rounded-3xl border-red-500/20 bg-red-500/5">
-            <div class="flex items-center space-x-2 mb-6">
-                <div class="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                            d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
-                    </svg>
-                </div>
-                <h4 class="text-red-500 font-black uppercase tracking-widest">Pessimistic Outlook</h4>
-            </div>
-            <p class="text-zinc-300">{{ article.bear_case }}</p>
-        </div>
-    </div>
 </div>
 {% endblock %}
