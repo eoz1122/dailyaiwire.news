@@ -50,6 +50,12 @@
                                     style="color: white !important;">
                                     {{ art.category }}
                                 </span>
+                                <span
+                                    class="text-white/40 text-[10px] md:text-xs font-bold uppercase tracking-widest px-1">•</span>
+                                <span
+                                    class="text-white/80 text-[10px] md:text-xs font-black uppercase tracking-widest drop-shadow-md">
+                                    {{ art.published_at | time_ago }}
+                                </span>
                                 {% if art.audio_male or art.audio_female %}
                                 <div
                                     class="flex items-center justify-center bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10 group-hover:bg-blue-600 group-hover:border-blue-500/50 transition-all">
@@ -126,6 +132,10 @@
                         class="px-3 py-1 {{ category_color(art.category) }} text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg"
                         style="color: white !important;">
                         {{ art.category }}
+                    </span>
+                    <span
+                        class="px-2 py-0.5 bg-black/40 text-white/90 text-[10px] font-black uppercase tracking-tighter rounded backdrop-blur-sm border border-white/5">
+                        {{ art.published_at | time_ago }}
                     </span>
                 </div>
                 {% if art.audio_male or art.audio_female %}
