@@ -49,17 +49,17 @@ def diagnose():
             print(f"Latest Ingestion:   {latest_fetch[0]}")
         
         # 4. Recent Sharing Activity (Last 5)
-        # Note: Since we don't have a shared_at timestamp, we look at newest articles marked as shared
         print(f"\n--- Newest Articles Marked Shared ---")
         recent_shared = conn.execute("""
-            SELECT title, published_at FROM articles 
+            SELECT title, shared_at FROM articles 
             WHERE shared_on_x = 1 
-            ORDER BY published_at DESC LIMIT 5
+            ORDER BY shared_at DESC LIMIT 5
         """).fetchall()
         
         if recent_shared:
             for i, art in enumerate(recent_shared):
-                print(f"{i+1}. {art['title'][:60]}... (Pub: {art['published_at']})")
+                shared_time = art['shared_at'] if art['shared_at'] else "N/A (Pre-Migration)"
+                print(f"{i+1}. {art['title'][:55]}... \n   Shared At: {shared_time}")
         else:
             print("No articles marked as shared yet.")
 

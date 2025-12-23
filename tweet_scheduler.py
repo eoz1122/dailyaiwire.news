@@ -100,14 +100,15 @@ def main_loop():
                 
                 if distributor.post_to_x(article_for_dist):
                     mark_as_shared(article['slug'])
-                    last_post_time = datetime.now()
                     print(f"✅ Successfully shared. Next post in 4 hours (if window allows).")
                 else:
-                    print(f"❌ Post failed. Will retry in 10 mins.")
-                    time.sleep(600)
+                    # Check for rate limit in logs would be hard here, 
+                    # but distributor prints it. We'll wait longer anyway.
+                    print(f"❌ Post failed. Likely rate limited (429). Retrying in 1 hour.")
+                    time.sleep(3600)
             else:
-                print("📭 No unshared articles. Checking again in 10 mins...")
-                time.sleep(600)
+                print("📭 No unshared articles. Checking again in 30 mins...")
+                time.sleep(1800)
                 
         except Exception as e:
             print(f"⚠️ Scheduler Error: {e}")
