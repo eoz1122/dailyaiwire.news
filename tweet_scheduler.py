@@ -29,6 +29,17 @@ def get_next_article_to_share():
     conn.close()
     return dict(article) if article else None
 
+def clear_stale_queue():
+    """Marks all unshared articles from PREVIOUS days as 'Skipped' (shared_on_x = 1).
+    This ensures that every morning we start with a fresh slate of news."""
+    conn = get_db_connection()
+    # Use local date comparison to find articles older than today
+    count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND date(published_at) < date('now', 'localtime')").rowcount
+    if count > 0:
+        print(f"🧹 Daily Reset: Cleared {count} stale articles from the queue.")
+    conn.commit()
+    conn.close()
+
 def get_last_post_time():
     conn = get_db_connection()
     # Get the timestamp of the most recently shared article
@@ -62,6 +73,9 @@ def main_loop():
 
     while True:
         try:
+            # 0. Daily Reset: Clear anything from previous days
+            clear_stale_queue()
+
             # 1. Check Time Window (Europe/Berlin)
             now_de = datetime.now(TIMEZONE)
             current_hour = now_de.hour
