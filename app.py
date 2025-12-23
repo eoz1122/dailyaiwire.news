@@ -100,23 +100,23 @@ def index():
         query = f"%{q}%"
         offset = (page - 1) * ITEMS_PER_PAGE
         total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?', (query, query, query)).fetchone()[0]
-        grid = conn.execute('SELECT * FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
+        grid = conn.execute('SELECT * FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ? ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
     elif cat_arg:
         offset = (page - 1) * ITEMS_PER_PAGE
         total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (cat_arg,)).fetchone()[0]
         total_arts = total_arts_count
-        grid = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
+        grid = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
     else:
         if page == 1:
-            carousel = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 5').fetchall()
-            grid = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET 5', (ITEMS_PER_PAGE,)).fetchall()
+            carousel = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT 5').fetchall()
+            grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 5', (ITEMS_PER_PAGE,)).fetchall()
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
             total_arts = max(0, total_arts_count - 5)
         else:
             db_offset = 5 + ((page - 1) * ITEMS_PER_PAGE)
-            grid = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
+            grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
             carousel = []
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
             total_arts = max(0, total_arts_count - 5)
