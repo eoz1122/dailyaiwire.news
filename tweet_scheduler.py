@@ -29,9 +29,28 @@ def get_next_article_to_share():
     conn.close()
     return dict(article) if article else None
 
+def get_last_post_time():
+    conn = get_db_connection()
+    # Get the timestamp of the most recently shared article
+    # We use shared_at if available, fallback to published_at if not
+    row = conn.execute('SELECT shared_at FROM articles WHERE shared_on_x = 1 ORDER BY shared_at DESC LIMIT 1').fetchone()
+    conn.close()
+    if row and row['shared_at']:
+        try:
+            # Handle different timestamp formats (ISO or DB format)
+            ts = row['shared_at']
+            if 'T' in ts:
+                return datetime.fromisoformat(ts).replace(tzinfo=None)
+            return datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+        except:
+            return datetime.min
+    return datetime.min
+
 def mark_as_shared(slug):
     conn = get_db_connection()
-    conn.execute('UPDATE articles SET shared_on_x = 1 WHERE slug = ?', (slug,))
+    # Set shared_on_x = 1 and shared_at to current time in UTC/System format
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute('UPDATE articles SET shared_on_x = 1, shared_at = ? WHERE slug = ?', (now_str, slug))
     conn.commit()
     conn.close()
 
@@ -40,7 +59,6 @@ from remove_duplicates import remove_duplicates
 def main_loop():
     print(f"🚀 Starting Tweet Scheduler (Interval: 4h | Quiet: {QUIET_START}-{QUIET_END} AM DE)...")
     distributor = SocialDistributor()
-    last_post_time = datetime.min
 
     while True:
         try:
@@ -56,11 +74,13 @@ def main_loop():
                 time.sleep(max(wait_seconds, 60))
                 continue
 
-            # 2. Check 4-hour gap
-            time_since_last = (datetime.now() - last_post_time).total_seconds()
+            # 2. Check 4-hour gap (Verified against Database)
+            last_shared_time = get_last_post_time()
+            time_since_last = (datetime.now() - last_shared_time).total_seconds()
+            
             if time_since_last < INTERVAL_SECONDS:
                 remaining = INTERVAL_SECONDS - time_since_last
-                # Small sleep to check again rather than huge sleep to be more responsive to restarts
+                print(f"⏳ 4-hour gap active. {remaining/60:.0f} mins remaining until next allowed post.")
                 time.sleep(min(remaining, 600)) 
                 continue
 

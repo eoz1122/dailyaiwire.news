@@ -54,7 +54,9 @@ def init_db():
             full_json TEXT,
             published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             audio_male TEXT, -- Path to generated male audio
-            audio_female TEXT -- Path to generated female audio
+            audio_female TEXT, -- Path to generated female audio
+            shared_on_x BOOLEAN DEFAULT 0,
+            shared_at TIMESTAMP
         )
     ''')
     cursor.execute('''
