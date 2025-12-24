@@ -154,8 +154,8 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     """
     
     try:
-        model_name = 'gemini-3-flash-preview'
-        print(f"⚡ using AI Model: {model_name}")
+        model_name = 'gemini-2.0-flash'
+        print(f"⚡ using AI Model (Filter): {model_name}")
         model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
         # Parse indices
@@ -306,7 +306,7 @@ def process_batch(batch: List[Dict]):
             "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"
             "* Tone: Authoritative, tech-forward, and urgent. Avoid corporate fluff and emojis.\n"
             "* Content: Focus on extraction of hard facts, expert quotes, and strategic implications.\n"
-            "* Formatting: Return PLAIN TEXT for all fields. DO NOT use markdown, bolding (**), or italics in the string values."
+            "* Formatting: Return PLAIN TEXT for all fields. DO NOT use markdown, bolding (**), or italics. For 'deep_analysis', USE NEWLINES to create paragraph breaks."
         )
     )
 
@@ -335,7 +335,7 @@ def process_batch(batch: List[Dict]):
         "    \"optimistic_outlook\": \"Upside analysis and positive potential\",\n"
         "    \"pessimistic_outlook\": \"Downside/Risk analysis and critical concerns\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
-        "    \"deep_analysis\": \"A comprehensive summary of at least 400 words covering the nuances, background, and expert opinions mentioned in the source.\"\n"
+        "    \"deep_analysis\": \"A comprehensive summary of at least 400 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\"\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input)
