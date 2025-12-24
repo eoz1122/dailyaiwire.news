@@ -290,6 +290,7 @@ def extract_content(url: str) -> Tuple[str, str]:
         return (content if content else ""), og_image, (author if author else "")
     return "", "", ""
 
+def process_batch(batch: List[Dict]):
     model = genai.GenerativeModel(
         model_name="gemini-3-flash-preview",
         system_instruction=(
