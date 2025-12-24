@@ -78,17 +78,7 @@ def main_loop():
             # 0. Daily Reset: Clear anything from previous days
             clear_stale_queue()
 
-            # 1. Check Time Window (Europe/Berlin)
-            now_de = datetime.now(TIMEZONE)
-            current_hour = now_de.hour
-            
-            if QUIET_START <= current_hour < QUIET_END:
-                print(f"😴 Quiet Period in DE ({current_hour}:00). Waiting for 9 AM...")
-                # Sleep until 9 AM
-                target = now_de.replace(hour=QUIET_END, minute=0, second=0, microsecond=0)
-                wait_seconds = (target - now_de).total_seconds()
-                time.sleep(max(wait_seconds, 60))
-                continue
+            # 1. Start posting logic (No Quiet Time)
 
             # 2. Check 4-hour gap (Verified against Database)
             last_shared_time = get_last_post_time()
