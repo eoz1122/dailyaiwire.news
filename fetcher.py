@@ -125,7 +125,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     headline_list = "\n".join([f"- {a['title']}" for a in articles])
     
     prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to select the TOP 10 MOST NEWSWORTHY articles from this list.
+    You are an elite AI Intelligence Officer. Your task is to select the TOP 20 MOST NEWSWORTHY articles from this list.
     
     Prioritize articles that represent:
     - Major AI breakthroughs or research milestones
@@ -139,8 +139,8 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     - Low-impact announcements
     - Tutorial/how-to content
     
-    Return EXACTLY 10 indices (starting from 0) of the most important articles as a comma-separated list.
-    If there are fewer than 10 worthy articles, return only those indices.
+    Return EXACTLY 20 indices (starting from 0) of the most important articles as a comma-separated list.
+    If there are fewer than 20 worthy articles, return only those indices.
     
     Example Input:
     - OpenAI releases Sora API
@@ -198,8 +198,8 @@ def fetch_all_sources() -> List[Dict]:
         print(f"Fetching from {source_name}...")
         try:
             feed = feedparser.parse(url)
-            # Limit Google News to 10 articles (AI filter will select the best ones)
-            entries = feed.entries[:10] if source_name == "Google News" else feed.entries
+            # Limit Google News to 30 articles (AI filter will select the best ones from this larger pool)
+            entries = feed.entries[:30] if source_name == "Google News" else feed.entries
             
             for entry in entries:
                 if is_spam(entry.title):
@@ -227,9 +227,13 @@ def fetch_all_sources() -> List[Dict]:
                         # print(f"  - Skipping old news: {entry.title[:50]}...")
                         continue
 
+                    real_source = source_name
+                    if source_name == "Google News" and hasattr(entry, 'source') and 'title' in entry.source:
+                        real_source = entry.source.title
+
                     unique_articles[link] = {
                         "title": title,
-                        "source": source_name,
+                        "source": real_source,
                         "link": link,
                         "published": dt_published.isoformat()
                     }
