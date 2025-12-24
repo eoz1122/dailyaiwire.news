@@ -154,7 +154,9 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     """
     
     try:
-        model = genai.GenerativeModel('gemini-3-flash-preview')
+        model_name = 'gemini-3-flash-preview'
+        print(f"⚡ using AI Model: {model_name}")
+        model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
         # Parse indices
         indices_str = response.text.replace('Indices:', '').strip()
@@ -291,8 +293,10 @@ def extract_content(url: str) -> Tuple[str, str]:
     return "", "", ""
 
 def process_batch(batch: List[Dict]):
+    model_name = "gemini-3-flash-preview"
+    print(f"⚡ Analyzing batch with: {model_name}")
     model = genai.GenerativeModel(
-        model_name="gemini-3-flash-preview",
+        model_name=model_name,
         system_instruction=(
             "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
