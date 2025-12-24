@@ -32,8 +32,9 @@ def time_ago(dt_str):
         seconds = int(diff.total_seconds())
         
         if seconds < 0: return "just now"
-        if seconds < 7200: return "Just now"
+        if seconds < 60: return f"{seconds}s ago"
         if seconds < 3600: return f"{seconds // 60}m ago"
+        if seconds < 7200: return "Just now"
         if seconds < 86400: return f"{seconds // 3600}h ago"
         if seconds < 604800: return f"{seconds // 86400}d ago"
         return dt.strftime('%b %d')
