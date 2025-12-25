@@ -44,7 +44,9 @@ def sitemap():
     xml.append('</url>')
 
     # Categories
+    conn = get_db_connection()
     categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
+    conn.close()
     for cat in categories:
         xml.append('<url>')
         xml.append(f'<loc>https://dailyaiwire.news/?category={cat["category"]}</loc>')
