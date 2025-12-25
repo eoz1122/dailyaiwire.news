@@ -76,7 +76,7 @@ def inject_config():
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'q': request.args.get('q', ''),
         'emre': {
-            'name': 'Emre Ozen',
+            'name': 'Ali Emre Ozen',
             'title': 'VP, Head of Ad Operations & Analytics',
             'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I\'m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.',
             'linkedin': 'https://www.linkedin.com/in/emreozen/',
