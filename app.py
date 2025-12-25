@@ -166,6 +166,10 @@ def privacy(): return render_template('privacy.html')
 @app.route('/impressum')
 def impressum(): return render_template('impressum.html')
 
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.png')
+
 @app.route('/lab')
 def lab_index():
     conn = get_db_connection()
