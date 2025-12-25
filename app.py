@@ -186,8 +186,66 @@ def add_header(r):
     r.headers['Cache-Control'] = 'no-store'
     return r
 
-if __name__ == '__main__':
-    app.run(debug=False, port=8000)
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.png')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    """Generate XML sitemap for search engines"""
+    conn = get_db_connection()
+    # Get articles
+    articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
+    # Get blog posts
+    blog_posts = conn.execute('SELECT slug, published_at FROM blog_posts ORDER BY published_at DESC').fetchall()
+    # Get categories for indexing
+    categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
+    conn.close()
+    
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    
+    # Homepage
+    xml.append('<url>')
+    xml.append('<loc>https://dailyaiwire.news/</loc>')
+    xml.append(f'<lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>')
+    xml.append('<changefreq>hourly</changefreq><priority>1.0</priority></url>')
+    
+    # Lab index
+    xml.append('<url><loc>https://dailyaiwire.news/lab</loc>')
+    xml.append(f'<lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>')
+    xml.append('<changefreq>weekly</changefreq><priority>0.8</priority></url>')
+
+    # Categories
+    for cat in categories:
+        xml.append('<url>')
+        xml.append(f'<loc>https://dailyaiwire.news/?category={cat["category"]}</loc>')
+        xml.append(f'<lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>')
+        xml.append('<changefreq>daily</changefreq><priority>0.8</priority></url>')
+    
+    # Articles
+    now = datetime.now()
+    for art in articles:
+        pub_date = art['published_at'][:10] if art['published_at'] else now.strftime("%Y-%m-%d")
+        xml.append(f'<url><loc>https://dailyaiwire.news/article/{art["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>')
+    
+    # Blog posts
+    for post in blog_posts:
+        pub_date = post['published_at'][:10] if post['published_at'] else now.strftime("%Y-%m-%d")
+        xml.append(f'<url><loc>https://dailyaiwire.news/lab/{post["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>')
+    
+    xml.append('</urlset>')
+    return Response('\n'.join(xml), mimetype='application/xml')
+
+@app.route('/robots.txt')
+def robots():
+    """Serve robots.txt"""
+    try:
+        with open(os.path.join(app.static_folder, 'robots.txt'), 'r') as f:
+            content = f.read()
+        return Response(content, mimetype='text/plain')
+    except:
+        return Response("User-agent: *\nAllow: /", mimetype='text/plain')
 
 @app.route('/rss.xml')
 @app.route('/feed')
@@ -236,6 +294,7 @@ def rss_feed():
         full_summary = " ".join(sentences)
         if len(sentences) < 2 and full_summary:
             # Try splitting by period if it's already multi-sentence but missing one at the end
+            # Using a safer approach with maxsplit=1 or similar if needed but simple split is usually fine for sentences
             parts = [p.strip() for p in full_summary.split('.') if p.strip()]
             if len(parts) < 2:
                 full_summary += " This breakthrough represents a significant shift in the AI landscape."
@@ -243,10 +302,10 @@ def rss_feed():
                 full_summary = ". ".join(parts) + "."
         
         a['clean_summary'] = full_summary
-        
         articles.append(a)
         
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
 
-import seo_routes
+if __name__ == '__main__':
+    app.run(debug=False, port=8000)
