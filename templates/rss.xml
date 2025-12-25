@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-<channel>
-    <title>DailyAIWire.news | Intelligence Feed</title>
-    <link>https://dailyaiwire.news</link>
-    <description>Automated AI intelligence and industry breakthroughs.</description>
-    <language>en-us</language>
-    <lastBuildDate>{{ build_date }}</lastBuildDate>
-    <atom:link href="https://dailyaiwire.news/rss" rel="self" type="application/rss+xml" />
+<rss version="2.0"
+    xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>DailyAIWire.news | Intelligence Feed</title>
+        <link>https://dailyaiwire.news</link>
+        <description>Automated AI intelligence and industry breakthroughs.</description>
+        <language>en-us</language>
+        <lastBuildDate>{{ build_date }}</lastBuildDate>
+        <atom:link href="https://dailyaiwire.news/rss" rel="self" type="application/rss+xml" />
     
     {% for article in articles %}
-    <item>
-        <title>{{ article.title }}</title>
-        <link>https://dailyaiwire.news/article/{{ article.slug }}</link>
-        <guid>https://dailyaiwire.news/article/{{ article.slug }}</guid>
-        <pubDate>{{ article.pub_date_rss }}</pubDate>
-        <description><![CDATA[{{ article.gist }} <br/><br/> {{ article.why_it_matters }}]]></description>
-        <category>{{ article.category }}</category>
-    </item>
+        <item>
+            <title>{{ article.title }}</title>
+            <link>https://dailyaiwire.news/article/{{ article.slug }}</link>
+            <guid>https://dailyaiwire.news/article/{{ article.slug }}</guid>
+            <pubDate>{{ article.pub_date_rss }}</pubDate>
+            <description><![CDATA[{{ article.clean_summary }}]]></description>
+            <enclosure url="{{ article.enclosure_url }}" length="{{ article.enclosure_length }}" type="{{ article.enclosure_type }}" />
+            <category>{{ article.category }}</category>
+        </item>
     {% endfor %}
-</channel>
+    </channel>
 </rss>

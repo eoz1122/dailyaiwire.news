@@ -206,6 +206,44 @@ def rss_feed():
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except:
             a['pub_date_rss'] = formatdate()
+        
+        # Enclosure logic
+        img_url = a.get('image') or "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200"
+        if img_url.startswith('/'):
+            img_url = f"https://dailyaiwire.news{img_url}"
+        a['enclosure_url'] = img_url
+        a['enclosure_type'] = "image/jpeg" if "png" not in img_url.lower() else "image/png"
+        a['enclosure_length'] = "0" # Default length
+        
+        # Clean summary logic
+        def clean_html(raw_html):
+            if not raw_html: return ""
+            # Remove markdown bold/italic
+            clean = raw_html.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
+            # Remove any HTML tags
+            clean = re.sub('<[^<]+?>', '', clean)
+            return clean.strip()
+
+        gist = clean_html(a.get('gist'))
+        matters = clean_html(a.get('why_it_matters'))
+        
+        # Combine and ensure at least two sentences
+        sentences = []
+        if gist: sentences.append(gist if gist.endswith('.') else gist + '.')
+        if matters: sentences.append(matters if matters.endswith('.') else matters + '.')
+        
+        # If we still have less than 2, maybe try to split existing ones or add a filler
+        full_summary = " ".join(sentences)
+        if len(sentences) < 2 and full_summary:
+            # Try splitting by period if it's already multi-sentence but missing one at the end
+            parts = [p.strip() for p in full_summary.split('.') if p.strip()]
+            if len(parts) < 2:
+                full_summary += " This breakthrough represents a significant shift in the AI landscape."
+            else:
+                full_summary = ". ".join(parts) + "."
+        
+        a['clean_summary'] = full_summary
+        
         articles.append(a)
         
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
