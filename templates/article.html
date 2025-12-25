@@ -47,7 +47,7 @@
     "@id": "https://dailyaiwire.news/article/{{ article.slug }}"
   },
   "isBasedOn": "{{ article.source_url }}",
-  "backstory": "This article was autonomously discovered, summarized, and analyzed by the Gemini 2.0 Flash model without human editorial intervention to prioritize speed and machine-logic distillation."
+  "backstory": "This article was autonomously discovered, summarized, and analyzed by the Gemini 2.5 Flash model without human editorial intervention to prioritize speed and machine-logic distillation."
 }
 </script>
 {% endblock %}
@@ -333,12 +333,12 @@
                     Key
                     Details</h3>
                 <ul class="space-y-4">
-                    {% for detail in article.key_details %}
+                    {%- for detail in article.key_details -%}
                     <li class="flex items-start">
                         <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
                         <span class="text-zinc-300 text-lg">{{ detail }}</span>
                     </li>
-                    {% endfor %}
+                    {%- endfor -%}
                 </ul>
             </section>
             {% endif %}
@@ -401,7 +401,7 @@
                     </h3>
                     <div class="flex flex-col gap-3">
                         <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
-                            target="_blank"
+                            target="_blank" rel="noopener"
                             class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Share
@@ -415,7 +415,7 @@
                             </svg>
                         </a>
                         <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
-                            target="_blank"
+                            target="_blank" rel="noopener"
                             class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Post
@@ -444,7 +444,7 @@
                 <div class="mt-8 bg-zinc-950/50 p-6 rounded-xl border border-zinc-800 relative z-0">
                     <h3 class="text-zinc-500 font-black uppercase text-[10px] tracking-widest mb-4">Follow the Wire</h3>
                     <div class="flex flex-col gap-3">
-                        <a href="https://x.com/DailyAIWireNews" target="_blank"
+                        <a href="https://x.com/DailyAIWireNews" target="_blank" rel="noopener"
                             class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Follow
@@ -456,7 +456,7 @@
                                 </path>
                             </svg>
                         </a>
-                        <a href="https://www.linkedin.com/company/110891956" target="_blank"
+                        <a href="https://www.linkedin.com/company/110891956" target="_blank" rel="noopener"
                             class="flex items-center justify-between p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] transition-all group">
                             <span
                                 class="text-[10px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white">Follow

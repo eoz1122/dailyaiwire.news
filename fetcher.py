@@ -146,7 +146,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     - OpenAI releases Sora API
     - Local coffee shop uses AI for menu
     - DeepMind breakthrough in protein folding
-    - Google announces Gemini 2.0
+    - Google announces Gemini 2.5
     Example Output: 0, 2, 3
     
     HEADLINES:
@@ -154,7 +154,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     """
     
     try:
-        model_name = 'gemini-2.0-flash'
+        model_name = 'gemini-2.5-flash'
         print(f"⚡ using AI Model (Filter): {model_name}")
         model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
@@ -293,14 +293,14 @@ def extract_content(url: str) -> Tuple[str, str]:
     return "", "", ""
 
 def process_batch(batch: List[Dict]):
-    model_name = "gemini-3-flash-preview"
+    model_name = "gemini-2.5-flash"
     print(f"⚡ Analyzing batch with: {model_name}")
     model = genai.GenerativeModel(
         model_name=model_name,
         system_instruction=(
             "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
-            "Mandate: Use the optimized capabilities of Gemini 2.0 Flash for high-throughput intelligence analysis.\n"
+            "Mandate: Use the optimized capabilities of Gemini 2.5 Flash for high-throughput intelligence analysis.\n"
             "Editorial Standards:\n"
             "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
             "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"

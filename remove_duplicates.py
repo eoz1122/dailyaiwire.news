@@ -29,7 +29,7 @@ def ai_deduplicate():
 
     print("🤖 AI Deduplication Agent Scanning for Semantic Duplicates...")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
