@@ -163,6 +163,9 @@ def about(): return render_template('about.html')
 @app.route('/privacy')
 def privacy(): return render_template('privacy.html')
 
+@app.route('/impressum')
+def impressum(): return render_template('impressum.html')
+
 @app.route('/lab')
 def lab_index():
     conn = get_db_connection()

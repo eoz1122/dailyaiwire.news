@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Impressum | DailyAIWire.news{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-16 max-w-4xl">
+    <div class="glass-card p-8 md:p-12 rounded-3xl border border-white/10">
+        <h1 class="text-4xl font-black text-white mb-8 border-b border-zinc-700 pb-4 tracking-tighter uppercase">
+            Impressum</h1>
+
+        <div class="space-y-12 text-zinc-300 leading-relaxed text-lg font-light">
+            <!-- Angaben gemäß § 5 TMG -->
+            <section>
+                <h2
+                    class="text-xl font-bold text-white mb-4 uppercase tracking-widest text-sm border-l-4 border-blue-600 pl-4">
+                    Betreiber der Website</h2>
+                <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">
+                    <p class="font-bold text-white text-xl mb-2">{{ emre.name }}</p>
+                    <p>[STRASSE / HOUSE NUMBER]</p>
+                    <p>[ZIP CODE / CITY]</p>
+                    <p>Germany</p>
+                </div>
+            </section>
+
+            <!-- Kontakt -->
+            <section>
+                <h2
+                    class="text-xl font-bold text-white mb-4 uppercase tracking-widest text-sm border-l-4 border-blue-600 pl-4">
+                    Kontakt</h2>
+                <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">
+                    <p><span class="text-zinc-500 mr-2">Email:</span> <a href="mailto:info@dailyaiwire.news"
+                            class="text-blue-500 hover:underline">info@dailyaiwire.news</a></p>
+                    <p><span class="text-zinc-500 mr-2">Web:</span> <a href="https://dailyaiwire.news"
+                            class="text-blue-500 hover:underline">www.dailyaiwire.news</a></p>
+                </div>
+            </section>
+
+            <!-- Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV -->
+            <section>
+                <h2
+                    class="text-xl font-bold text-white mb-4 uppercase tracking-widest text-sm border-l-4 border-blue-600 pl-4">
+                    Verantwortlich für den Inhalt</h2>
+                <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">
+                    <p class="font-bold text-white">{{ emre.name }}</p>
+                    <p>[STRASSE / HOUSE NUMBER]</p>
+                    <p>[ZIP CODE / CITY]</p>
+                </div>
+            </section>
+
+            <!-- Streitschlichtung -->
+            <section>
+                <h2
+                    class="text-xl font-bold text-white mb-4 uppercase tracking-widest text-sm border-l-4 border-blue-600 pl-4">
+                    EU-Streitschlichtung</h2>
+                <p class="text-zinc-400">Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung
+                    (OS) bereit: <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener"
+                        class="text-blue-500 hover:underline">https://ec.europa.eu/consumers/odr</a>. Unsere
+                    E-Mail-Adresse finden Sie oben im Impressum.</p>
+            </section>
+
+            <!-- Verbraucherstreitbeilegung -->
+            <section>
+                <h2
+                    class="text-xl font-bold text-white mb-4 uppercase tracking-widest text-sm border-l-4 border-blue-600 pl-4">
+                    Verbraucherstreitbeilegung</h2>
+                <p class="text-zinc-400">Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
+                    Verbraucherschlichtungsstelle teilzunehmen.</p>
+            </section>
+        </div>
+
+        <div
+            class="mt-16 pt-8 border-t border-zinc-800 flex items-center justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+            <span>DailyAIWire Protocol // DE-Compliance</span>
+            <a href="/" class="text-blue-600 hover:text-white transition-colors">Back to Wire</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
