@@ -166,10 +166,6 @@ def privacy(): return render_template('privacy.html')
 @app.route('/impressum')
 def impressum(): return render_template('impressum.html')
 
-@app.route('/favicon.ico')
-def favicon():
-    return app.send_static_file('favicon.png')
-
 @app.route('/lab')
 def lab_index():
     conn = get_db_connection()
@@ -190,44 +186,8 @@ def add_header(r):
     r.headers['Cache-Control'] = 'no-store'
     return r
 
-@app.route('/sitemap.xml')
-def sitemap():
-    """Generate XML sitemap for search engines"""
-    conn = get_db_connection()
-    articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
-    blog_posts = conn.execute('SELECT slug, published_at FROM blog_posts ORDER BY published_at DESC').fetchall()
-    conn.close()
-    
-    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
-    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
-    xml.append('<url><loc>https://dailyaiwire.news/</loc><lastmod>'+datetime.now().strftime("%Y-%m-%d")+'</lastmod><changefreq>hourly</changefreq><priority>1.0</priority></url>')
-    xml.append('<url><loc>https://dailyaiwire.news/lab</loc><lastmod>'+datetime.now().strftime("%Y-%m-%d")+'</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>')
-    
-    conn = get_db_connection()
-    categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
-    conn.close()
-    for cat in categories:
-        xml.append(f'<url><loc>https://dailyaiwire.news/?category={cat["category"]}</loc><lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>')
-    
-    now = datetime.now()
-    for article in articles:
-        pub_date = article['published_at'][:10] if article['published_at'] else now.strftime("%Y-%m-%d")
-        xml.append(f'<url><loc>https://dailyaiwire.news/article/{article["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>')
-    
-    for post in blog_posts:
-        pub_date = post['published_at'][:10] if post['published_at'] else now.strftime("%Y-%m-%d")
-        xml.append(f'<url><loc>https://dailyaiwire.news/lab/{post["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>')
-    
-    xml.append('</urlset>')
-    return Response('\n'.join(xml), mimetype='application/xml')
-
-@app.route('/robots.txt')
-def robots():
-    try:
-        with open(os.path.join(app.static_folder, 'robots.txt'), 'r') as f:
-            return Response(f.read(), mimetype='text/plain')
-    except:
-        return Response("User-agent: *\nAllow: /", mimetype='text/plain')
+if __name__ == '__main__':
+    app.run(debug=False, port=8000)
 
 @app.route('/rss.xml')
 @app.route('/feed')
@@ -236,40 +196,57 @@ def rss_feed():
     conn = get_db_connection()
     articles_db = conn.execute('SELECT * FROM articles WHERE published_at IS NOT NULL ORDER BY published_at DESC LIMIT 20').fetchall()
     conn.close()
+    
     articles = []
     for art in articles_db:
         a = dict(art)
         try:
+            # Assuming YYYY-MM-DD format in DB
             dt = datetime.strptime(a['published_at'], '%Y-%m-%d')
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except:
             a['pub_date_rss'] = formatdate()
+        
+        # Enclosure logic
         img_url = a.get('image') or "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200"
-        if img_url.startswith('/'): img_url = f"https://dailyaiwire.news{img_url}"
+        if img_url.startswith('/'):
+            img_url = f"https://dailyaiwire.news{img_url}"
         a['enclosure_url'] = img_url
         a['enclosure_type'] = "image/jpeg" if "png" not in img_url.lower() else "image/png"
-        a['enclosure_length'] = "0"
+        a['enclosure_length'] = "0" # Default length
         
+        # Clean summary logic
         def clean_html(raw_html):
             if not raw_html: return ""
+            # Remove markdown bold/italic
             clean = raw_html.replace('**', '').replace('*', '').replace('__', '').replace('_', '')
+            # Remove any HTML tags
             clean = re.sub('<[^<]+?>', '', clean)
             return clean.strip()
-        
+
         gist = clean_html(a.get('gist'))
         matters = clean_html(a.get('why_it_matters'))
+        
+        # Combine and ensure at least two sentences
         sentences = []
         if gist: sentences.append(gist if gist.endswith('.') else gist + '.')
         if matters: sentences.append(matters if matters.endswith('.') else matters + '.')
+        
+        # If we still have less than 2, maybe try to split existing ones or add a filler
         full_summary = " ".join(sentences)
         if len(sentences) < 2 and full_summary:
+            # Try splitting by period if it's already multi-sentence but missing one at the end
             parts = [p.strip() for p in full_summary.split('.') if p.strip()]
-            if len(parts) < 2: full_summary += " This breakthrough represents a significant shift in the AI landscape."
-            else: full_summary = ". ".join(parts) + "."
+            if len(parts) < 2:
+                full_summary += " This breakthrough represents a significant shift in the AI landscape."
+            else:
+                full_summary = ". ".join(parts) + "."
+        
         a['clean_summary'] = full_summary
+        
         articles.append(a)
+        
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
 
-if __name__ == '__main__':
-    app.run(debug=False, port=8000)
+import seo_routes
