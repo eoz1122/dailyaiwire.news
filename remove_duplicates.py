@@ -20,8 +20,12 @@ def get_jaccard_sim(t1, t2):
     if not s1 or not s2: return 0.0
     return len(s1 & s2) / len(s1 | s2)
 
-def ai_deduplicate():
-    """Uses Gemini 2.0 to identify semantically identical topics that fuzzy matching missed."""
+def ai_deduplicate(recent_only=True):
+    """Uses Gemini 2.0 to identify semantically identical topics that fuzzy matching missed.
+    
+    Args:
+        recent_only: If True, only checks articles added in the last hour (safe for published content)
+    """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         print("⚠️ Skipping AI Deduplication: GEMINI_API_KEY missing.")
@@ -34,8 +38,18 @@ def ai_deduplicate():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Check the 100 most recent articles
-    cursor.execute("SELECT id, title FROM articles ORDER BY id DESC LIMIT 100")
+    if recent_only:
+        # Only check articles added in the last hour (safe for batch processing)
+        cursor.execute("""
+            SELECT id, title FROM articles 
+            WHERE datetime(published_at) >= datetime('now', '-1 hour')
+            ORDER BY id DESC
+        """)
+        print("   (Checking only articles from last hour to protect published content)")
+    else:
+        # Check the 100 most recent articles (legacy behavior)
+        cursor.execute("SELECT id, title FROM articles ORDER BY id DESC LIMIT 100")
+    
     articles = cursor.fetchall()
     
     if len(articles) < 2:
