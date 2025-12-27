@@ -207,14 +207,15 @@
 
         .light-mode .text-white:not(.bg-red-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-blue-600):not(.hero-title),
         .light-mode h1:not(.hero-title),
-        .light-mode h2,
-        .light-mode h3,
-        .light-mode h4 {
+        .light-mode h2:not(.hero-title),
+        .light-mode h3:not(.hero-title),
+        .light-mode h4:not(.hero-title) {
             color: #09090b !important;
         }
 
         .light-mode .hero-title,
-        .light-mode [class*="absolute"] .text-white,
+        .light-mode .hero-text-container,
+        .light-mode .hero-text-container *,
         .hero-title {
             color: white !important;
             text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 0, 0, 0.3);
