@@ -95,19 +95,37 @@ def ai_deduplicate(recent_only=True):
         
     conn.close()
 
-def remove_duplicates(seq_threshold=0.8, word_threshold=0.6):
-    """Standard fuzzy deduplication followed by AI semantic check."""
+def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
+    """Standard fuzzy deduplication followed by AI semantic check.
+    
+    Args:
+        seq_threshold: Sequence similarity threshold (0-1)
+        word_threshold: Jaccard word similarity threshold (0-1)
+        recent_only: If True, only checks articles from last hour (safe and efficient)
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    cursor.execute("SELECT id, title, slug FROM articles ORDER BY id ASC")
+    if recent_only:
+        # Only check articles added in the last hour
+        cursor.execute("""
+            SELECT id, title, slug FROM articles 
+            WHERE datetime(published_at) >= datetime('now', '-1 hour')
+            ORDER BY id ASC
+        """)
+        print("Scanning recent articles (last hour) for fuzzy duplicates...")
+    else:
+        # Legacy: Check ALL articles (very slow for large databases)
+        cursor.execute("SELECT id, title, slug FROM articles ORDER BY id ASC")
+        print(f"Scanning ALL articles for fuzzy duplicates...")
+    
     articles = cursor.fetchall()
     
     if not articles:
         conn.close()
         return
 
-    print(f"Scanning {len(articles)} articles for fuzzy duplicates...")
+    print(f"   Found {len(articles)} articles to check.")
     
     to_delete = []
     seen_titles = [] 
@@ -131,11 +149,13 @@ def remove_duplicates(seq_threshold=0.8, word_threshold=0.6):
         cursor.execute(f"DELETE FROM articles WHERE id IN ({','.join(map(str, to_delete))})")
         conn.commit()
         print(f"🗑️ Removed {len(to_delete)} fuzzy duplicates.")
+    else:
+        print("✅ No fuzzy duplicates found.")
     
     conn.close()
     
-    # Now run the smarter AI check
-    ai_deduplicate()
+    # Now run the smarter AI check (also limited to recent)
+    ai_deduplicate(recent_only=recent_only)
 
 if __name__ == "__main__":
     remove_duplicates()
