@@ -7,17 +7,15 @@ load_dotenv()
 def generate_voice_samples():
     """Generates audio samples for different Google Neural2 voices."""
     
-    # Voices to test (US English mostly for consistency)
+    # Voices to test (Focusing on High-Tech / Futuristic / Professional)
     voices_to_test = {
-        "en-US-Neural2-A": "Male - Balanced",
-        "en-US-Neural2-C": "Female - Balanced",
-        "en-US-Neural2-D": "Male - Deep",
-        "en-US-Neural2-E": "Female - Professional",
-        "en-US-Neural2-F": "Female - Soft",
-        "en-US-Neural2-H": "Female - Bright",
-        "en-US-Neural2-I": "Male - Authoritative", 
-        "en-UK-Neural2-A": "UK Female",
-        "en-UK-Neural2-B": "UK Male",
+        "en-US-Neural2-J": "Male - Current Anchor (Calm)",
+        "en-US-Neural2-D": "Male - Deep (Futuristic/Authoritative)",
+        "en-US-Neural2-H": "Female - Bright (High Tech Assistant)",
+        "en-US-Journey-D": "Male - Journey (Newest, Very Human)",
+        "en-US-Journey-F": "Female - Journey (Newest, Very Human)",
+        "en-US-Studio-M": "Male - Studio (Crisp, High End)", # If available
+        "en-US-Studio-O": "Female - Studio (Crisp, High End)", # If available
     }
     
     # We currently use:
