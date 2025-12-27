@@ -46,27 +46,64 @@ class AudioGenerator:
         audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
 
         try:
-            # 1. Generate Male (Neutral Neural2)
+            # 1. Generate Male (Journey D - Futuristic/Human)
             if not male_path.exists():
-                print(f"Generating Male Audio (Google): {male_filename}")
+                print(f"Generating Male Audio (Journey): {male_filename}")
                 voice = texttospeech.VoiceSelectionParams(
                     language_code="en-US",
-                    name="en-US-Neural2-J" # High-quality Neutral Male
+                    name="en-US-Journey-D" 
                 )
                 response = self.client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
-                with open(male_path, "wb") as out:
+                
+                # Save Raw TTS temporarily
+                temp_male = audio_dir / f"temp_{male_filename}"
+                with open(temp_male, "wb") as out:
                     out.write(response.audio_content)
+                
+                # Apply Mixing
+                try:
+                    from audio_mixer_moviepy import mix_audio_moviepy
+                    bg_music = "static/audio/ES_Cinematics - Blue Saga - 0000-58213.wav"
+                    if os.path.exists(bg_music):
+                        print("   🎛️ Mixing with background music...")
+                        mix_audio_moviepy(str(temp_male), bg_music, str(male_path))
+                        os.remove(temp_male) # Clean up raw
+                    else:
+                        print("   ⚠️ Background music not found, using raw TTS.")
+                        os.rename(temp_male, male_path)
+                except Exception as mix_err:
+                    print(f"   ⚠️ Mixing failed ({mix_err}), using raw TTS.")
+                    if os.path.exists(temp_male): os.rename(temp_male, male_path)
+
             
-            # 2. Generate Female (Neutral Neural2)
+            # 2. Generate Female (Journey F - Futuristic/Human)
             if not female_path.exists():
-                print(f"Generating Female Audio (Google): {female_filename}")
+                print(f"Generating Female Audio (Journey): {female_filename}")
                 voice = texttospeech.VoiceSelectionParams(
                     language_code="en-US",
-                    name="en-US-Neural2-F" # High-quality Neutral Female
+                    name="en-US-Journey-F" 
                 )
                 response = self.client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
-                with open(female_path, "wb") as out:
+                
+                 # Save Raw TTS temporarily
+                temp_female = audio_dir / f"temp_{female_filename}"
+                with open(temp_female, "wb") as out:
                     out.write(response.audio_content)
+
+                # Apply Mixing
+                try:
+                    from audio_mixer_moviepy import mix_audio_moviepy
+                    bg_music = "static/audio/ES_Cinematics - Blue Saga - 0000-58213.wav"
+                    if os.path.exists(bg_music):
+                        print("   🎛️ Mixing with background music...")
+                        mix_audio_moviepy(str(temp_female), bg_music, str(female_path))
+                        os.remove(temp_female) # Clean up raw
+                    else:
+                        print("   ⚠️ Background music not found, using raw TTS.")
+                        os.rename(temp_female, female_path)
+                except Exception as mix_err:
+                    print(f"   ⚠️ Mixing failed ({mix_err}), using raw TTS.")
+                    if os.path.exists(temp_female): os.rename(temp_female, female_path)
                 
             return f"/static/audio/{male_filename}", f"/static/audio/{female_filename}"
             

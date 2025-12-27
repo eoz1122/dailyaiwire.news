@@ -10,3 +10,4 @@ requests
 google-cloud-texttospeech
 gunicorn
 pytz
+moviepy
