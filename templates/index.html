@@ -113,7 +113,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
         <!-- Carousel Indicators -->
         <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
             {% for art in carousel_articles %}
-            <button onclick="goToSlide({{ loop.index0 }})"
+            <button onclick="goToSlide(parseInt('{{ loop.index0 }}'))"
                 class="carousel-indicator w-2 h-2 rounded-full bg-white/50 hover:bg-white transition-all {% if loop.index0 == 0 %}bg-white{% endif %}"
                 data-index="{{ loop.index0 }}" aria-label="Go to slide {{ loop.index }}"></button>
             {% endfor %}
