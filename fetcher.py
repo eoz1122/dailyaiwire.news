@@ -644,8 +644,8 @@ def main():
         print("Everything up to date. No new intelligence to process.")
         return
 
-    # Process in batches of 2 for maximum stability during import
-    batch_size = 2
+    # Process in batches of 4 for efficiency (fewer API calls, same cost)
+    batch_size = 4
     distributor = SocialDistributor()
     total_posts_sent = 0
     articles_saved = 0
