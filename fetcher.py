@@ -370,10 +370,14 @@ def process_batch(batch: List[Dict]):
                     output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
                     budget.log_request(input_tokens, output_tokens)
                 
-                # Cleanup: Strip markdown bolding if Gemini ignored instructions
-                raw_json = response.text
+                # Cleanup: Strip markdown blocks if Gemini added them
+                raw_json = response.text.strip()
+                if raw_json.startswith("```json"):
+                    raw_json = re.sub(r'^```json\s*', '', raw_json, flags=re.MULTILINE)
+                    raw_json = re.sub(r'\s*```$', '', raw_json, flags=re.MULTILINE)
+                
                 clean_json_str = raw_json.replace('**', '')
-                return json.loads(clean_json_str)
+                return json.loads(clean_json_str, strict=False)
             except Exception as e:
                 if "429" in str(e):
                     # Multiplier based on attempt to survive the initial billing sync
@@ -381,7 +385,10 @@ def process_batch(batch: List[Dict]):
                     print(f"Quota hit! Waiting {wait_time}s and retrying...")
                     time.sleep(wait_time)
                     continue
-                print(f"API Error: {e}")
+                print(f"API Error ({attempt+1}/5): {e}")
+                # Print a snippet of the problematic JSON if it's a parsing error
+                if "JSON" in str(e) or "control character" in str(e).lower():
+                    print(f"Problematic JSON snippet: {raw_json[:200]}...")
                 time.sleep(10)
                 continue
         return []
