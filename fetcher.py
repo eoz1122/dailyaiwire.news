@@ -647,23 +647,31 @@ def main():
     # Process in batches of 2 for maximum stability during import
     batch_size = 2
     distributor = SocialDistributor()
-    audio_gen = AudioGenerator()
     total_posts_sent = 0
+    articles_saved = 0
     
     for i in range(0, len(new_articles), batch_size):
         batch = new_articles[i:i + batch_size]
         print(f"Processing batch {i//batch_size + 1} ({len(batch)} articles)...")
         processed = process_batch(batch)
         if processed:
-            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=2, posts_count=total_posts_sent, audio_gen=audio_gen)
+            # Save WITHOUT audio generation (pass None for audio_gen)
+            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=2, posts_count=total_posts_sent, audio_gen=None)
+            articles_saved += len(processed)
             print(f"Saved {len(processed)} articles from batch. Social posts sent so far: {total_posts_sent}")
         
         # Sleep 15s between batches to avoid rate limits
         time.sleep(15)
 
-    # Final Safety Check: Run full database deduplication to catch any edge cases
-    print("Running post-upload deduplication check...")
+    # Run deduplication BEFORE generating expensive audio
+    print("Running deduplication before audio generation...")
     remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
+    
+    # Now generate audio only for articles that survived deduplication
+    if articles_saved > 0:
+        print(f"Generating audio for {articles_saved} deduplicated articles...")
+        from generate_missing_audio import generate_audio_for_recent_articles
+        generate_audio_for_recent_articles(limit=articles_saved)
 
     # [MIGRATED] Social Queue processing is now handled by tweet_scheduler.py
     # if total_posts_sent > 0 or True: # Always check queue
