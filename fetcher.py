@@ -245,6 +245,13 @@ def fetch_all_sources() -> List[Dict]:
     
     all_articles = list(unique_articles.values())
     
+    # HARD LIMIT: Cap at 100 headlines to save tokens
+    if len(all_articles) > 100:
+        print(f"Refining pool from {len(all_articles)} to 100 random headlines for analysis.")
+        import random
+        random.shuffle(all_articles)
+        all_articles = all_articles[:100]
+
     # ACTIVATE AI FILTERING
     return filter_high_signal_headlines(all_articles)
 
