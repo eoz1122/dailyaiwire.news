@@ -74,6 +74,7 @@ def inject_config():
     return {
         'current_year': datetime.now().year,
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
+        'config_web3forms_key': os.getenv('WEB3FORMS_ACCESS_KEY'),
         'q': request.args.get('q', ''),
         'emre': {
             'name': 'Ali Emre Ozen',
