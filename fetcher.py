@@ -110,7 +110,7 @@ def init_db():
     conn.close()
 
 def is_spam(title: str) -> bool:
-    spam_keywords = ["crypto", "bitcoin", "deal", "course", "vpn", "trading"]
+    spam_keywords = ["crypto", "bitcoin", "deal", "course", "vpn", "trading", "webinar", "sale", "limited time", "bundle", "discount"]
     title_lower = title.lower()
     return any(keyword in title_lower for keyword in spam_keywords)
 
@@ -125,7 +125,7 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     headline_list = "\n".join([f"- {a['title']}" for a in articles])
     
     prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to select the TOP 20 MOST NEWSWORTHY articles from this list.
+    You are an elite AI Intelligence Officer. Your task is to select the TOP 8 MOST NEWSWORTHY articles from this list.
     
     Prioritize articles that represent:
     - Major AI breakthroughs or research milestones
@@ -138,9 +138,10 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
     - Minor product updates
     - Low-impact announcements
     - Tutorial/how-to content
+    - "Deals", "Sales", "Webinars", "Courses" (Strictly ignore)
     
-    Return EXACTLY 20 indices (starting from 0) of the most important articles as a comma-separated list.
-    If there are fewer than 20 worthy articles, return only those indices.
+    Return EXACTLY 8 indices (starting from 0) of the most important articles as a comma-separated list.
+    If there are fewer than 8 worthy articles, return only those indices.
     
     Example Input:
     - OpenAI releases Sora API
@@ -335,7 +336,7 @@ def process_batch(batch: List[Dict]):
         "    \"optimistic_outlook\": \"Upside analysis and positive potential\",\n"
         "    \"pessimistic_outlook\": \"Downside/Risk analysis and critical concerns\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
-        "    \"deep_analysis\": \"A comprehensive summary of at least 400 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\"\n"
+        "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\"\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input)
