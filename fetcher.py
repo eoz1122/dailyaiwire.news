@@ -159,6 +159,15 @@ def is_spam(title: str) -> bool:
     title_lower = title.lower()
     return any(keyword in title_lower for keyword in spam_keywords)
 
+def is_ignored_source(source_name: str) -> bool:
+    """Filters out sources that are too local or irrelevant."""
+    blocked = [
+        "Kurdistan24", "kurdistan24.net", 
+        "Seacoastonline.com", "Pittsburgh Post-Gazette",
+        "KERA News", "Oregon Public Broadcasting - OPB"
+    ]
+    return any(b.lower() in source_name.lower() for b in blocked)
+
 def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] = []) -> List[Dict]:
     """Uses Gemini to filter for high-value AI news headlines and exclude duplicates/similar stories."""
     if not articles:
@@ -276,6 +285,10 @@ def fetch_all_sources() -> List[Dict]:
                     real_source = source_name
                     if source_name == "Google News" and hasattr(entry, 'source') and 'title' in entry.source:
                         real_source = entry.source.title
+
+                    # IGNORE LOCAL/BLOCKED SOURCES
+                    if is_ignored_source(real_source):
+                        continue
 
                     unique_articles[link] = {
                         "title": title,
