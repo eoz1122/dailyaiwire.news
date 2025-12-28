@@ -5,36 +5,36 @@ DB_PATH = "news.db"
 
 CAT_MAP = {
     "LLMs": [
-        "https://dailyaiwire.news/static/fallbacks/llms_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/llms_1.jpg"
+        "/static/fallbacks/llms_0.jpg",
+        "/static/fallbacks/llms_1.jpg"
     ],
     "Robotics": [
-        "https://dailyaiwire.news/static/fallbacks/robotics_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/robotics_1.jpg"
+        "/static/fallbacks/robotics_0.jpg",
+        "/static/fallbacks/robotics_1.jpg"
     ],
     "Business": [
-        "https://dailyaiwire.news/static/fallbacks/business_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/business_1.jpg"
+        "/static/fallbacks/business_0.jpg",
+        "/static/fallbacks/business_1.jpg"
     ],
     "Tools": [
-        "https://dailyaiwire.news/static/fallbacks/tools_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/tools_1.jpg"
+        "/static/fallbacks/tools_0.jpg",
+        "/static/fallbacks/tools_1.jpg"
     ],
     "Policy": [
-        "https://dailyaiwire.news/static/fallbacks/policy_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/policy_1.jpg"
+        "/static/fallbacks/policy_0.jpg",
+        "/static/fallbacks/policy_1.jpg"
     ],
     "Science": [
-        "https://dailyaiwire.news/static/fallbacks/science_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/science_1.jpg"
+        "/static/fallbacks/science_0.jpg",
+        "/static/fallbacks/science_1.jpg"
     ],
     "Security": [
-        "https://dailyaiwire.news/static/fallbacks/security_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/security_1.jpg"
+        "/static/fallbacks/security_0.jpg",
+        "/static/fallbacks/security_1.jpg"
     ],
     "Society": [
-        "https://dailyaiwire.news/static/fallbacks/society_0.jpg",
-        "https://dailyaiwire.news/static/fallbacks/society_1.jpg"
+        "/static/fallbacks/society_0.jpg",
+        "/static/fallbacks/society_1.jpg"
     ]
 }
 
@@ -57,7 +57,7 @@ def randomize():
         count = 0
         for (article_id,) in rows:
             # We want to randomize it with one of the options in the list
-            new_image = f"{random.choice(images)}?auto=format&fit=crop&q=80&w=1200"
+            new_image = random.choice(images)
             cursor.execute("UPDATE articles SET image = ? WHERE id = ?", (new_image, article_id))
             count += 1
             

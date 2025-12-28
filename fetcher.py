@@ -532,7 +532,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 ]
             }
             images = cat_map.get(cat, cat_map["Tools"])
-            image_url = f"{random.choice(images)}?auto=format&fit=crop&q=80&w=1200"
+            image_url = random.choice(images)
 
         # 3. Robust Slug Generation
         final_slug = art.get('seo_slug')
