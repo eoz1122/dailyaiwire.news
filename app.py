@@ -56,43 +56,48 @@ class ArticleModelView(SecureModelView):
 class MyAdminIndexView(AdminIndexView):
     @expose('/')
     def index(self):
-        if not current_user.is_authenticated:
-            return redirect(url_for('login', next=request.url))
-        
-        # Pagination & Filtering
-        page = request.args.get('page', 1, type=int)
-        per_page = 50
-        offset = (page - 1) * per_page
-        
-        date_filter = request.args.get('date', type=str) # YYYY-MM-DD
-        
-        conn = get_db_connection()
-        
-        query = 'SELECT id, title, category, published_at, slug FROM articles'
-        params = []
-        
-        if date_filter:
-            query += ' WHERE date(published_at) = ?'
-            params.append(date_filter)
+        try:
+            if not current_user.is_authenticated:
+                return redirect(url_for('login', next=request.url))
             
-        query += ' ORDER BY published_at DESC LIMIT ? OFFSET ?'
-        params.extend([per_page, offset])
-        
-        articles = conn.execute(query, params).fetchall()
-        
-        # Total count for simpler "Next" button logic
-        total_query = 'SELECT COUNT(*) FROM articles'
-        total_params = []
-        if date_filter:
-            total_query += ' WHERE date(published_at) = ?'
-            total_params.append(date_filter)
+            # Pagination & Filtering
+            page = request.args.get('page', 1, type=int)
+            per_page = 50
+            offset = (page - 1) * per_page
             
-        total = conn.execute(total_query, total_params).fetchone()[0]
-        has_next = (offset + per_page) < total
-        
-        conn.close()
-        
-        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter)
+            date_filter = request.args.get('date', type=str) # YYYY-MM-DD
+            
+            conn = get_db_connection()
+            
+            query = 'SELECT id, title, category, published_at, slug FROM articles'
+            params = []
+            
+            if date_filter:
+                query += ' WHERE date(published_at) = ?'
+                params.append(date_filter)
+                
+            query += ' ORDER BY published_at DESC LIMIT ? OFFSET ?'
+            params.extend([per_page, offset])
+            
+            articles = conn.execute(query, params).fetchall()
+            
+            # Total count for simpler "Next" button logic
+            total_query = 'SELECT COUNT(*) FROM articles'
+            total_params = []
+            if date_filter:
+                total_query += ' WHERE date(published_at) = ?'
+                total_params.append(date_filter)
+                
+            total_query_result = conn.execute(total_query, total_params).fetchone()
+            total = total_query_result[0] if total_query_result else 0
+            has_next = (offset + per_page) < total
+            
+            conn.close()
+            
+            return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter)
+        except Exception as e:
+            import traceback
+            return f"Admin Error: {str(e)} <br><pre>{traceback.format_exc()}</pre>", 500
 
 
 
