@@ -52,7 +52,7 @@ class SocialDistributor:
             # Clean markdown bolding
             gist_clean = gist.replace('**', '')
             
-            tweet_text = f"🚨 {headline}\n\n{gist_clean[:180]}...\n\nRead more: {link}"
+            tweet_text = f"📢 AI-Curated: {headline}\n\n{gist_clean[:180]}...\n\nRead more: {link}"
             
             print("🐦 X (Twitter) Preview:")
             print("-" * 30)
@@ -77,7 +77,7 @@ class SocialDistributor:
         # Clean markdown
         analysis_clean = analysis.replace('**', '').replace('\n', ' ')
         
-        li_text = f"📢 Deep Intelligence Analysis: {headline}\n\n{analysis_clean[:400]}...\n\nFull Investigation: {link}\n\n#AI #DailyAIWire #Automation #Innovation"
+        li_text = f"📢 AI-First Intelligence Analysis: {headline}\n\n{analysis_clean[:400]}...\n\nFull Investigation: {link}\n\n#AI #DailyAIWire #HybridIntelligence #Innovation"
         
         if not self.linkedin_access_token:
             print("📝 LinkedIn Preview (Token missing):")

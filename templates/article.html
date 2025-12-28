@@ -27,7 +27,7 @@
   "dateModified": {{ article.published_at | tojson | safe }},
   "author": {
     "@type": "Organization",
-    "name": "DailyAIWire Autonomous Intelligence",
+    "name": "DailyAIWire AI-First Intelligence",
     "url": "https://dailyaiwire.news/about"
   },
   "publisher": {
@@ -47,7 +47,7 @@
     "@id": {{ ("https://dailyaiwire.news/article/" + article.slug) | tojson | safe }}
   },
   "isBasedOn": {{ article.source_url | tojson | safe }},
-  "backstory": "This article was autonomously discovered, summarized, and analyzed by the Gemini 2.5 Flash model without human editorial intervention to prioritize speed and machine-logic distillation."
+  "backstory": "This article was orchestrated by the Gemini 2.5 Flash model and expert-vetted for accuracy and depth."
 }
 </script>
 {% endblock %}
@@ -332,13 +332,11 @@
                 <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
                     Key
                     Details</h3>
-                <ul class="space-y-4">
-                    {% for detail in article.key_details %}
+                <ul class="space-y-4">{% for detail in article.key_details %}
                     <li class="flex items-start">
                         <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
                         <span class="text-zinc-300 text-lg">{{ detail }}</span>
-                    </li>
-                    {% endfor %}
+                    </li>{% endfor %}
                 </ul>
             </section>
             {% endif %}

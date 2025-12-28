@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
 {% block title %}{% if category %}{{ category }} Intelligence // DailyAIWire.news{% else %}DailyAIWire.news //
-Autonomous AI Intelligence Feed{% endif %}{% endblock %}
+AI-First Intelligence Feed{% endif %}{% endblock %}
 
 {% block meta_title %}{% if category %}{{ category }} AI Intelligence & Industry Breakthroughs{% else %}DailyAIWire.news
 - AI Intelligence & Automation Insights{% endif %}{% endblock %}
 
-{% block meta_description %}{% if category %}Deep dive into {{ category }} with autonomous AI analysis. Latest
-breakthroughs, industry impact, and strategic insights for {{ category }} enthusiasts.{% else %}Essential AI
-intelligence curated daily. Get expert analysis on LLMs, robotics, automation tools, and business AI trends. Powered by
+{% block meta_description %}{% if category %}Deep dive into {{ category }} with AI-first analysis. Latest
+breakthroughs, industry impact, and strategic insights for {{ category }} enthusiasts.{% else %}High-signal AI
+intelligence curated daily. Get deep analysis on LLMs, robotics, automation tools, and business AI trends. Powered by
 Google Gemini.{% endif %}{% endblock %}
 
 {% block canonical %}https://dailyaiwire.news/{% if category %}?category={{ category }}{% endif %}{% if page > 1 %}{% if
