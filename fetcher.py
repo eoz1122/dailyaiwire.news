@@ -532,7 +532,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                     "https://images.unsplash.com/photo-1507413245164-6160d8298b31",
                     "https://images.unsplash.com/photo-1532187863486-abf9d39d999a",
                     "https://images.unsplash.com/photo-1451187580459-43490279c0fa",
-                    "https://images.unsplash.com/photo-1532094349884-543bb1198c33"
+                    "https://images.unsplash.com/photo-1579154235602-381747ef2232"
                 ],
                 "Security": [
                     "https://images.unsplash.com/photo-1550751827-4bd374c3f58b",
