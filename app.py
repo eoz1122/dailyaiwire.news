@@ -65,7 +65,7 @@ class MyAdminIndexView(AdminIndexView):
         
         return self.render('admin/index.html', articles=articles)
 
-admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView(), template_mode='bootstrap4')
+admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
 
 @app.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
