@@ -74,32 +74,26 @@
                 </tbody>
             </table>
         </div>
-        </tr>
-        {% endfor %}
-        </tbody>
-        </table>
-    </div>
-
-    <!-- Pagination -->
-    <div class="p-4 border-t border-zinc-800 flex justify-between items-center bg-zinc-900/50">
-        <div>
-            {% if page > 1 %}
-            <a href="{{ url_for('admin.index', page=page-1, date=date_filter) }}"
-                class="text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 px-3 py-1 rounded transition-colors">
-                &larr; Previous
-            </a>
-            {% endif %}
-        </div>
-        <span class="text-xs text-zinc-500 font-mono">Page {{ page }}</span>
-        <div>
-            {% if has_next %}
-            <a href="{{ url_for('admin.index', page=page+1, date=date_filter) }}"
-                class="text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 px-3 py-1 rounded transition-colors">
-                Next &rarr;
-            </a>
-            {% endif %}
+        <!-- Pagination -->
+        <div class="p-4 border-t border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+            <div>
+                {% if page > 1 %}
+                <a href="{{ url_for('admin.index', page=page-1, date=date_filter) }}"
+                    class="text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 px-3 py-1 rounded transition-colors">
+                    &larr; Previous
+                </a>
+                {% endif %}
+            </div>
+            <span class="text-xs text-zinc-500 font-mono">Page {{ page }}</span>
+            <div>
+                {% if has_next %}
+                <a href="{{ url_for('admin.index', page=page+1, date=date_filter) }}"
+                    class="text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 px-3 py-1 rounded transition-colors">
+                    Next &rarr;
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
-</div>
 </div>
 {% endblock %}
