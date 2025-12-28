@@ -7,7 +7,7 @@ DB_PATH = "news.db"
 TIMEZONE = pytz.timezone("Europe/Berlin")
 QUIET_START = 4
 QUIET_END = 9
-INTERVAL_SECONDS = 14400
+INTERVAL_SECONDS = 3600
 
 def diagnose():
     print("\n" + "="*50)

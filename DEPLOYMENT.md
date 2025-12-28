@@ -48,10 +48,12 @@ python fetcher.py
 ```
 
 ### 3b. Setup Audio Generation (Google TTS)
+
 1. Go to Google Cloud Console and enable **Cloud Text-to-Speech API**.
 2. Create time a **Service Account** and generate a **JSON Key**.
 3. Upload the key file to the server (e.g., `google_credentials.json`).
 4. Update `.env`:
+
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=/home/dailyai/dailyaiwire/google_credentials.json
 ```
@@ -73,6 +75,7 @@ loglevel = "info"
 ```
 
 Create logs directory:
+
 ```bash
 mkdir -p /home/dailyai/dailyaiwire.news/logs
 ```
@@ -95,6 +98,7 @@ stdout_logfile=/home/dailyai/dailyaiwire.news/logs/supervisor-access.log
 ```
 
 Start supervisor:
+
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
@@ -103,9 +107,11 @@ sudo supervisorctl status
 ```
 
 ### 5b. Configure Twitter Scheduler (Optional)
-To run the social media scheduler independently (posts every 4 hours):
+
+To run the social media scheduler independently (posts every 1 hour):
 
 Create `/etc/supervisor/conf.d/tweet_scheduler.conf`:
+
 ```ini
 [program:tweet_scheduler]
 directory=/home/dailyai/dailyaiwire.news
@@ -118,6 +124,7 @@ stdout_logfile=/home/dailyai/dailyaiwire.news/logs/twitter-access.log
 ```
 
 Start service:
+
 ```bash
 sudo supervisorctl update
 sudo supervisorctl start dailyaiwire-twitter
@@ -162,6 +169,7 @@ server {
 ```
 
 Enable site:
+
 ```bash
 sudo ln -s /etc/nginx/sites-available/dailyaiwire /etc/nginx/sites-enabled/
 sudo nginx -t
@@ -184,6 +192,7 @@ crontab -e
 ```
 
 Add this line to run fetcher every hour:
+
 ```cron
 0 * * * * cd /home/dailyai/dailyaiwire.news && /home/dailyai/dailyaiwire.news/venv/bin/python fetcher.py >> /home/dailyai/dailyaiwire.news/logs/fetcher.log 2>&1
 ```
@@ -263,6 +272,7 @@ find $BACKUP_DIR -name "news_*.db" -mtime +7 -delete
 ```
 
 Make executable and add to cron:
+
 ```bash
 chmod +x /home/dailyai/backup_db.sh
 crontab -e
@@ -274,15 +284,18 @@ crontab -e
 ## 🚨 Troubleshooting
 
 **App won't start:**
+
 ```bash
 sudo supervisorctl tail dailyaiwire stderr
 ```
 
 **502 Bad Gateway:**
+
 - Check if Gunicorn is running: `sudo supervisorctl status`
 - Check Nginx config: `sudo nginx -t`
 
 **Database locked:**
+
 ```bash
 # Stop app, backup DB, restart
 sudo supervisorctl stop dailyaiwire
@@ -295,6 +308,7 @@ sudo supervisorctl start dailyaiwire
 ## 📞 Support
 
 For issues, check logs first:
+
 - Gunicorn: `/home/dailyai/dailyaiwire/logs/gunicorn-error.log`
 - Fetcher: `/home/dailyai/dailyaiwire/logs/fetcher.log`
 - Nginx: `/var/log/nginx/error.log`

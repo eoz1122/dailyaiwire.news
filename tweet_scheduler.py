@@ -10,7 +10,7 @@ import pytz
 from datetime import datetime, timedelta
 
 DB_PATH = "news.db"
-INTERVAL_SECONDS = 14400  # 4 hours (Max 6 articles per day)
+INTERVAL_SECONDS = 3600  # 1 hour (Max 24 articles per day)
 QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
@@ -70,7 +70,7 @@ from remove_duplicates import remove_duplicates
 
 def main_loop():
     print(f"🚀 Starting Tweet Scheduler v{VERSION}")
-    print(f"📡 Config: Interval 4h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
+    print(f"📡 Config: Interval 1h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
     distributor = SocialDistributor()
 
     while True:
@@ -86,7 +86,7 @@ def main_loop():
             
             if time_since_last < INTERVAL_SECONDS:
                 remaining = INTERVAL_SECONDS - time_since_last
-                print(f"⏳ 4-hour gap active. {remaining/60:.0f} mins remaining until next allowed post.")
+                print(f"⏳ 1-hour gap active. {remaining/60:.0f} mins remaining until next allowed post.")
                 time.sleep(min(remaining, 600)) 
                 continue
 
@@ -106,12 +106,12 @@ def main_loop():
                 
                 if distributor.post_to_x(article_for_dist):
                     mark_as_shared(article['slug'])
-                    print(f"✅ Successfully shared. Next post in 4 hours.")
+                    print(f"✅ Successfully shared. Next post in 1 hour.")
                 else:
                     # If we hit a 429, we should be AGGRESSIVE about waiting.
                     # Usually, 429 resets in 15-60 mins, but sometimes it's daily.
-                    print(f"⚠️ [RATE LIMIT / ERROR] Post failed. Cooling down for 4 hours to reset quotas...")
-                    time.sleep(14400) # Full 4 hour cooldown
+                    print(f"⚠️ [RATE LIMIT / ERROR] Post failed. Cooling down for 1 hour to reset quotas...")
+                    time.sleep(3600) # Full 1 hour cooldown
             else:
                 print("📭 No unshared articles. Checking again in 30 mins...")
                 time.sleep(1800)

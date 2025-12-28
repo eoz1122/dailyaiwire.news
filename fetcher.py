@@ -708,7 +708,7 @@ def main_loop():
     print("Starting DailyAIWire Intelligence Service...")
     
     last_fetch_time = 0
-    fetch_interval = 14400 # 4 hours
+    fetch_interval = 3600 # 1 hour
     
     while True:
         try:
