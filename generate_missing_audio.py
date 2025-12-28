@@ -54,9 +54,9 @@ def generate_audio_for_recent_articles(limit=10):
                 'UPDATE articles SET audio_male = ?, audio_female = ? WHERE slug = ?',
                 (male, female, slug)
             )
-            print(f"✅ Generated audio for: {art[1][:50]}...")
+            conn.commit()
+            print(f"✅ Generated and committed audio for: {art[1][:50]}...")
     
-    conn.commit()
     conn.close()
     print(f"Audio generation complete for {len(articles)} articles.")
 
