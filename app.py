@@ -1,4 +1,4 @@
-import os, sqlite3, json, math, re, shutil, time, traceback
+import os, sqlite3, json, math, re, shutil, time
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, abort, request, Response, redirect, url_for, flash
@@ -12,10 +12,6 @@ from dotenv import load_dotenv
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-dev-secret-key-change-in-prod')
-
-@app.errorhandler(500)
-def handle_500(e):
-    return f"<h1>Global 500 Error</h1><p>{str(e)}</p><pre>{traceback.format_exc()}</pre>", 500
 
 # --- Authentication Setup ---
 login_manager = LoginManager()
