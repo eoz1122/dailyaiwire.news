@@ -4,7 +4,7 @@
     <channel>
         <title>DailyAIWire.news | Intelligence Feed</title>
         <link>https://dailyaiwire.news</link>
-        <description>Automated AI intelligence and industry breakthroughs.</description>
+        <description>AI-First intelligence and high-signal industry breakthroughs.</description>
         <language>en-us</language>
         <lastBuildDate>{{ build_date }}</lastBuildDate>
         <atom:link href="https://dailyaiwire.news/rss" rel="self" type="application/rss+xml" />
