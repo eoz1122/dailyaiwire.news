@@ -305,7 +305,18 @@ def rss_feed():
             else:
                 full_summary = ". ".join(parts) + "."
         
-        a['clean_summary'] = full_summary
+        
+        # Add hashtags to RSS description (for social media automation)
+        hashtags_str = ""
+        if a.get('hashtags'):
+            try:
+                hashtags = json.loads(a['hashtags']) if isinstance(a['hashtags'], str) else a['hashtags']
+                if hashtags:
+                    hashtags_str = " " + " ".join(hashtags)
+            except:
+                pass
+        
+        a['clean_summary'] = full_summary + hashtags_str
         articles.append(a)
         
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())

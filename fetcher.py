@@ -342,6 +342,7 @@ def process_batch(batch: List[Dict]):
         "    \"why_it_matters\": \"Brief insight on impact (2-3 sentences max)\",\n"
         "    \"optimistic_outlook\": \"Upside analysis in 2-3 sentences. Focus on positive potential and opportunities.\",\n"
         "    \"pessimistic_outlook\": \"Downside/Risk analysis in 2-3 sentences. Focus on concerns and challenges.\",\n"
+        "    \"hashtags\": [\"Generate 3-5 relevant hashtags for social media (e.g., #AI, #MachineLearning, #TechNews). Include mix of broad and specific tags.\"],\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
         "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\"\n"
         "  }\n"
@@ -519,8 +520,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, original_author)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -539,6 +540,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 original.get('published'),
                 am,
                 af,
+                json.dumps(art.get('hashtags', [])),
                 original.get('original_author')
             ))
             
