@@ -55,7 +55,6 @@ class ArticleModelView(SecureModelView):
 
 class MyAdminIndexView(AdminIndexView):
     @expose('/')
-    @expose('/')
     def index(self):
         if not current_user.is_authenticated:
             return redirect(url_for('login', next=request.url))
