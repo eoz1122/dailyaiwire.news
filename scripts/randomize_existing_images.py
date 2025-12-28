@@ -6,39 +6,39 @@ DB_PATH = "news.db"
 CAT_MAP = {
     "LLMs": [
         "https://images.unsplash.com/photo-1677442136019-21780ecad995",
-        "https://images.unsplash.com/photo-1673187115862-5bd33cf48831",
+        "https://images.unsplash.com/photo-1684369175833-31f661066f91",
         "https://images.unsplash.com/photo-1697577418970-95d99b5a55cf",
         "https://images.unsplash.com/photo-1675271591211-126ad94e495d"
     ],
     "Robotics": [
         "https://images.unsplash.com/photo-1485827404703-89b55fcc595e",
         "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158",
-        "https://images.unsplash.com/photo-1516110833967-0b5716ca1387",
-        "https://images.unsplash.com/photo-1535378917042-10a22c95931a"
+        "https://images.unsplash.com/photo-1546776310-eef45dd6d63c",
+        "https://images.unsplash.com/photo-1531746790731-6c087fecd65a"
     ],
     "Business": [
-        "https://images.unsplash.com/photo-1507679799987-c73779587ccf",
         "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab",
-        "https://images.unsplash.com/photo-1497366216548-37526070297c",
-        "https://images.unsplash.com/photo-1664575602276-acd073f104c1"
+        "https://images.unsplash.com/photo-1551434678-e076c223a692",
+        "https://images.unsplash.com/photo-1460925895917-afdab827c52f",
+        "https://images.unsplash.com/photo-1556155092-490a1ba16284"
     ],
     "Tools": [
         "https://images.unsplash.com/photo-1518770660439-4636190af475",
-        "https://images.unsplash.com/photo-1550009158-9ebf69173e03",
+        "https://images.unsplash.com/photo-1550745679-33d016c823b4",
         "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
-        "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0"
+        "https://images.unsplash.com/photo-1531297484001-80022131f5a1"
     ],
     "Policy": [
         "https://images.unsplash.com/photo-1450101499163-c8848c66ca85",
         "https://images.unsplash.com/photo-1589829545856-d10d557cf95f",
-        "https://images.unsplash.com/photo-1423592707957-3b212afa6733",
-        "https://images.unsplash.com/photo-1505664194779-8beaceb93744"
+        "https://images.unsplash.com/photo-1521791136064-7986c308457c",
+        "https://images.unsplash.com/photo-1423592707957-3b212afa6733"
     ],
     "Science": [
         "https://images.unsplash.com/photo-1507413245164-6160d8298b31",
-        "https://images.unsplash.com/photo-1530210124550-912dc1381cb8",
-        "https://images.unsplash.com/photo-1532094349884-543bb1198c33",
-        "https://images.unsplash.com/photo-1518152006812-edab29b069ac"
+        "https://images.unsplash.com/photo-1532187863486-abf9d39d999a",
+        "https://images.unsplash.com/photo-1451187580459-43490279c0fa",
+        "https://images.unsplash.com/photo-1532094349884-543bb1198c33"
     ],
     "Security": [
         "https://images.unsplash.com/photo-1550751827-4bd374c3f58b",
@@ -50,7 +50,7 @@ CAT_MAP = {
         "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620",
         "https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a",
         "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4",
-        "https://images.unsplash.com/photo-1521737604893-d14cc237f11d"
+        "https://images.unsplash.com/photo-1522202176988-66273c2fd55f"
     ]
 }
 

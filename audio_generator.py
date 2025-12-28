@@ -213,21 +213,35 @@ class AudioGenerator:
                 if not line: continue
                 
                 # Detect Speaker
-                speaker = None
-                text = ""
+                if ':' not in line:
+                    continue
                 
-                if "Host A" in line or "HOST A" in line or "Marcus" in line:
+                parts = line.split(':', 1)
+                prefix = parts[0].strip()
+                text = parts[1].strip()
+                
+                speaker = None
+                if any(x in prefix for x in ["Host A", "HOST A", "Marcus"]):
                     speaker = "A"
-                    text = line.split(':', 1)[-1].strip()
-                elif "Host B" in line or "HOST B" in line or "Sarah" in line:
+                elif any(x in prefix for x in ["Host B", "HOST B", "Sarah"]):
                     speaker = "B"
-                    text = line.split(':', 1)[-1].strip()
                 else:
-                     # Fallback: append to previous or ignore if it looks like direction
-                     continue
+                    continue
             
                 if text:
-                    lines.append((speaker, text))
+                    # CLEANING:
+                    # 1. Phonetic fixes for better TTS
+                    text = text.replace("A.I.", "Ay Eye").replace("AI", "Ay Eye")
+                    
+                    # 2. Remove markdown bold/italic asterisks
+                    text = text.replace("**", "").replace("*", "")
+                    
+                    # 3. Ignore sound cues like (Music fades)
+                    import re
+                    text = re.sub(r'\(.*?\)', '', text).strip()
+                    
+                    if text:
+                        lines.append((speaker, text))
             
             if not lines:
                 print("❌ No dialogue lines detected.")

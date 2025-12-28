@@ -1,0 +1,124 @@
+import os
+import sys
+import sqlite3
+import json
+import datetime
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Add project root to sys.path for imports
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+
+from audio_generator import AudioGenerator
+from video_renderer import render_briefing_video
+
+load_dotenv()
+
+# Configure Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+def fetch_today_articles():
+    conn = sqlite3.connect("news.db")
+    conn.row_factory = sqlite3.Row
+    # Get articles from the last 24 hours
+    limit = 5
+    articles = conn.execute('''
+        SELECT title, gist, why_it_matters, deep_analysis, category
+        FROM articles 
+        WHERE published_at >= date('now', '-1 day')
+        ORDER BY published_at DESC 
+        LIMIT ?
+    ''', (limit,)).fetchall()
+    conn.close()
+    return [dict(a) for a in articles]
+
+def generate_script(articles):
+    model = genai.GenerativeModel("gemini-2.5-flash") # Using latest high-signal model
+    
+    context = ""
+    for idx, art in enumerate(articles):
+        context += f"ARTICLE {idx+1}:\nTitle: {art['title']}\nGist: {art['gist']}\nWhy it matters: {art['why_it_matters']}\nAnalysis: {art['deep_analysis'][:1000]}\n\n"
+
+    prompt = f"""
+    You are writing a script for "Daily A.I. Wire", a premium intelligence briefing for A.I. professionals.
+    The hosts are Marcus (skeptical, deep voice, data-driven) and Sarah (optimistic, warm voice, strategic).
+    
+    IMPORTANT: 
+    - Always write A.I. as "A.I." (with periods) to ensure correct TTS pronunciation. 
+    - NEVER use Markdown formatting like asterisks (* or **) or bolding. Keep text raw and clean.
+    - Avoid script directions in parentheses within the dialogue; only use them as separate lines if vital.
+    
+    The tone should be professional yet conversational, like a high-end tech podcast.
+    
+    Format the script as a dialogue:
+    Host A: [Marcus's lines]
+    Host B: [Sarah's lines]
+    
+    STRUCTURE:
+    1. INTRO: Quick welcome, branding "Daily A.I. Wire", and the hook.
+    2. BODY: Discuss the following 5 articles. Marcus and Sarah should banter about them.
+    3. OUTRO: 
+       - Summary of the day's outlook.
+       - IMPORTANT CTAs: 
+         - "Listen on Spotify: Search for Daily A.I. Wire to never miss a briefing."
+         - "Subscribe on YouTube: For the visual edition and deep dives."
+       - Sign-off: "Stay intelligent."
+    
+    ARTICLES TO DISCUSS:
+    {context}
+    
+    Avoid corporate fluff. Focus on strategic implications and hard truths.
+    Target Duration: 5-7 minutes (approx 800-900 words). Be concise and punchy.
+    """
+
+    print("🧠 Generating script with Gemini Pro...")
+    response = model.generate_content(prompt)
+    return response.text
+
+def main():
+    print("🚀 Starting Daily Briefing Generation...")
+    
+    # 1. Fetch
+    articles = fetch_today_articles()
+    if not articles:
+        print("📭 No articles found for today. Exiting.")
+        return
+
+    # 2. Script
+    script_text = generate_script(articles)
+    date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    script_file = f"briefing_script_{date_str}.txt"
+    with open(script_file, "w", encoding="utf-8") as f:
+        f.write(script_text)
+    print(f"📄 Script saved to {script_file}")
+
+    # 3. Audio
+    slug = f"daily_briefing_{date_str}"
+    audio_gen = AudioGenerator()
+    podcast_audio = audio_gen.generate_podcast_audio(slug, script_text)
+    
+    if not podcast_audio:
+        print("❌ Audio generation failed.")
+        return
+
+    # 4. Video (Optional)
+    make_video = os.getenv("GENERATE_VIDEO", "true").lower() == "true"
+    if make_video:
+        print("🎬 Rendering Video...")
+        headlines = [a['title'] for a in articles]
+        output_video = f"daily_briefing_{date_str}.mp4"
+        background_template = "static/video/loops"
+        
+        success = render_briefing_video(podcast_audio, background_template, output_video, headlines=headlines)
+        
+        if success:
+            print(f"🎉 SUCCESS! Daily briefing generated: {output_video}")
+        else:
+            print("❌ Video rendering failed.")
+    else:
+        print("⏩ Skipping video rendering as requested.")
+
+if __name__ == "__main__":
+    main()

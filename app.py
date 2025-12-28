@@ -565,7 +565,7 @@ def rss_feed():
             a['pub_date_rss'] = formatdate()
         
         # Enclosure logic
-        img_url = a.get('image') or "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200"
+        img_url = a.get('image') or "https://images.unsplash.com/photo-1620712943543-bcc462824100?auto=format&fit=crop&q=80&w=1200"
         if img_url.startswith('/'):
             img_url = f"https://dailyaiwire.news{img_url}"
         a['enclosure_url'] = img_url
