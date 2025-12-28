@@ -94,11 +94,7 @@ class MyAdminIndexView(AdminIndexView):
         
         return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter)
 
-    @expose('/files')
-    def files(self):
-        if not current_user.is_authenticated:
-            return redirect(url_for('login', next=request.url))
-        return redirect(url_for('admin_files'))
+
 
 admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
 
@@ -205,7 +201,7 @@ def admin_delete_article(id):
     return redirect(url_for('admin.index'))
 
 
-@app.route('/admin/files', methods=['GET', 'POST'])
+@app.route('/admin/stock-manager', methods=['GET', 'POST'])
 @login_required
 def admin_files():
     if request.method == 'POST':
