@@ -189,6 +189,68 @@ def admin_edit_article(id):
         
     return render_template('admin/edit_article.html', article=article)
 
+@app.route('/admin/create', methods=['GET', 'POST'])
+@login_required
+def admin_create_article():
+    if request.method == 'POST':
+        from slugify import slugify
+        
+        # Text Fields
+        title = request.form.get('title')
+        slug = request.form.get('slug') or slugify(title)
+        category = request.form.get('category')
+        published_at = request.form.get('published_at') or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        source = request.form.get('source')
+        source_url = request.form.get('source_url')
+        
+        gist = request.form.get('gist')
+        why_it_matters = request.form.get('why_it_matters')
+        bull_case = request.form.get('bull_case')
+        bear_case = request.form.get('bear_case')
+        deep_analysis = request.form.get('deep_analysis')
+        
+        image_url = request.form.get('image_url')
+
+        # File Handling Helper
+        def handle_file_upload(file_input_name, folder, article_slug):
+            file = request.files.get(file_input_name)
+            if file and file.filename:
+                save_dir = os.path.join(app.static_folder, folder)
+                os.makedirs(save_dir, exist_ok=True)
+                
+                filename = secure_filename(file.filename)
+                name, ext = os.path.splitext(filename)
+                new_filename = f"{article_slug}_{name[:20]}_{int(time.time())}{ext}"
+                
+                path = os.path.join(save_dir, new_filename)
+                file.save(path)
+                return f"/static/{folder}/{new_filename}"
+            return None
+
+        # Handle Uploads
+        new_image = image_url
+        uploaded_image = handle_file_upload('image_file', 'uploads', slug or 'art')
+        if uploaded_image:
+            new_image = uploaded_image
+            
+        new_audio_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
+        new_audio_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
+
+        conn = get_db_connection()
+        conn.execute('''
+            INSERT INTO articles 
+            (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, deep_analysis, source, source_url, published_at, audio_male, audio_female)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (slug, title, new_image, category, gist, why_it_matters, bull_case, bear_case, deep_analysis, source, source_url, published_at, new_audio_male, new_audio_female))
+        conn.commit()
+        new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        conn.close()
+        
+        flash('Article created successfully!')
+        return redirect(url_for('admin_edit_article', id=new_id))
+    
+    return render_template('admin/create_article.html')
+
 @app.route('/admin/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_article(id):
