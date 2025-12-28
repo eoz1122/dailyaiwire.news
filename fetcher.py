@@ -56,6 +56,7 @@ def init_db():
             published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             audio_male TEXT, -- Path to generated male audio
             audio_female TEXT, -- Path to generated female audio
+            narration_script TEXT, -- AI-generated script for 1-minute read
             shared_on_x BOOLEAN DEFAULT 0,
             shared_at TIMESTAMP
         )
@@ -91,6 +92,12 @@ def init_db():
     # Add original_author if it doesn't exist
     try:
         cursor.execute("ALTER TABLE articles ADD COLUMN original_author TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    # Add narration_script if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE articles ADD COLUMN narration_script TEXT")
     except sqlite3.OperationalError:
         pass # Already exists
 
@@ -344,7 +351,8 @@ def process_batch(batch: List[Dict]):
         "    \"pessimistic_outlook\": \"Downside/Risk analysis in 2-3 sentences. Focus on concerns and challenges.\",\n"
         "    \"hashtags\": [\"Generate 3-5 relevant hashtags for social media (e.g., #AI, #MachineLearning, #TechNews). Include mix of broad and specific tags.\"],\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
-        "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\"\n"
+        "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\",\n"
+        "    \"narration_script\": \"A high-signal, narrative script for a 1-minute audio read (approx 150 words). Use smooth transitions (e.g., 'Starting with...', 'Interestingly...', 'Looking ahead...'). Do not use headers. Focus on making it sound like a professional news segment.\"\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input)
@@ -520,8 +528,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -541,7 +549,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 am,
                 af,
                 json.dumps(art.get('hashtags', [])),
-                original.get('original_author')
+                original.get('original_author'),
+                art.get('narration_script')
             ))
             
             # [MIGRATED] Social posting is now handled exclusively by tweet_scheduler.py

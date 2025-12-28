@@ -14,7 +14,7 @@ def generate_audio_for_recent_articles(limit=10):
     # Get recent articles without audio
     articles = cursor.execute('''
         SELECT slug, title, gist, why_it_matters, 
-               bull_case, bear_case, key_details
+               bull_case, bear_case, key_details, narration_script
         FROM articles 
         WHERE (audio_male IS NULL OR audio_female IS NULL)
         ORDER BY published_at DESC 
@@ -30,22 +30,27 @@ def generate_audio_for_recent_articles(limit=10):
     audio_gen = AudioGenerator()
     
     for art in articles:
-        slug = art[0]
-        # Build audio script
-        try:
-            key_details = json.loads(art[6]) if art[6] else []
-        except:
-            key_details = []
-            
-        key_details_text = ". ".join(key_details)
-        text_to_read = (
-            f"Headline: {art[1]}. "
-            f"The Gist: {art[2]}. "
-            f"Why It Matters: {art[3]}. "
-            f"Optimistic Outlook: {art[4]}. "
-            f"Risk Factors: {art[5]}. "
-            f"Key Details: {key_details_text}. "
-        )
+        slug, title, gist, matters, bull, bear, details_json, script = art
+        
+        # Build audio script: Prioritize AI Narrative Script, fallback to multi-field
+        if script and len(script) > 50:
+            print(f"   🎙️ Using Narrative AI Script for: {title[:50]}...")
+            text_to_read = script
+        else:
+            print(f"   📜 Using Field Fallback for: {title[:50]}...")
+            try:
+                key_details = json.loads(details_json) if details_json else []
+            except:
+                key_details = []
+            key_details_text = ". ".join(key_details)
+            text_to_read = (
+                f"Headline: {title}. "
+                f"The Gist: {gist}. "
+                f"Why It Matters: {matters}. "
+                f"Optimistic Outlook: {bull}. "
+                f"Risk Factors: {bear}. "
+                f"Key Details: {key_details_text}. "
+            )
         
         male, female = audio_gen.generate_audio_reads(slug, text_to_read)
         

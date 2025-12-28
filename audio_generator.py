@@ -58,7 +58,11 @@ class AudioGenerator:
                     # Journey-D (Deep, Authoritative)
                     input_text = texttospeech.SynthesisInput(text=chunk)
                     voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Journey-D")
-                    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+                    # Use Linear16 for high fidelity (matching Daily Briefing style)
+                    audio_config = texttospeech.AudioConfig(
+                        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+                        sample_rate_hertz=44100
+                    )
                     
                     response = self.client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
                     combined_audio += response.audio_content
@@ -72,9 +76,13 @@ class AudioGenerator:
                 # Apply Mixing
                 try:
                     from audio_mixer_moviepy import mix_audio_moviepy
-                    bg_music = "static/audio/ES_Cinematics - Blue Saga - 0000-58213.wav"
+                    # Prioritize the same background music used in Daily Briefing
+                    bg_music = "static/audio/Background Mucis.mp3"
+                    if not os.path.exists(bg_music):
+                        bg_music = "static/audio/ES_Cinematics - Blue Saga - 0000-58213.wav"
+                    
                     if os.path.exists(bg_music):
-                        print("   🎛️ Mixing with background music...")
+                        print(f"   🎛️ Mixing with background music: {os.path.basename(bg_music)}")
                         mix_audio_moviepy(str(temp_male), bg_music, str(male_path))
                         os.remove(temp_male) 
                     else:
@@ -94,7 +102,11 @@ class AudioGenerator:
                     # Journey-F (Warm, Professional)
                     input_text = texttospeech.SynthesisInput(text=chunk)
                     voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Journey-F")
-                    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+                    # Use Linear16 for high fidelity
+                    audio_config = texttospeech.AudioConfig(
+                        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+                        sample_rate_hertz=44100
+                    )
                     
                     response = self.client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
                     combined_audio += response.audio_content
@@ -107,9 +119,12 @@ class AudioGenerator:
                 # Apply Mixing
                 try:
                     from audio_mixer_moviepy import mix_audio_moviepy
-                    bg_music = "static/audio/ES_Cinematics - Blue Saga - 0000-58213.wav"
+                    bg_music = "static/audio/Background Mucis.mp3"
+                    if not os.path.exists(bg_music):
+                        bg_music = "static/audio/ES_Cinematics - Blue Saga - 0000-58213.wav"
+                    
                     if os.path.exists(bg_music):
-                        print("   🎛️ Mixing with background music...")
+                        print(f"   🎛️ Mixing with background music: {os.path.basename(bg_music)}")
                         mix_audio_moviepy(str(temp_female), bg_music, str(female_path))
                         os.remove(temp_female)
                     else:
