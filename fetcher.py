@@ -352,7 +352,7 @@ def process_batch(batch: List[Dict]):
         "    \"hashtags\": [\"Generate 3-5 relevant hashtags for social media (e.g., #AI, #MachineLearning, #TechNews). Include mix of broad and specific tags.\"],\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
         "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\",\n"
-        "    \"narration_script\": \"A high-signal, narrative script for a 1-minute audio read (approx 150 words). Use smooth transitions (e.g., 'Starting with...', 'Interestingly...', 'Looking ahead...'). Do not use headers. Focus on making it sound like a professional news segment.\"\n"
+        "    \"narration_script\": \"A high-signal, narrative script for a 1-minute audio read (approx 150 words). MUST START with this exact short branding: 'Intelligence from DailyAIWire dot news.' followed by a brief pause. Use smooth transitions (e.g., 'Starting with...', 'Interestingly...', 'Looking ahead...'). Do not use headers. Focus on making it sound like a professional news segment.\"\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input)

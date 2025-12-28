@@ -44,6 +44,7 @@ def generate_audio_for_recent_articles(limit=10):
                 key_details = []
             key_details_text = ". ".join(key_details)
             text_to_read = (
+                f"Intelligence from DailyAIWire dot news. "
                 f"Headline: {title}. "
                 f"The Gist: {gist}. "
                 f"Why It Matters: {matters}. "

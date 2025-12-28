@@ -23,13 +23,20 @@ class AudioGenerator:
             self.client = None
             print(f"Error initializing Google TTS: {e}")
 
+    def fix_pronunciation(self, text):
+        """Fixes common AI mispronunciations for a more natural sound."""
+        if not text: return ""
+        # Force "AI" to be pronounced as "A.I." with natural pauses
+        text = text.replace('AI ', 'A.I. ').replace(' AI', ' A.I.').replace('AI.', 'A.I.').replace('AI,', 'A.I.,')
+        return text
+
     def generate_audio_reads(self, slug, text):
-        """Generates male and female audio reads using Google Neural2 voices, handling long text by chunking."""
+        """Generates male and female audio reads handled as high-fidelity narrations."""
         if not self.client:
             return None, None
 
-        # Clean text
-        clean_text = text.replace('**', '').replace('###', ' ').replace('\n', ' ')
+        # Clean text and fix pronunciation
+        clean_text = self.fix_pronunciation(text.replace('**', '').replace('###', ' ').replace('\n', ' '))
         
         # Audio storage path
         audio_dir = Path("static/audio")
@@ -41,9 +48,12 @@ class AudioGenerator:
         male_path = audio_dir / male_filename
         female_path = audio_dir / female_filename
 
-        # Chunking Logic for Long Text (> 4800 chars)
-        max_chars = 4800
-        chunks = [clean_text[i:i+max_chars] for i in range(0, len(clean_text), max_chars)]
+        # Only chunk if absolutely necessary (limit is 5000 bytes). 
+        # For 1-min narrative scripts, we avoid chunking to keep natural prosody.
+        if len(clean_text) > 4000:
+            chunks = [clean_text[i:i+4000] for i in range(0, len(clean_text), 4000)]
+        else:
+            chunks = [clean_text]
         
         if len(chunks) > 1:
             print(f"   ℹ️ Text length {len(clean_text)} chars. Splitting into {len(chunks)} chunks.")
@@ -56,9 +66,15 @@ class AudioGenerator:
                 
                 for i, chunk in enumerate(chunks):
                     # Journey-D (Deep, Authoritative)
-                    input_text = texttospeech.SynthesisInput(text=chunk)
-                    voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Journey-D")
-                    # Use Linear16 for high fidelity (matching Daily Briefing style)
+                    # Wrap in SSML for natural pacing
+                    safe_text = chunk.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+                    ssml_text = f"<speak>{safe_text}</speak>"
+                    input_text = texttospeech.SynthesisInput(ssml=ssml_text)
+                    
+                    # News-N (Broadcast Male - $16/1M tier)
+                    voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-News-N")
+                    
+                    # Use Linear16 for high fidelity
                     audio_config = texttospeech.AudioConfig(
                         audio_encoding=texttospeech.AudioEncoding.LINEAR16,
                         sample_rate_hertz=44100
@@ -100,8 +116,14 @@ class AudioGenerator:
                 
                 for i, chunk in enumerate(chunks):
                     # Journey-F (Warm, Professional)
-                    input_text = texttospeech.SynthesisInput(text=chunk)
-                    voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Journey-F")
+                    # Wrap in SSML
+                    safe_text = chunk.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+                    ssml_text = f"<speak>{safe_text}</speak>"
+                    input_text = texttospeech.SynthesisInput(ssml=ssml_text)
+                    
+                    # Neural2-C (Smooth Female - $16/1M tier)
+                    voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Neural2-C")
+                    
                     # Use Linear16 for high fidelity
                     audio_config = texttospeech.AudioConfig(
                         audio_encoding=texttospeech.AudioEncoding.LINEAR16,
