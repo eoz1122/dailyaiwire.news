@@ -1,11 +1,176 @@
-import os, sqlite3, json, math, re
+import os, sqlite3, json, math, re, shutil
 from datetime import datetime
-from flask import Flask, render_template, abort, request, Response
+from werkzeug.utils import secure_filename
+from flask import Flask, render_template, abort, request, Response, redirect, url_for, flash
 from email.utils import formatdate
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_admin import Admin, AdminIndexView, expose
+from flask_admin.contrib.sqla import ModelView
+from flask_admin.model import BaseModelView
+from wtforms import TextAreaField
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-dev-secret-key-change-in-prod')
+
+# --- Authentication Setup ---
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, id):
+        self.id = id
+
+@login_manager.user_loader
+def load_user(user_id):
+    if user_id == os.getenv('ADMIN_USERNAME', 'admin'):
+        return User(user_id)
+    return None
+
+# --- Admin Views ---
+class SecureModelView(BaseModelView):
+    def is_accessible(self):
+        return current_user.is_authenticated
+
+    def inaccessible_callback(self, name, **kwargs):
+        return redirect(url_for('login', next=request.url))
+
+class ArticleModelView(SecureModelView):
+    # Since we are using raw SQLite and not SQLAlchemy ORM with Flask-Admin's usual ModelView, 
+    # we need a completely custom ModelView if we were using the base class, 
+    # BUT Flask-Admin is heavily tied to ORMs (SQLAlchemy/Mongo).
+    # 
+    # CRITICAL: Flask-Admin with raw SQLite is extremely complex/unsupported.
+    # We must use a simple CRUD implementation or switch project to SQLAlchemy.
+    #
+    # GIVEN THE CONSTRAINTS and existing code:
+    # We will implement a custom AdminIndexView that lists articles and simple custom routes for edit/delete
+    # instead of fighting Flask-Admin's ORM requirement on a raw DB project.
+    pass
+
+# Re-evaluating: To save time and keep it robust, let's just make custom routes for /admin/dashboard
+# protected by Flask-Login, rather than forcing Flask-Admin's ORM views onto raw SQL.
+# OR better: Use Flask-Admin's ability to create custom views.
+
+class MyAdminIndexView(AdminIndexView):
+    @expose('/')
+    def index(self):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login'))
+        
+        conn = get_db_connection()
+        articles = conn.execute('SELECT id, title, category, published_at, slug FROM articles ORDER BY published_at DESC').fetchall()
+        conn.close()
+        
+        return self.render('admin/index.html', articles=articles)
+
+admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView(), template_mode='bootstrap4')
+
+@app.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_article(id):
+    conn = get_db_connection()
+    if request.method == 'POST':
+        # Text Fields
+        title = request.form.get('title')
+        slug = request.form.get('slug')
+        category = request.form.get('category')
+        published_at = request.form.get('published_at')
+        source = request.form.get('source')
+        source_url = request.form.get('source_url')
+        
+        gist = request.form.get('gist')
+        why_it_matters = request.form.get('why_it_matters')
+        bull_case = request.form.get('bull_case')
+        bear_case = request.form.get('bear_case')
+        deep_analysis = request.form.get('deep_analysis')
+        
+        image_url = request.form.get('image_url')
+
+        # File Handling Helper
+        def handle_file_upload(file_input_name, folder, article_slug):
+            file = request.files.get(file_input_name)
+            if file and file.filename:
+                # Ensure directory
+                save_dir = os.path.join(app.static_folder, folder)
+                os.makedirs(save_dir, exist_ok=True)
+                
+                # Secure name + simple timestamp to avoid cache
+                filename = secure_filename(file.filename)
+                # optionally prefix with slug
+                name, ext = os.path.splitext(filename)
+                new_filename = f"{article_slug}_{name[:20]}_{int(time.time())}{ext}"
+                
+                path = os.path.join(save_dir, new_filename)
+                file.save(path)
+                return f"/static/{folder}/{new_filename}"
+            return None
+
+        # --- Current DB State ---
+        current = conn.execute('SELECT image, audio_male, audio_female FROM articles WHERE id=?', (id,)).fetchone()
+        
+        # --- Handle Deletes (Checkboxes) ---
+        new_image = current['image']
+        new_audio_male = current['audio_male']
+        new_audio_female = current['audio_female']
+
+        if request.form.get('delete_image'): new_image = None
+        if request.form.get('delete_audio_male'): new_audio_male = None
+        if request.form.get('delete_audio_female'): new_audio_female = None
+
+        # --- Handle Uploads ---
+        # Image
+        import time 
+        uploaded_image = handle_file_upload('image_file', 'uploads', slug or 'art')
+        if uploaded_image:
+            new_image = uploaded_image
+        elif image_url: # If URL provided text input
+            new_image = image_url
+            
+        # Audio
+        uploaded_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
+        if uploaded_male: new_audio_male = uploaded_male
+        
+        uploaded_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
+        if uploaded_female: new_audio_female = uploaded_female
+
+        conn.execute('''
+            UPDATE articles 
+            SET title = ?, slug = ?, category = ?, published_at = ?, source = ?, source_url = ?,
+                gist = ?, why_it_matters = ?, bull_case = ?, bear_case = ?, deep_analysis = ?,
+                image = ?, audio_male = ?, audio_female = ?
+            WHERE id = ?
+        ''', (title, slug, category, published_at, source, source_url, gist, why_it_matters, bull_case, bear_case, deep_analysis, 
+              new_image, new_audio_male, new_audio_female, id))
+        conn.commit()
+        conn.close()
+        flash('Article updated successfully!')
+        return redirect(url_for('admin_edit_article', id=id))
+    
+    article = conn.execute('SELECT * FROM articles WHERE id = ?', (id,)).fetchone()
+    conn.close()
+    
+    if not article:
+        flash('Article not found.')
+        return redirect(url_for('admin.index'))
+        
+    return render_template('admin/edit_article.html', article=article)
+
+@app.route('/admin/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_article(id):
+    conn = get_db_connection()
+    # Optional: Delete files from disk? Maybe safer to keep for now or implement strict cleanup.
+    # For now, just DB delete.
+    conn.execute('DELETE FROM articles WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    flash('Article deleted.')
+    return redirect(url_for('admin.index'))
+
+
 
 def remove_emojis(text):
     if not text: return ""
@@ -321,6 +486,28 @@ def rss_feed():
         
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        env_user = os.getenv('ADMIN_USERNAME', 'admin')
+        env_pass = os.getenv('ADMIN_PASSWORD', 'admin')
+        
+        if username == env_user and password == env_pass:
+            user = User(username)
+            login_user(user)
+            return redirect(url_for('admin.index'))
+        else:
+            flash('Invalid credentials')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=False, port=8000)

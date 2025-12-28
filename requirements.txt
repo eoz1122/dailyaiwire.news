@@ -11,3 +11,5 @@ google-cloud-texttospeech
 gunicorn
 pytz
 moviepy
+flask-admin
+flask-login
