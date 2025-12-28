@@ -5,7 +5,6 @@ from flask import Flask, render_template, abort, request, Response, redirect, ur
 from email.utils import formatdate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_admin import Admin, AdminIndexView, expose
-from flask_admin.contrib.sqla import ModelView
 from flask_admin.model import BaseModelView
 from wtforms import TextAreaField
 from dotenv import load_dotenv
