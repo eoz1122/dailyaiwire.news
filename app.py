@@ -57,13 +57,19 @@ class MyAdminIndexView(AdminIndexView):
     @expose('/')
     def index(self):
         if not current_user.is_authenticated:
-            return redirect(url_for('login'))
+            return redirect(url_for('login', next=request.url))
         
         conn = get_db_connection()
         articles = conn.execute('SELECT id, title, category, published_at, slug FROM articles ORDER BY published_at DESC').fetchall()
         conn.close()
         
         return self.render('admin/index.html', articles=articles)
+
+    @expose('/files')
+    def files(self):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login', next=request.url))
+        return redirect(url_for('admin_files'))
 
 admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
 
@@ -168,6 +174,32 @@ def admin_delete_article(id):
     conn.close()
     flash('Article deleted.')
     return redirect(url_for('admin.index'))
+
+
+@app.route('/admin/files', methods=['GET', 'POST'])
+@login_required
+def admin_files():
+    if request.method == 'POST':
+        file = request.files.get('file')
+        category = request.form.get('category')
+        
+        if file and category:
+            filename = secure_filename(file.filename)
+            save_dir = os.path.join(app.static_folder, 'stock', category)
+            os.makedirs(save_dir, exist_ok=True)
+            file.save(os.path.join(save_dir, filename))
+            flash(f'Uploaded {filename} to {category}')
+            
+    # List files
+    files_map = {}
+    stock_dir = os.path.join(app.static_folder, 'stock')
+    if os.path.exists(stock_dir):
+        for cat in os.listdir(stock_dir):
+            cat_path = os.path.join(stock_dir, cat)
+            if os.path.isdir(cat_path):
+                files_map[cat] = os.listdir(cat_path)
+                
+    return render_template('admin/file_manager.html', files=files_map)
 
 
 
