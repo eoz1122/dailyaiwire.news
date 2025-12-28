@@ -112,42 +112,79 @@ def init_db():
             linkedin TEXT
         )
     ''')
+
+    # Metadata Table for scan tracking
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
     
     conn.commit()
     conn.close()
+
+def get_last_scan_timestamp() -> datetime:
+    """Retrieves the last successful scan timestamp from metadata."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM metadata WHERE key = 'last_scan_timestamp'")
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return datetime.fromisoformat(row[0])
+    # Fallback: 24 hours ago if no record exists
+    return datetime.now() - timedelta(hours=24)
+
+def update_last_scan_timestamp(ts: datetime):
+    """Updates the last successful scan timestamp in metadata."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO metadata (key, value) VALUES ('last_scan_timestamp', ?)", (ts.isoformat(),))
+    conn.commit()
+    conn.close()
+
+def get_recent_published_titles(hours=36) -> List[str]:
+    """Retrieves titles of articles published in the last X hours for deduplication."""
+    target_time = datetime.now() - timedelta(hours=hours)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT title FROM articles WHERE published_at > ?", (target_time.isoformat(),))
+    titles = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return titles
 
 def is_spam(title: str) -> bool:
     spam_keywords = ["crypto", "bitcoin", "deal", "course", "vpn", "trading", "webinar", "sale", "limited time", "bundle", "discount"]
     title_lower = title.lower()
     return any(keyword in title_lower for keyword in spam_keywords)
 
-def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
-    """Uses Gemini to filter for high-value AI news headlines before full extraction."""
+def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] = []) -> List[Dict]:
+    """Uses Gemini to filter for high-value AI news headlines and exclude duplicates/similar stories."""
     if not articles:
         return []
 
-    print(f"AI Pre-Filtering {len(articles)} headlines for signal quality...")
+    print(f"AI Pre-Filtering {len(articles)} headlines for signal quality and deduplication...")
     
     # Bundle headlines for efficient batch checking
-    headline_list = "\n".join([f"- {a['title']}" for a in articles])
+    headline_list = "\n".join([f"{idx}: {a['title']}" for idx, a in enumerate(articles)])
+    recent_titles_block = "\n".join([f"- {t}" for t in recent_titles]) if recent_titles else "None"
     
     prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to select the TOP 8 MOST NEWSWORTHY articles from this list.
+    You are an elite AI Intelligence Officer. Your task is to select the TOP 8 MOST NEWSWORTHY and UNIQUE articles.
     
-    Prioritize articles that represent:
-    - Major AI breakthroughs or research milestones
-    - Significant corporate announcements or strategic shifts
-    - Critical industry developments with broad impact
-    - Groundbreaking product launches
+    RECENTLY PUBLISHED TITLES (IGNORE ANY NEW ARTICLES THAT ARE DUPLICATES OR SEMANTICALLY SIMILAR TO THESE):
+    {recent_titles_block}
     
-    Exclude: 
-    - Generic tech news
-    - Minor product updates
-    - Low-impact announcements
-    - Tutorial/how-to content
-    - "Deals", "Sales", "Webinars", "Courses" (Strictly ignore)
+    NEW HEADLINES TO ANALYZE (Format: Index: Title):
+    {headline_list}
     
-    Return EXACTLY 8 indices (starting from 0) of the most important articles as a comma-separated list.
+    CRITICAL INSTRUCTIONS:
+    1. EXCLUDE any article that is the same story as one in the RECENTLY PUBLISHED list, even if the wording is different.
+    2. PRIORITIZE major breakthroughs, strategic corporate shifts, and research milestones.
+    3. EXCLUDE minor updates, generic tech news, and sponsored content.
+    
+    Return EXACTLY 8 indices of the most important, non-duplicate articles as a comma-separated list.
     If there are fewer than 8 worthy articles, return only those indices.
     
     Example Input:
@@ -165,10 +202,10 @@ def filter_high_signal_headlines(articles: List[Dict]) -> List[Dict]:
         model_name = 'gemini-2.5-flash'
         print(f"⚡ using AI Model (Filter): {model_name}")
         model = genai.GenerativeModel(model_name)
+        # Fix: Gemini occasionally adds "Indices: " prefix
         response = model.generate_content(prompt)
-        # Parse indices
-        indices_str = response.text.replace('Indices:', '').strip()
-        indices = [int(i.strip()) for i in indices_str.split(',') if i.strip().isdigit()]
+        text = response.text.replace('Indices:', '').strip()
+        indices = [int(i.strip()) for i in text.split(',') if i.strip().isdigit()]
         
         filtered = [articles[i] for i in indices if i < len(articles)]
         print(f"Filtered down to {len(filtered)} high-signal articles.")
@@ -204,6 +241,10 @@ def fetch_all_sources() -> List[Dict]:
     
     unique_articles = {}
     
+    # GET STATE: Only fetch articles after last scan
+    last_scan = get_last_scan_timestamp()
+    print(f"📡 Only scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
+
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
         try:
@@ -215,28 +256,23 @@ def fetch_all_sources() -> List[Dict]:
                 if is_spam(entry.title):
                     continue
                 
-                # Clean title
+                # Check normalized date
+                pub_date_struct = getattr(entry, 'published_parsed', None)
+                if pub_date_struct:
+                    dt_published = datetime(*pub_date_struct[:6])
+                else:
+                    dt_published = datetime.now()
+
+                # STATEFUL CHECK: Must be newer than last scan
+                if dt_published <= last_scan:
+                    continue
+
                 title = entry.title
                 if " - " in title and source_name == "Google News":
                     title = title.rsplit(" - ", 1)[0]
                     
                 link = entry.link
                 if link not in unique_articles:
-                    # Normalize date to ISO format
-                    from datetime import datetime, timedelta
-                    pub_date_struct = getattr(entry, 'published_parsed', None)
-                    
-                    if pub_date_struct:
-                        dt_published = datetime(*pub_date_struct[:6])
-                    else:
-                        dt_published = datetime.now()
-
-                    # --- FRESHNESS CHECK: Limit to last 48 hours ---
-                    two_days_ago = datetime.now() - timedelta(hours=48)
-                    if dt_published < two_days_ago:
-                        # print(f"  - Skipping old news: {entry.title[:50]}...")
-                        continue
-
                     real_source = source_name
                     if source_name == "Google News" and hasattr(entry, 'source') and 'title' in entry.source:
                         real_source = entry.source.title
@@ -252,15 +288,19 @@ def fetch_all_sources() -> List[Dict]:
     
     all_articles = list(unique_articles.values())
     
+    if not all_articles:
+        print("📭 No new articles found since last scan.")
+        return []
+
+    print(f"Found {len(all_articles)} candidates for filtering.")
+
     # HARD LIMIT: Cap at 100 headlines to save tokens
     if len(all_articles) > 100:
-        print(f"Refining pool from {len(all_articles)} to 100 random headlines for analysis.")
-        import random
-        random.shuffle(all_articles)
         all_articles = all_articles[:100]
 
-    # ACTIVATE AI FILTERING
-    return filter_high_signal_headlines(all_articles)
+    # ACTIVATE AI FILTERING WITH 36H DUPLICATE AWARENESS
+    recent_titles = get_recent_published_titles(hours=36)
+    return filter_high_signal_headlines(all_articles, recent_titles)
 
 def extract_content(url: str) -> Tuple[str, str]:
     """Extracts text content and social image from a URL with multiple fallbacks."""
@@ -441,7 +481,6 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         # DOWNGRADED KILL SWITCH: Only warned, not skipped, to ensure content flows
         if source_name == "Google News" and is_generic:
             print(f"⚠️ Google News article '{art.get('headline')}' has no unique image. Using AI fallback.")
-            # Don't continue, let it fall through to Unsplash fallback
 
         if is_generic:
             cat = art.get('category', 'Tools')
@@ -498,7 +537,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             images = cat_map.get(cat, cat_map["Tools"])
             image_url = f"{random.choice(images)}?auto=format&fit=crop&q=80&w=1200"
 
-        # 3. Robust Slug Generation (Fixes 'None' slugs)
+        # 3. Robust Slug Generation
         final_slug = art.get('seo_slug')
         if not final_slug or final_slug == "None" or len(final_slug) < 2:
             final_slug = slugify(art.get('headline', ''))
@@ -507,14 +546,12 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         if not final_slug:
             final_slug = f"article-{uuid.uuid4().hex[:8]}"
         
-        # Important: Sync the slug so the social distributor uses the same one
         art['seo_slug'] = final_slug
 
         try:
             # Generate Audio Reads
             am, af = None, None
             if audio_gen:
-                # Expanded Audio Narration Script
                 key_details_text = ". ".join(art.get('key_details', []))
                 text_to_read = (
                     f"Headline: {art.get('headline')}. "
@@ -553,9 +590,6 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 art.get('narration_script')
             ))
             
-            # [MIGRATED] Social posting is now handled exclusively by tweet_scheduler.py
-            # to prevent duplicates and irregularities.
-            
         except Exception as e:
             print(f"Error saving article {art.get('headline')}: {e}")
             
@@ -568,7 +602,6 @@ def process_social_queue():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get pending posts due now or in past
     cursor.execute('''
         SELECT id, slug, headline FROM social_queue 
         WHERE status='PENDING' AND scheduled_time <= ?
@@ -586,14 +619,12 @@ def process_social_queue():
         queue_id, slug, headline = row
         print(f"🚀 Processing scheduled post: {headline}")
         
-        # Fetch full article data to send to distributor
         cursor.execute('SELECT full_json FROM articles WHERE slug = ?', (slug,))
         art_row = cursor.fetchone()
         
         if art_row:
             try:
                 article_data = json.loads(art_row[0])
-                # Ensure slug is correct in data
                 article_data['seo_slug'] = slug
                 distributor.distribute(article_data)
                 
@@ -613,49 +644,21 @@ def main():
     print("Initializing Database...")
     init_db()
     
+    # Record scan start time
+    scan_start_time = datetime.now()
+    
     print("Aggregating Intelligence from Multiple Sources...")
-    raw_articles = fetch_all_sources()
-    
-    # Filter out articles we've already processed (URL check + Fuzzy Title check)
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT source_url, title FROM articles')
-    rows = cursor.fetchall()
-    existing_urls = {row[0] for row in rows}
-    existing_titles = [row[1] for row in rows if row[1]] # Ensure title is not None
-    conn.close()
-    
-    new_articles = []
-    for art in raw_articles:
-        # 1. Exact URL Match
-        if art['link'] in existing_urls:
-            continue
-            
-        # 2. Hybrid Deduplication (Sequence + Jaccard)
-        is_fuzzy_dup = False
-        for et in existing_titles:
-            # Check Sequence > 0.75 OR Jaccard > 0.5 (Semantic/Reordered)
-            seq_sim = difflib.SequenceMatcher(None, art['title'], et).ratio()
-            word_sim = get_jaccard_sim(art['title'], et)
-            
-            if seq_sim > 0.75 or word_sim > 0.5:
-                # print(f"Skipping duplicate: {art['title']} ~= {et}")
-                is_fuzzy_dup = True
-                break
-        
-        if is_fuzzy_dup:
-            continue
-
-        new_articles.append(art)
-        
-    print(f"Total Unique Articles Found: {len(raw_articles)}")
-    print(f"New Articles to Process: {len(new_articles)}")
+    new_articles = fetch_all_sources()
     
     if not new_articles:
         print("Everything up to date. No new intelligence to process.")
+        # Advance frontier even if no articles passed the high-signal filter
+        update_last_scan_timestamp(scan_start_time)
         return
 
-    # Process in batches of 4 for efficiency (fewer API calls, same cost)
+    print(f"New High-Signal Articles to Process: {len(new_articles)}")
+    
+    # Process in batches of 4 for efficiency
     batch_size = 4
     distributor = SocialDistributor()
     total_posts_sent = 0
@@ -674,6 +677,9 @@ def main():
         # Sleep 15s between batches to avoid rate limits
         time.sleep(15)
 
+    # Save timestamp only after full processing attempt
+    update_last_scan_timestamp(scan_start_time)
+
     # Run deduplication BEFORE generating expensive audio
     print("Running deduplication before audio generation...")
     remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
@@ -683,11 +689,6 @@ def main():
         print(f"Generating audio for {articles_saved} deduplicated articles...")
         from generate_missing_audio import generate_audio_for_recent_articles
         generate_audio_for_recent_articles(limit=articles_saved)
-
-    # [MIGRATED] Social Queue processing is now handled by tweet_scheduler.py
-    # if total_posts_sent > 0 or True: # Always check queue
-    #     print("Processing Social Queue before exit...")
-    #     process_social_queue()
 
 def main_loop():
     """Runs the main fetcher loop with queued social posting."""
@@ -705,9 +706,6 @@ def main_loop():
                 print(f"⏰ Starting scheduled fetch cycle at {time.strftime('%H:%M:%S')}")
                 main()
                 last_fetch_time = time.time()
-            
-            # [MIGRATED] Social Queue processing handled by standalone tweet_scheduler.py
-            # process_social_queue()
             
             # Sleep for 1 minute before next tick
             time.sleep(60)
