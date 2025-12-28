@@ -14,7 +14,7 @@ def generate_audio_for_recent_articles(limit=10):
     # Get recent articles without audio
     articles = cursor.execute('''
         SELECT slug, title, gist, why_it_matters, 
-               optimistic_outlook, pessimistic_outlook, key_details
+               bull_case, bear_case, key_details
         FROM articles 
         WHERE (audio_male IS NULL OR audio_female IS NULL)
         ORDER BY published_at DESC 

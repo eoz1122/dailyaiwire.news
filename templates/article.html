@@ -21,10 +21,10 @@
 {
   "@context": "https://schema.org",
   "@type": "NewsArticle",
-  "headline": "{{ article.title | replace('"', '\\"') }}",
-  "image": ["{{ article.image }}"],
-  "datePublished": "{{ article.published_at }}",
-  "dateModified": "{{ article.published_at }}",
+  "headline": {{ article.title | tojson | safe }},
+  "image": [{{ article.image | tojson | safe }}],
+  "datePublished": {{ article.published_at | tojson | safe }},
+  "dateModified": {{ article.published_at | tojson | safe }},
   "author": {
     "@type": "Organization",
     "name": "DailyAIWire Autonomous Intelligence",
@@ -38,15 +38,15 @@
       "url": "https://dailyaiwire.news/static/logo.png"
     }
   },
-  "description": "{{ article.gist | replace('"', '\\"') | replace('**', '') }}",
-  "articleBody": "{{ article.deep_analysis | replace('"', '\\"') | replace('\n', ' ') }}",
-  "articleSection": "{{ article.category }}",
-  "url": "https://dailyaiwire.news/article/{{ article.slug }}",
+  "description": {{ article.gist | replace('**', '') | tojson | safe }},
+  "articleBody": {{ article.deep_analysis | replace('\n', ' ') | tojson | safe }},
+  "articleSection": {{ article.category | tojson | safe }},
+  "url": {{ ("https://dailyaiwire.news/article/" + article.slug) | tojson | safe }},
   "mainEntityOfPage": {
     "@type": "WebPage",
-    "@id": "https://dailyaiwire.news/article/{{ article.slug }}"
+    "@id": {{ ("https://dailyaiwire.news/article/" + article.slug) | tojson | safe }}
   },
-  "isBasedOn": "{{ article.source_url }}",
+  "isBasedOn": {{ article.source_url | tojson | safe }},
   "backstory": "This article was autonomously discovered, summarized, and analyzed by the Gemini 2.5 Flash model without human editorial intervention to prioritize speed and machine-logic distillation."
 }
 </script>
