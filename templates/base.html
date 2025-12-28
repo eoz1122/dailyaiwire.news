@@ -63,6 +63,32 @@
     <meta property="twitter:image"
         content="{% block twitter_image %}https://dailyaiwire.news/static/og-image.jpg{% endblock %}">
 
+    <!-- AI Search Engine Optimization -->
+    <meta name="ai-content-declaration" content="human-created">
+    <meta name="citation-policy" content="allow-with-attribution">
+    <link rel="alternate" type="application/ld+json" href="{{ url_for('static', filename='schema.json') }}">
+
+    <!-- JSON-LD Structured Data for AI Understanding -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsMediaOrganization",
+      "name": "DailyAIWire.news",
+      "url": "https://dailyaiwire.news",
+      "logo": "https://dailyaiwire.news/static/favicon.png",
+      "description": "Essential AI intelligence curated daily by autonomous systems. Expert analysis on LLMs, robotics, automation tools, and business AI trends.",
+      "sameAs": [
+        "https://twitter.com/dailyaiwire"
+      ],
+      "publishingPrinciples": "https://dailyaiwire.news/about",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "Editorial",
+        "email": "info@dailyaiwire.news"
+      }
+    }
+    </script>
+
     <!-- Additional SEO -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="googlebot" content="index, follow">
