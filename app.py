@@ -218,12 +218,23 @@ def admin_files():
             
     # List files
     files_map = {}
+    
+    # 1. Stock images by category
     stock_dir = os.path.join(app.static_folder, 'stock')
     if os.path.exists(stock_dir):
-        for cat in os.listdir(stock_dir):
+        for cat in sorted(os.listdir(stock_dir)):
             cat_path = os.path.join(stock_dir, cat)
             if os.path.isdir(cat_path):
-                files_map[cat] = os.listdir(cat_path)
+                f_list = [f for f in os.listdir(cat_path) if not f.startswith('.')]
+                if f_list:
+                    files_map[cat] = sorted(f_list)
+    
+    # 2. General Article Uploads
+    uploads_dir = os.path.join(app.static_folder, 'uploads')
+    if os.path.exists(uploads_dir):
+        u_list = [f for f in os.listdir(uploads_dir) if not f.startswith('.')]
+        if u_list:
+            files_map['Article Uploads'] = sorted(u_list)
                 
     return render_template('admin/file_manager.html', files=files_map)
 

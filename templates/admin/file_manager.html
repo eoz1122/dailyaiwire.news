@@ -34,21 +34,63 @@
                 class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">Upload</button>
         </form>
 
-        <h2 class="text-xl font-bold text-white mb-4">Existing Files</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {% for cat, files in files.items() %}
-            {% for file in files %}
-            <div class="relative group">
-                <img src="/static/stock/{{ cat }}/{{ file }}" alt="Stock image {{ file }} in {{ cat }}"
-                    class="w-full h-32 object-cover rounded-lg">
-                <div
-                    class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                    <span class="text-white text-xs">{{ cat }}/{{ file }}</span>
+        <h2 class="text-2xl font-bold text-white mb-8">Existing Files</h2>
+
+        {% if not files %}
+        <div class="text-zinc-500 italic p-10 border-2 border-dashed border-zinc-800 rounded-2xl text-center">
+            No files uploaded yet.
+        </div>
+        {% endif %}
+
+        <div class="space-y-12">
+            {% for cat, file_list in files.items() %}
+            <div class="space-y-4">
+                <h3 class="text-lg font-bold text-blue-400 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    {{ cat }}
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {% for file in file_list %}
+                    {% set file_path = '/static/stock/' + cat + '/' + file if cat != 'Article Uploads' else
+                    '/static/uploads/' + file %}
+                    <div
+                        class="relative group bg-black/40 rounded-xl overflow-hidden border border-zinc-800 hover:border-blue-500/50 transition-all">
+                        <img src="{{ file_path }}" alt="{{ file }}"
+                            class="w-full h-40 object-cover opacity-80 group-hover:opacity-100 transition-opacity">
+
+                        <div class="p-3 bg-zinc-900/90 border-t border-zinc-800">
+                            <p class="text-[10px] text-zinc-500 truncate mb-2 font-mono">{{ file }}</p>
+                            <button onclick="copyToClipboard('{{ file_path }}', this)"
+                                class="w-full py-1.5 bg-zinc-800 hover:bg-blue-600 text-zinc-300 hover:text-white rounded text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                                    </path>
+                                </svg>
+                                Copy Path
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
             {% endfor %}
         </div>
     </div>
 </div>
+
+<script>
+    function copyToClipboard(text, btn) {
+        const fullUrl = window.location.origin + text;
+        navigator.clipboard.writeText(fullUrl).then(() => {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Copied!';
+            btn.classList.add('bg-green-600');
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('bg-green-600');
+            }, 2000);
+        });
+    }
+</script>
 {% endblock %}
