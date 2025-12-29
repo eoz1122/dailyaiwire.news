@@ -51,22 +51,25 @@ class SocialDistributor:
             link = f"{self.base_url}/article/{slug}"
             hashtags = article.get('hashtags', [])
             
-            # Use provided hashtags or generic ones
-            tags_str = " ".join(hashtags) if hashtags else "#AI #TechNews"
+            # Use provided hashtags only - NO generic fallbacks
+            tags_str = " ".join(hashtags) if hashtags else ""
             
             # Clean markdown bolding
             gist_clean = gist.replace('**', '')
             
             # Construct richer tweet
             # We assume Premium X support, allowing up to 4000 10000+ chars, but let's stick to a solid 500-600 chars for good readability
-            tweet_text = f"📢 {headline}\n\n"
+            tweet_text = f"{headline}\n\n"
             
             if question:
                 tweet_text += f"🤔 {question}\n\n"
                 
             tweet_text += f"{gist_clean}\n\n"
-            tweet_text += f"{tags_str}\n\n"
-            tweet_text += f"Read more: {link}"
+            
+            if tags_str:
+                tweet_text += f"{tags_str}\n\n"
+                
+            tweet_text += link
             
             print("🐦 X (Twitter) Preview:")
             print("-" * 30)
