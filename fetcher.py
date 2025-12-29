@@ -288,9 +288,9 @@ def fetch_all_sources() -> List[Dict]:
     
     unique_articles = {}
     
-    # GET STATE: Force scan of last 24h to ensure new feeds are picked up
+    # GET STATE: Force scan of last 7 days to ensure new feeds (and low-frequency labs) are picked up
     # (Previous logic of strictly using last_scan timestamp prevented new feeds from being ingested if they hadn't posted in the last hour)
-    last_scan = datetime.now() - timedelta(hours=24)
+    last_scan = datetime.now() - timedelta(days=7)
     print(f"📡 Scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
 
     for source_name, url in sources:
