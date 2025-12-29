@@ -129,6 +129,78 @@ lab_posts = [
     </a>
 </div>
         """
+    },
+    {
+        "id": "003",
+        "title": "How I Automated Ad Ops Reporting on a $10 VPS",
+        "slug": "how-i-automated-ad-ops-reporting-vps",
+        "subtitle": "The Reporting Tax and the 'Human Glue' Problem. How I saved Christmas with a $10 VPS and some n8n logic.",
+        "published_at": "2025-12-29",
+        "date": "Dec 29, 2025",
+        "image": "/static/lab/ad_ops_reporting.jpg",
+        "content": """
+<p class="lead">In the programmatic world, we like to talk about "automation" and "real-time bidding," but the back-office reality is often much more primitive. For years, I watched our reporting process evolve into what I call a "Reporting Tax." Every morning, regardless of what else was happening in the business, a high-value member of our Ops team had to act as Human Glue. This meant logging into a disjointed ecosystem of platforms:</p>
+
+<ul class="list-disc pl-5 my-6 text-zinc-300 space-y-2">
+    <li><strong>Google Stack:</strong> Multiple CM360 seats and DV360.</li>
+    <li><strong>The Big Players:</strong> The Trade Desk and Amazon.</li>
+    <li><strong>Niche & Direct:</strong> Samsung DSP, Spotify, and Teads Ad Manager.</li>
+</ul>
+
+<p>The task was mind-numbing: download a dozen CSVs, manually merge the CM360 seats, strip out 40+ unnecessary columns to keep the file sizes manageable, and then upload them to BigQuery.</p>
+
+<div class="my-8 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+    <img src="/static/lab/ad_ops_reporting.jpg" alt="Automated Dashboard" class="w-full">
+    <div class="bg-zinc-900/50 p-4 text-xs text-zinc-500 font-mono border-t border-zinc-800">FIG 1: The result of automation - a consolidated dashboard updated without human intervention.</div>
+</div>
+
+<h2>The Holiday Paradox</h2>
+<p>This "tax" becomes a crisis at the end of the year. In advertising, the office officially closes for Christmas, but the campaigns never stop. To ensure delivery stays on track, we have a rotation where an Ops person covers every other day.</p>
+
+<p>However, we hit a paradox: In order for the 'On-Call' person to actually do their job, which is monitoring delivery and optimizing, they first had to spend 90 minutes doing manual data entry. We were facing a breaking point. We either had to ruin someone's holiday by making them work a full shift of data entry on their 'on-call' day, or we had to hire an additional resource specifically for the Christmas reporting crunch.</p>
+
+<p>I knew there had to be a third option. I didn't want to 'throw more bodies' at a logic problem. I wanted to build an architecture that could scale without human intervention.</p>
+
+<p>Before I started building, I looked at the established players in the market. Tools like Funnel.io, Supermetrics, and Adverity are the industry standards for a reason. They have massive libraries of connectors and clean interfaces. However, the trade-off is often a choice between paying large yearly bills for a generic service or continuing with manual labor.</p>
+
+<h2>The Vision and the 500MB Wall</h2>
+<p>I started the project with a lot of optimism. While browsing YouTube, I came across a few videos on n8n automation, and it was a revelation. I immediately saw a huge potential for our reporting stack. I’d seen what n8n could do with small APIs, and I figured I could just pipe our reports straight into BigQuery. I set up a VPS for about $10 a month, installed n8n, and started building.</p>
+
+<p>Then I hit the reality of programmatic data.</p>
+
+<p>Our reports from CM360 and Amazon aren't just a few rows of data. They are massive CSVs, often hitting 500MB or more. When I tried to have n8n download these files and 'read' them to send the data to BigQuery, the system just gave up. The memory on the VPS would spike to 100%, the whole instance would freeze, and the workflow would crash.</p>
+
+<p>I spent hours looking for a solution online, but there was almost nothing. Most n8n examples show you how to move a few rows of CRM data or send a Slack notification. No one was talking about how to handle half a gigabyte of raw ad tech data.</p>
+
+<p>At this point, I was juggling my actual job and trying to debug this in the gaps of my schedule. It was demotivating. I felt like I was hitting a wall that only a 'real' data team could solve. I parked the project for a few weeks, thinking maybe we really did just need to hire that extra person for Christmas.</p>
+
+<h2>The Pivot: Moving from Data Processor to Orchestrator</h2>
+<p>With only two weeks left before the holiday break, the pressure was on. If the system didn't work, the 'on-call' rotation was going to be a mess of manual uploads. I realized the mistake was trying to make n8n 'touch' or 'read' the data. Its only job should be moving the file from Point A to Point B.</p>
+
+<p>I changed the logic completely. Instead of sending data to BigQuery directly, I had n8n grab the file and immediately push it into a Google Cloud Storage (GCS) bucket. Once the file was staged there, n8n simply sent a command to BigQuery: 'Look in this bucket, grab this file, and load it into this table.'</p>
+
+<p>Suddenly, files that were crashing the server were ingested in seconds. By using GCS as a landing zone, the memory bottleneck was gone, and I finally had a way to handle enterprise-level data on a tiny budget.</p>
+
+<h2>The Final Hurdle: Taking Control of the Schedule</h2>
+<p>Solving the file size was only half the battle; the next challenge was timing. In programmatic, you are usually at the mercy of the platform's schedule. Reports for TTD, DV360, and CM360 would arrive via email at random times—sometimes early, but often late in the afternoon. This was a nightmare for holiday coverage because the person 'on-call' had to wait around for data to arrive before they could actually start their check.</p>
+
+<p>To protect the team's time, the logic switched from waiting for emails to triggering APIs. The workflow was updated to reach out to the TTD and Google APIs shortly after midnight. Instead of waiting for a 'push,' the system started 'pulling' the data on its own terms.</p>
+
+<p>By the time the team logs on in the morning, the heavy lifting is finished:</p>
+
+<ul class="list-disc pl-5 my-6 text-zinc-300 space-y-2">
+    <li><strong>The Midnight Pull:</strong> Workflows automatically fetch the latest reports while the office is closed.</li>
+    <li><strong>Staging:</strong> Data is pushed to GCS to bypass any VPS memory limits.</li>
+    <li><strong>Ingestion:</strong> BigQuery loads the files and refreshes the Tableau dashboards instantly.</li>
+</ul>
+
+<p>The system isn't bulletproof. n8n crashes every few weeks and needs a quick restart - but that's a 60-second fix versus the 60-minute daily grind we had before. I'll take that trade any day.</p>
+
+<h2>The Result: A Silent Christmas</h2>
+<p>This system has been running for a month and handled the entire December peak without a single manual intervention. The stability of the architecture meant we didn't need to hire an extra resource for the Christmas period, and we avoided the thousands of dollars in monthly fees associated with third-party vendors. The entire process remains stable on a $10 VPS.</p>
+
+<p>The most important outcome was that the on-call team could actually enjoy their holiday break. They were able to focus on high-level monitoring for ten minutes rather than performing data entry for two hours. It proved that enterprise problems can be solved effectively by focusing on the underlying architecture rather than simply throwing more resources at a manual process.</p>
+        """
     }
 ]
 
