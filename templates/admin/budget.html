@@ -3,204 +3,195 @@
 {% block title %}Cost Intelligence | DailyAIWire Admin{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-12 max-w-7xl">
-    <!-- Header Section -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Admin Navigation Overlay (Compact) -->
+    <div class="flex justify-end mb-6 gap-3">
+        <a href="{{ url_for('admin_index') }}"
+            class="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm">
+            ← Dashboard
+        </a>
+        <a href="{{ url_for('admin_subscribers') }}"
+            class="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm">
+            👥 Subscribers
+        </a>
+        <a href="{{ url_for('admin_newsletters') }}"
+            class="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm">
+            📩 Newsletters
+        </a>
+    </div>
+
+    <!-- Premium Light Header -->
+    <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm">
         <div>
-            <h1 class="text-3xl font-black tracking-tighter text-white uppercase brand-font mb-2">
-                Cost Intelligence <span class="text-blue-600">Module</span>
+            <h1
+                class="text-3xl md:text-4xl font-black tracking-tighter text-[#0c0c0c] uppercase flex items-center gap-2">
+                COST INTELLIGENCE <span class="text-[#2563eb]">MODULE</span>
             </h1>
-            <p class="text-zinc-400 text-sm font-mono tracking-wide">
+            <p class="text-zinc-400 text-base font-medium mt-1">
                 Real-time API budget tracking & usage analysis
-                <span class="ml-2 px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px] border border-zinc-700">
+                <span
+                    class="ml-2 px-2 py-0.5 rounded-md bg-zinc-50 text-zinc-500 text-[10px] border border-zinc-200 font-mono">
                     {{ budget.current_month }}
                 </span>
             </p>
         </div>
 
-        <!-- Budget Health Indicator -->
-        <div
-            class="flex items-center gap-3 bg-zinc-900/50 px-4 py-2 rounded-lg border border-zinc-800 backdrop-blur-sm">
+        <!-- Budget Health Pill (Matching Mockup) -->
+        <div class="flex items-center gap-4 bg-[#f4f4f5] px-6 py-4 rounded-2xl border border-[#e4e4e7]">
             <div class="text-right">
-                <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Budget Health</div>
-                <div class="text-sm font-bold {{ 'text-red-500' if budget.percent_used > 80 else 'text-emerald-500' }}">
+                <div class="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Budget Health</div>
+                <div
+                    class="text-sm font-black {{ 'text-red-500' if budget.percent_used > 80 else 'text-emerald-500' }} uppercase">
                     {{ "CRITICAL" if budget.percent_used > 90 else ("WARNING" if budget.percent_used > 75 else
                     "HEALTHY") }}
                 </div>
             </div>
             <div
-                class="h-8 w-8 rounded-full {{ 'bg-red-500/20' if budget.percent_used > 80 else 'bg-emerald-500/20' }} flex items-center justify-center border {{ 'border-red-500/30' if budget.percent_used > 80 else 'border-emerald-500/30' }}">
-                <div
-                    class="h-2 w-2 rounded-full {{ 'bg-red-500' if budget.percent_used > 80 else 'bg-emerald-500' }} animate-pulse">
-                </div>
+                class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center border border-emerald-200">
+                <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
             </div>
         </div>
     </div>
 
-    <!-- Alert Banner (only overlaps if critical) -->
-    {% if budget.percent_used > 80 %}
-    <div class="mb-8 bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-center gap-4 animate-fade-in">
-        <div class="p-2 bg-red-500/20 rounded-lg">
-            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-        </div>
-        <div>
-            <h3 class="text-red-500 font-bold uppercase tracking-widest text-xs">Budget Alert</h3>
-            <p class="text-zinc-300 text-sm">
-                Accumulated costs have reached <span class="font-bold text-white">{{ "%.1f"|format(budget.percent_used)
-                    }}%</span> of the monthly cap.
-            </p>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Main Metrics Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <!-- Main Metrics Grid (Light Mode) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         <!-- Metric 1: Total Spent -->
-        <div class="glass-card p-6 rounded-2xl relative overflow-hidden group">
-            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <svg class="w-32 h-32 text-blue-500 transform translate-x-8 -translate-y-8" fill="currentColor"
-                    viewBox="0 0 24 24">
+        <div
+            class="bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+            <div class="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                <svg class="w-40 h-40 transform translate-x-12 -translate-y-12" fill="currentColor" viewBox="0 0 24 24">
                     <path
                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.15-1.46-3.27-3.4h1.96c.1 1.05 1.18 1.91 2.53 1.91 1.38 0 2.53-.95 2.53-2.15 0-1.09-1.02-1.84-2.52-2.12C10.27 12 8.38 11.4 8.38 9.17c0-2.01 1.63-3.23 3.38-3.62V3.91h2.67v1.9c1.81.38 3.03 1.57 3.13 3.38H15.6c-.1-1.07-1.15-1.88-2.35-1.88-1.28 0-2.31.85-2.31 2.03 0 1.03 1.05 1.78 2.65 2.1 2.11.45 3.99 1.12 3.99 3.48 0 1.99-1.63 3.2-3.52 3.65z" />
                 </svg>
             </div>
 
-            <h3 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Total Spend</h3>
+            <h3 class="text-zinc-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Total Spend</h3>
             <div class="relative z-10">
-                <div class="text-5xl font-black text-white tracking-tighter mb-1">
+                <div class="text-6xl font-black text-[#0c0c0c] tracking-tighter mb-4">
                     ${{ "%.2f"|format(budget.total_spent) }}
-                    <span class="text-lg text-zinc-600 font-medium">USD</span>
+                    <span class="text-xl text-zinc-300 font-bold uppercase">USD</span>
                 </div>
 
-                <!-- Progress Bar -->
                 <div class="mt-4">
-                    <div class="flex justify-between text-xs text-zinc-500 mb-1 font-mono">
+                    <div
+                        class="flex justify-between text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-tighter">
                         <span>{{ "%.1f"|format(budget.percent_used) }}% Used</span>
                         <span>${{ "%.0f"|format(budget.monthly_cap) }} Cap</span>
                     </div>
                     {% set progress_width = "width: " ~ ([budget.percent_used, 100]|min|round(1)) ~ "%;" %}
-                    <div class="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-1.5 rounded-full transition-all duration-500 ease-out"
+                    <div class="w-full bg-zinc-50 rounded-full h-2 border border-zinc-100 overflow-hidden">
+                        <div class="bg-blue-600 h-full rounded-full transition-all duration-700 ease-out"
                             style="{{ progress_width }}"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Metric 2: Requests -->
-        <div class="glass-card p-6 rounded-2xl relative overflow-hidden group">
-            <h3 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">API Operations</h3>
-            <div
-                class="text-4xl font-bold text-white tracking-tight mb-2 group-hover:text-purple-400 transition-colors">
+        <!-- Metric 2: API Operations -->
+        <div class="bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-shadow">
+            <h3 class="text-zinc-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">API Operations</h3>
+            <div class="text-6xl font-black text-[#0c0c0c] tracking-tighter mb-4">
                 {{ "{:,}".format(budget.requests) }}
             </div>
-            <p class="text-sm text-zinc-400">
-                Total calls to <span class="text-purple-400 font-mono">gemini-2.5-flash</span>
+            <p class="text-sm text-zinc-500 font-medium">
+                Total calls to <span class="text-blue-600 font-mono">gemini-2.5-flash</span>
             </p>
-            <div class="mt-6 flex items-center gap-2">
+            <div class="mt-8">
                 <span
-                    class="px-2 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs rounded font-mono">
+                    class="px-3 py-1.5 bg-zinc-50 border border-zinc-200 text-blue-600 text-[10px] rounded-lg font-black uppercase tracking-wider shadow-sm">
                     ~${{ "%.4f"|format(budget.total_spent / budget.requests) if budget.requests > 0 else 0 }} / call
                 </span>
             </div>
         </div>
 
-        <!-- Metric 3: Tokens -->
-        <div class="glass-card p-6 rounded-2xl relative overflow-hidden group">
-            <h3 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Token Volume</h3>
-            <div
-                class="text-4xl font-bold text-white tracking-tight mb-2 group-hover:text-emerald-400 transition-colors">
+        <!-- Metric 3: Token Volume -->
+        <div
+            class="bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-shadow relative">
+            <h3 class="text-zinc-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Token Volume</h3>
+            <div class="text-6xl font-black text-[#0c0c0c] tracking-tighter mb-4">
                 {% if budget.tokens_used > 1000000 %}
-                {{ "%.2f"|format(budget.tokens_used / 1000000) }}M
+                {{ "%.2f"|format(budget.tokens_used / 1000000) }}<span class="text-2xl ml-1 text-zinc-300">M</span>
                 {% elif budget.tokens_used > 1000 %}
-                {{ "%.1f"|format(budget.tokens_used / 1000) }}K
+                {{ "%.1f"|format(budget.tokens_used / 1000) }}<span class="text-2xl ml-1 text-zinc-300">K</span>
                 {% else %}
                 {{ budget.tokens_used }}
                 {% endif %}
             </div>
-            <p class="text-sm text-zinc-400">
-                Combined Input & Output Context
-            </p>
-            <div class="mt-6 w-full bg-zinc-800/50 rounded flex h-1.5 overflow-hidden">
-                <!-- Visual approximation of input/output split (assuming mostly input for now) -->
-                {% set input_est = 80 %}
-                <div class="bg-emerald-500 w-[80%] opacity-80" title="Est. Input"></div>
-                <div class="bg-emerald-300 w-[20%] opacity-80" title="Est. Output"></div>
-            </div>
-            <div class="flex justify-between mt-1 text-[9px] text-zinc-600 uppercase font-mono">
-                <span>Input (Ctx)</span>
-                <span>Output (Gen)</span>
+            <p class="text-sm text-zinc-500 font-medium">Combined Input & Output Context</p>
+
+            <div class="mt-8">
+                <div class="w-full bg-zinc-50 rounded-full h-2 border border-zinc-100 overflow-hidden flex">
+                    <div class="bg-[#10b981] w-[80%] h-full" title="Input"></div>
+                    <div class="bg-[#6ee7b7] w-[20%] h-full" title="Output"></div>
+                </div>
+                <div class="flex justify-between mt-3 text-[9px] text-zinc-400 font-black uppercase tracking-widest">
+                    <span>Input (Ctx)</span>
+                    <span>Output (Gen)</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Detailed Ledger -->
-    <div class="glass-card rounded-2xl border border-zinc-800 overflow-hidden">
-        <div class="px-6 py-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/30">
-            <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+    <!-- Detailed Ledger (Matching Mockup Gray Header Style) -->
+    <div class="bg-[#fcfcfc] border border-zinc-200 rounded-[2.5rem] overflow-hidden shadow-sm">
+        <div
+            class="px-10 py-8 bg-[#b4b4b4] border-b border-zinc-300 flex justify-between items-center bg-opacity-80 backdrop-blur-md">
+            <h2 class="text-xl font-black text-[#1a1a1a] flex items-center gap-3 uppercase tracking-tighter">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                         d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 Operational Breakdown
             </h2>
             <button
-                class="text-xs text-zinc-500 hover:text-white transition-colors uppercase tracking-wider font-bold">Export
-                CSV</button>
+                class="text-xs text-zinc-700 hover:text-black transition-colors font-black uppercase tracking-widest border border-zinc-400 px-4 py-2 rounded-lg bg-white bg-opacity-50">
+                EXPORT CSV
+            </button>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto bg-white">
             <table class="w-full text-left">
-                <thead class="bg-zinc-900/80 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                <thead class="bg-[#3a3a3a] text-[10px] font-black text-[#a0a0a0] uppercase tracking-widest">
                     <tr>
-                        <th class="px-6 py-4">Operation Category</th>
-                        <th class="px-6 py-4 w-1/3">Cost Distribution</th>
-                        <th class="px-6 py-4 text-right">Total Cost</th>
+                        <th class="px-10 py-5">Operation Category</th>
+                        <th class="px-10 py-5 w-1/3">Cost Distribution</th>
+                        <th class="px-10 py-5 text-right">Total Cost</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800/50">
+                <tbody class="divide-y divide-zinc-100">
                     {% if budget.breakdown %}
-                    <!-- Convert dict items to a list and sort by value (amount) descending -->
                     {% set sorted_categories = budget.breakdown.items() | list | sort(attribute=1, reverse=True) %}
-
                     {% for category, amount in sorted_categories %}
                     {% set pct = (amount / budget.total_spent * 100) if budget.total_spent > 0 else 0 %}
-
-                    {# Determine colors based on rank #}
-                    {% set dot_color = 'bg-indigo-500' if loop.index == 1 else 'bg-blue-500' if loop.index == 2 else
-                    'bg-cyan-500' if loop.index == 3 else 'bg-zinc-600' %}
-                    {% set bar_color = 'bg-indigo-500' if loop.index == 1 else 'bg-blue-600' if loop.index == 2 else
-                    'bg-cyan-600' if loop.index == 3 else 'bg-zinc-500' %}
-
-                    <tr class="group hover:bg-zinc-800/30 transition-colors">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <!-- Category Icon/Dot -->
-                                <div class="w-2 h-2 rounded-full {{ dot_color }}"></div>
-                                <div>
-                                    <div class="font-bold text-zinc-200 group-hover:text-white transition-colors">{{
-                                        category }}</div>
-                                    <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Gemini 2.5 Flash
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
+                    <tr class="group hover:bg-zinc-50 transition-all duration-200">
+                        <td class="px-10 py-6">
                             <div class="flex items-center gap-4">
-                                <span class="text-xs font-mono font-bold text-zinc-400 w-12 text-right">{{
-                                    "%.1f"|format(pct) }}%</span>
-                                <div class="flex-grow h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                    {% set cat_width = "width: " ~ (pct|round(1)) ~ "%;" %}
-                                    <div class="h-full rounded-full transition-all duration-700 ease-out {{ bar_color }}"
-                                        style="{{ cat_width }}"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-200"></div>
+                                <div>
+                                    <div class="font-black text-[#1a1a1a] uppercase text-sm tracking-tight">{{ category
+                                        }}</div>
+                                    <div class="text-[9px] text-zinc-400 font-mono font-bold uppercase mt-0.5">Gemini
+                                        2.5 Flash</div>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 text-right">
-                            <div class="font-mono font-bold text-zinc-300 group-hover:text-white transition-colors">
+                        <td class="px-10 py-6">
+                            <div class="flex items-center gap-6">
+                                <span class="text-xs font-black font-mono text-zinc-400 w-12 text-right">
+                                    {{ "%.1f"|format(pct) }}%
+                                </span>
+                                <div
+                                    class="flex-grow h-2.5 bg-zinc-50 rounded-full border border-zinc-100 overflow-hidden">
+                                    {% set cat_pct_width = "width: " ~ (pct|round(1)) ~ "%;" %}
+                                    <div class="h-full bg-blue-600 rounded-full transition-all duration-1000 ease-out"
+                                        style="{{ cat_pct_width }}"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-10 py-6 text-right">
+                            <div
+                                class="font-mono font-black text-[#1a1a1a] group-hover:text-blue-600 transition-colors">
                                 ${{ "%.5f"|format(amount) }}
                             </div>
                         </td>
@@ -208,14 +199,12 @@
                     {% endfor %}
                     {% else %}
                     <tr>
-                        <td colspan="3" class="px-6 py-12 text-center">
-                            <div class="flex flex-col items-center justify-center text-zinc-600">
-                                <svg class="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <p class="text-sm font-medium">No transaction data available for this period.</p>
+                        <td colspan="3" class="px-10 py-32 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-wallet-4444858-3691523.png"
+                                    class="w-48 h-48 opacity-20 grayscale mb-6" alt="Empty">
+                                <p class="text-sm font-black text-zinc-300 uppercase tracking-widest">No transaction
+                                    data available for this cycle</p>
                             </div>
                         </td>
                     </tr>
@@ -224,12 +213,31 @@
             </table>
         </div>
 
-        <!-- Footer / Legend -->
         <div
-            class="px-6 py-4 border-t border-zinc-800 bg-zinc-900/50 text-[10px] text-zinc-500 font-mono flex justify-between">
-            <span>DATA SOURCE: LOCAL_LEDGER_V1</span>
-            <span>UPDATED: IMMEDIATE</span>
+            class="px-10 py-6 bg-[#e5e7eb] text-[10px] text-zinc-500 font-mono font-bold flex justify-between uppercase tracking-widest bg-opacity-50">
+            <span>Data Source: Local_Ledger_V1</span>
+            <span class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                Updated: Immediate
+            </span>
         </div>
     </div>
 </div>
+
+<style>
+    /* Force light mode variables locally if needed, or rely on .light-mode parent */
+    .brand-font {
+        font-family: 'Outfit', sans-serif;
+    }
+
+    /* Custom shadow matching mockup */
+    .shadow-3xl {
+        box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Ensure dashboard-like feel on the specific blue span */
+    .hero-blue {
+        color: #3b82f6;
+    }
+</style>
 {% endblock %}

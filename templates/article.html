@@ -334,8 +334,7 @@
                 <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
                     Key
                     Details</h3>
-                <ul class="space-y-4">
-                    {%- for detail in article.key_details -%}
+                <ul class="space-y-4">{%- for detail in article.key_details -%}
                     <li class="flex items-start">
                         <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
                         <span class="text-zinc-300 text-lg">{{ detail }}</span>
@@ -376,48 +375,80 @@
                 </div>
             </div>
 
-            <!-- Premium Newsletter CTA: Bento Style -->
-            <!-- Premium Newsletter CTA: Bento Style -->
-            <div class="mt-24 mb-16 px-4 md:px-0">
+            <!-- Premium Newsletter CTA: Compact & Theme-Aware -->
+            <div class="mt-16 mb-12 px-4 md:px-0">
                 <div
-                    class="bg-black border border-zinc-900 rounded-[3.5rem] p-12 md:p-20 flex flex-col items-center text-center shadow-3xl">
-                    <!-- Logo in Rounded Square -->
+                    class="bg-black light-mode-bg-white border border-zinc-900 light-mode-border-zinc-200 rounded-[2.5rem] p-8 md:p-14 flex flex-col items-center text-center shadow-3xl transition-colors duration-300">
+                    <!-- Logo Square -->
                     <div
-                        class="mb-14 w-28 h-28 bg-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/10 transition-transform hover:rotate-3">
+                        class="mb-10 w-20 h-20 bg-white light-mode-bg-zinc-50 border light-mode-border-zinc-200 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/10">
                         <img src="/static/img/brand/logo_nodes.png" alt="DailyAIWire Logo"
-                            class="w-16 h-16 object-contain">
+                            class="w-12 h-12 object-contain">
                     </div>
 
-                    <!-- Precision Headline: Multi-line Layout -->
-                    <h2 class="text-4xl md:text-7xl font-black tracking-tighter mb-10 leading-[1.1]">
-                        <span class="text-zinc-800">The Signal,</span> <span class="text-[#3b82f6]">Not</span><br>
+                    <!-- Headline -->
+                    <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-8 leading-[1.1]">
+                        <span class="text-zinc-800 light-mode-text-zinc-400">The Signal,</span> <span
+                            class="text-[#3b82f6]">Not</span><br>
                         <span class="text-[#3b82f6] relative">the Noise.<span
-                                class="inline-block w-1.5 h-10 md:h-16 bg-[#3b82f6] ml-2 -mb-2 animate-pulse"></span></span>
+                                class="inline-block w-1.5 h-8 md:h-12 bg-[#3b82f6] ml-2 -mb-1.5 animate-pulse"></span></span>
                     </h2>
 
-                    <!-- High-Trust Social Proof -->
-                    <p class="text-zinc-500 text-lg md:text-2xl max-w-xl mb-16 leading-relaxed font-medium">
+                    <!-- Social Proof -->
+                    <p
+                        class="text-zinc-500 light-mode-text-zinc-500 text-base md:text-lg max-w-lg mb-10 leading-relaxed font-medium">
                         Get the week's top 1% of AI intelligence synthesized into a 5-minute read. Join 50,000+ AI
                         leaders.
                     </p>
 
-                    <!-- Ultra-Clean Form -->
-                    <form action="/subscribe" method="POST" class="w-full max-w-lg flex flex-col md:flex-row gap-6">
-                        <input type="email" name="email" placeholder="Enter your email address..." required
+                    <!-- Form -->
+                    <form action="/subscribe" method="POST" class="w-full max-w-md flex flex-col md:flex-row gap-4">
+                        <input type="email" name="email" placeholder="Enter your email..." required
                             aria-label="Email address"
-                            class="flex-grow bg-[#090909] border border-zinc-800 text-white px-8 py-7 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-zinc-700 text-base font-bold">
+                            class="flex-grow bg-[#090909] light-mode-bg-zinc-50 border border-zinc-800 light-mode-border-zinc-300 text-white light-mode-text-black px-6 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-zinc-700 text-sm font-bold">
                         <button type="submit"
-                            class="bg-[#3b82f6] hover:bg-blue-500 text-white font-black uppercase tracking-widest text-sm px-12 py-7 rounded-2xl shadow-2xl shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                            class="bg-[#3b82f6] hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs px-8 py-4 rounded-xl shadow-xl shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
                             Join the Wire
                         </button>
                     </form>
 
-                    <!-- Minimalist Footer -->
-                    <p class="mt-14 text-[10px] text-zinc-700 font-bold uppercase tracking-[0.4em]">
+                    <!-- Legal -->
+                    <p
+                        class="mt-10 text-[9px] text-zinc-700 light-mode-text-zinc-400 font-bold uppercase tracking-[0.4em]">
                         Unsubscribe anytime. No spam, ever.
                     </p>
                 </div>
             </div>
+
+            <style>
+                .light-mode .light-mode-bg-white {
+                    background-color: #ffffff !important;
+                }
+
+                .light-mode .light-mode-bg-zinc-50 {
+                    background-color: #f9fafb !important;
+                }
+
+                .light-mode .light-mode-border-zinc-200 {
+                    border-color: #e5e7eb !important;
+                }
+
+                .light-mode .light-mode-border-zinc-300 {
+                    border-color: #d1d5db !important;
+                }
+
+                .light-mode .light-mode-text-zinc-400 {
+                    color: #9ca3af !important;
+                }
+
+                .light-mode .light-mode-text-zinc-500 {
+                    color: #6b7280 !important;
+                }
+
+                .light-mode .light-mode-text-black {
+                    color: #000000 !important;
+                }
+            </style>
         </div>
 
         <!-- Sidebar (4 cols) -->
