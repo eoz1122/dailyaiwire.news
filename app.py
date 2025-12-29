@@ -302,6 +302,58 @@ def admin_files():
     return render_template('admin/file_manager.html', files=files_map)
 
 
+@app.route('/admin/author', methods=['GET', 'POST'])
+@login_required
+def admin_author():
+    conn = get_db_connection()
+    # Ensure table (Lazy Migration)
+    conn.execute('CREATE TABLE IF NOT EXISTS author_config (id INTEGER PRIMARY KEY, name TEXT, title TEXT, bio TEXT, linkedin TEXT, image TEXT)')
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        title = request.form.get('title')
+        bio = request.form.get('bio')
+        linkedin = request.form.get('linkedin')
+        
+        image_path = request.form.get('current_image')
+        file = request.files.get('image_file')
+        
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            ts = int(time.time())
+            new_name = f"author_{ts}_{filename}"
+            save_path = os.path.join(app.static_folder, 'uploads', new_name)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            file.save(save_path)
+            image_path = f"/static/uploads/{new_name}"
+
+        # Upsert
+        start = conn.execute('SELECT id FROM author_config LIMIT 1').fetchone()
+        if start:
+            conn.execute('UPDATE author_config SET name=?, title=?, bio=?, linkedin=?, image=? WHERE id=?', (name, title, bio, linkedin, image_path, start['id']))
+        else:
+            conn.execute('INSERT INTO author_config (name, title, bio, linkedin, image) VALUES (?, ?, ?, ?, ?)', (name, title, bio, linkedin, image_path))
+        conn.commit()
+        conn.close()
+        flash('Profile settings updated!')
+        return redirect(url_for('admin_author'))
+
+    author = conn.execute('SELECT * FROM author_config LIMIT 1').fetchone()
+    conn.close()
+    
+    # Defaults for form view if empty
+    if not author:
+        author = {
+            'name': 'Ali Emre Ozen',
+            'title': 'VP, Head of Ad Operations & Analytics',
+            'bio': "With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I'm now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.",
+            'linkedin': 'https://www.linkedin.com/in/emreozen/',
+            'image': '/static/emre.jpg'
+        }
+        
+    return render_template('admin/author.html', author=author)
+
+
 
 def remove_emojis(text):
     if not text: return ""
@@ -347,9 +399,36 @@ def get_db_connection():
 
 @app.context_processor
 def inject_config():
-    local_img = os.path.join(app.static_folder, 'emre.jpg')
-    img = '/static/emre.jpg' if os.path.exists(local_img) else "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
+    # Default Author Data
+    emre_data = {
+        'name': 'Ali Emre Ozen',
+        'title': 'VP, Head of Ad Operations & Analytics',
+        'bio': "With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I'm now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.",
+        'linkedin': 'https://www.linkedin.com/in/emreozen/',
+        'image': '/static/emre.jpg'
+    }
     
+    # Check fallback image existence logic
+    local_img = os.path.join(app.static_folder, 'emre.jpg')
+    if not os.path.exists(local_img):
+         emre_data['image'] = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
+
+    # Try to load from DB
+    try:
+        conn = get_db_connection()
+        conn.execute('CREATE TABLE IF NOT EXISTS author_config (id INTEGER PRIMARY KEY, name TEXT, title TEXT, bio TEXT, linkedin TEXT, image TEXT)')
+        row = conn.execute('SELECT * FROM author_config LIMIT 1').fetchone()
+        conn.close()
+        if row:
+            db_data = dict(row)
+            if db_data.get('name'): emre_data['name'] = db_data['name']
+            if db_data.get('title'): emre_data['title'] = db_data['title']
+            if db_data.get('bio'): emre_data['bio'] = db_data['bio']
+            if db_data.get('linkedin'): emre_data['linkedin'] = db_data['linkedin']
+            if db_data.get('image'): emre_data['image'] = db_data['image']
+    except:
+        pass
+
     def get_cat_color(c):
         colors = {
             'Business': 'bg-indigo-600',
@@ -372,13 +451,7 @@ def inject_config():
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'config_web3forms_key': os.getenv('WEB3FORMS_ACCESS_KEY'),
         'q': request.args.get('q', ''),
-        'emre': {
-            'name': 'Ali Emre Ozen',
-            'title': 'VP, Head of Ad Operations & Analytics',
-            'bio': 'With 12 years in the programmatic space, I’ve managed complex campaigns across the US, UK, and Europe for both major agencies and global brands. Having mastered the full supply and demand ecosystem, I\'m now focused on integrating AI and automation to streamline the heavy lifting of digital advertising.',
-            'linkedin': 'https://www.linkedin.com/in/emreozen/',
-            'image': img
-        },
+        'emre': emre_data,
         'category_color': get_cat_color
     }
 
@@ -653,15 +726,7 @@ def lab_post(slug):
     if not post:
         abort(404)
     
-    # Author details for the template
-    emre = {
-        "name": "Emre Ozen",
-        "title": "VP, Head of Ad Ops",
-        "image": "/static/fallbacks/tools_2.jpg", 
-        "linkedin": "https://www.linkedin.com/in/emre-ozen-953537135/" 
-    }
-    
-    return render_template('lab_post.html', post=post, emre=emre)
+    return render_template('lab_post.html', post=post)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

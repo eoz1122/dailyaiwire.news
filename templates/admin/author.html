@@ -1,0 +1,66 @@
+
+{% extends "base.html" %}
+
+{% block title %}Profile Settings | Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-4xl">
+    <div class="mb-8 flex items-center gap-4">
+        <a href="{{ url_for('admin.index') }}" class="text-zinc-400 hover:text-white">&larr; Back to Dashboard</a>
+        <h1 class="text-3xl font-bold text-white">Author Profile Settings</h1>
+    </div>
+
+    <div class="glass-card rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8">
+        <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            
+            <!-- Current Image Preview -->
+            <div class="flex items-center gap-6">
+                <img src="{{ author.image }}" alt="Author" class="w-24 h-24 rounded-full border-2 border-zinc-700 object-cover">
+                <div>
+                    <label class="block text-zinc-400 text-sm font-bold mb-2">Profile Image</label>
+                    <input type="file" name="image_file" accept="image/*" class="block w-full text-sm text-zinc-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-600 file:text-white
+                        hover:file:bg-blue-700
+                    "/>
+                    <input type="hidden" name="current_image" value="{{ author.image }}">
+                </div>
+            </div>
+
+            <!-- Name -->
+            <div>
+                <label class="block text-zinc-400 text-sm font-bold mb-2">Display Name</label>
+                <input type="text" name="name" value="{{ author.name }}" required
+                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Title -->
+            <div>
+                <label class="block text-zinc-400 text-sm font-bold mb-2">Job Title / Tagline</label>
+                <input type="text" name="title" value="{{ author.title }}" required
+                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Bio -->
+            <div>
+                <label class="block text-zinc-400 text-sm font-bold mb-2">Bio</label>
+                <textarea name="bio" rows="6" required
+                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ author.bio }}</textarea>
+            </div>
+
+            <!-- LinkedIn -->
+            <div>
+                <label class="block text-zinc-400 text-sm font-bold mb-2">LinkedIn URL</label>
+                <input type="url" name="linkedin" value="{{ author.linkedin }}"
+                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-colors">
+                Save Profile
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
