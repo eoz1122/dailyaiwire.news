@@ -114,16 +114,16 @@ lab_posts = [
     <p class="text-zinc-400 text-sm leading-relaxed">Automating distribution is step 2. Step 1 is automating the <strong>work</strong>. See how I built the "Tiredless Team" of agents that actually generate the reports in my previous analysis: <a href="/lab/the-tiredless-team-how-we-automated-our-entire-invoice-lifecycle" class="text-blue-500 hover:text-white transition-colors font-bold">The Tiredless Team: Automating the Invoice Lifecycle</a>.</p>
 </div>
 
-<div class="mt-8 p-8 bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-3xl shadow-2xl relative overflow-hidden group">
+<div class="mt-8 p-8 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl relative overflow-hidden group light-mode:bg-white light-mode:border-zinc-200">
     <div class="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-all"></div>
     
-    <h3 class="relative text-2xl font-black mb-4 tracking-tight font-['Outfit'] !text-white">Struggling to scale your own automations?</h3>
+    <h3 class="relative text-2xl font-black mb-4 tracking-tight font-['Outfit'] text-white light-mode:text-zinc-900">Struggling to scale your own automations?</h3>
     
-    <p class="relative mb-6 leading-relaxed !text-zinc-400">
-        Building high-volume, cost-effective logic is a full-time job. If you are hitting credit limits on Make.com or struggling with the LinkedIn API—I can help. The logic I’ve built for Daily AI Wire is the same "Human-Engineered" engine that powers my other works, like <a href="https://englishspeakinggermany.online" target="_blank" rel="noopener" class="!text-white border-b border-blue-500 hover:!text-blue-400 transition-colors">English Speaking Vets</a>. Whether you need a custom Python microservice or a self-hosted n8n architecture built for your brand, let’s make your automation truly autonomous.
+    <p class="relative mb-6 leading-relaxed text-zinc-400 light-mode:text-zinc-600">
+        Building high-volume, cost-effective logic is a full-time job. If you are hitting credit limits on Make.com or struggling with the LinkedIn API—I can help. The logic I’ve built for Daily AI Wire is the same "Human-Engineered" engine that powers my other works, like <a href="https://englishspeakinggermany.online" target="_blank" rel="noopener" class="text-white border-b border-blue-500 hover:text-blue-400 transition-colors light-mode:text-blue-600 light-mode:hover:text-blue-800">English Speaking Vets</a>. Whether you need a custom Python microservice or a self-hosted n8n architecture built for your brand, let’s make your automation truly autonomous.
     </p>
 
-    <a href="/contact" class="relative inline-flex items-center px-8 py-4 bg-white text-black font-black uppercase text-xs tracking-widest rounded-xl hover:bg-blue-600 hover:text-white transition-all transform hover:scale-105 shadow-xl">
+    <a href="/contact" class="relative inline-flex items-center px-8 py-4 bg-white text-black font-black uppercase text-xs tracking-widest rounded-xl hover:bg-blue-600 hover:text-white transition-all transform hover:scale-105 shadow-xl light-mode:bg-blue-600 light-mode:text-white light-mode:hover:bg-blue-700">
         Contact the Architect
         <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
     </a>
