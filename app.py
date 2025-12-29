@@ -730,12 +730,19 @@ def rss_feed():
     for post in lab_posts:
         p = dict(post)
         try:
-            dt = datetime.strptime(p['published_at'], '%Y-%m-%d')
+            # Handle both formats: 'YYYY-MM-DD' and 'YYYY-MM-DD HH:MM:SS'
+            clean_date = p['published_at'].replace('T', ' ').split('.')[0]
+            try:
+                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
+                
             p['pub_date_obj'] = dt
             p['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except:
-            p['pub_date_obj'] = datetime.now()
-            p['pub_date_rss'] = formatdate()
+            # Fallback to a fixed old date rather than 'now' to avoid bumping to top
+            p['pub_date_obj'] = datetime(2025, 1, 1)
+            p['pub_date_rss'] = formatdate(float(p['pub_date_obj'].timestamp()))
 
         # Enclosure
         img_url = p.get('image') or "/static/img/default_lab.jpg"
