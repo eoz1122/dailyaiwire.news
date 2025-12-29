@@ -270,6 +270,7 @@ def fetch_all_sources() -> List[Dict]:
         # ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"), # 400 - Feed broken/unreliable
         ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"),
         ("Anthropic", "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml"),
+        ("Cambridge University AI", "https://www.cam.ac.uk/taxonomy/term/51032/feed"),
         
         # // ENTERPRISE & MARKETS
         ("VentureBeat", "https://venturebeat.com/category/ai/feed/"),
