@@ -255,19 +255,29 @@ def fetch_all_sources() -> List[Dict]:
         ("The Verge", "https://www.theverge.com/rss/artificial-intelligence/index.xml"),
         ("TechCrunch", "https://techcrunch.com/category/artificial-intelligence/feed/"),
         ("Wired", "https://www.wired.com/feed/tag/ai/latest/rss"),
+        ("The Batch", "https://read.deeplearning.ai/the-batch/feed"),
+        ("Import AI", "https://importai.substack.com/feed"),
+        ("Ben's Bites", "https://bensbites.beehiiv.com/feed"),
+        ("DFKI (Germany)", "https://www.dfki.de/en/web/news-media/news/rss"),
         
         # // RESEARCH LABS
         ("OpenAI", "https://openai.com/news/rss"),
         ("DeepMind", "https://deepmind.com/blog/feed/basic/"),
         ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml"),
+        ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss/"),
+        ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"),
+        ("Anthropic", "https://www.anthropic.com/news/feed"),
         
         # // ENTERPRISE & MARKETS
         ("VentureBeat", "https://venturebeat.com/category/ai/feed/"),
         ("AI Business", "https://aibusiness.com/rss.xml"),
         
-        # // DEV TERMINAL
+        # // DEV TERMINAL & COMMUNITIES
         ("NVIDIA Dev", "https://developer.nvidia.com/blog/feed/"),
         ("ML Mastery", "https://machinelearningmastery.com/blog/feed/"),
+        ("Hugging Face", "https://huggingface.co/blog/feed.xml"),
+        ("Papers with Code", "https://paperswithcode.com/rss/latest"),
+        ("Hacker News (AI)", "https://hnrss.org/newest?q=AI+OR+LLM"),
 
         # // AGGREGATOR
         ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
