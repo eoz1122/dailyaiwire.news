@@ -261,6 +261,8 @@ def fetch_all_sources() -> List[Dict]:
             # Limit Google News to 30 articles (AI filter will select the best ones from this larger pool)
             entries = feed.entries[:30] if source_name == "Google News" else feed.entries
             
+            skipped_count = 0
+            added_count = 0
             for entry in entries:
                 if is_spam(entry.title):
                     continue
@@ -274,6 +276,7 @@ def fetch_all_sources() -> List[Dict]:
 
                 # STATEFUL CHECK: Must be newer than last scan
                 if dt_published <= last_scan:
+                    skipped_count += 1
                     continue
 
                 title = entry.title
@@ -296,6 +299,10 @@ def fetch_all_sources() -> List[Dict]:
                         "link": link,
                         "published": dt_published.isoformat()
                     }
+                    added_count += 1
+            
+            print(f"   ↳ {len(entries)} entries found. {added_count} new, {skipped_count} skipped (old).")
+
         except Exception as e:
             print(f"Error fetching {source_name}: {e}")
     
