@@ -1,6 +1,45 @@
 
 lab_posts = [
     {
+        "id": "001",
+        "title": "The Tiredless Team: How We Automated Our Entire Invoice Lifecycle",
+        "slug": "the-tiredless-team-how-we-automated-our-entire-invoice-lifecycle",
+        "subtitle": "How we built a team of AI agents to handle 500+ invoices a month without a single human touch.",
+        "published_at": "2025-12-15",
+        "date": "Dec 15, 2025",
+        "image": "/static/lab/tiredless_team.jpg",
+        "thought_provoking_question": "If your accounts payable process relies on humans opening emails, is it really a process?",
+        "hashtags": ["#Automation", "#AI", "#FinanceOps", "#n8n", "#BusinessEfficiency"],
+        "content": """
+<p class="lead">Processing invoices is the quintessential "busy work" that kills productivity. It's repetitive, prone to human error, and absolutely critical to get right. At my agency, we were drowning in a sea of PDFs, handling over 500 invoices monthly. The old way involved a dedicated person spending 3 days a week just opening emails, matching PO numbers, and entering data into Xero.</p>
+
+<p>We decided to fire the human process and hire a team of AI agents instead. We call them "The Tiredless Team".</p>
+
+<h2>The Architecture</h2>
+<p>We built the entire workflow in <strong>n8n</strong>, self-hosted on a simple VPS. The logic is split into three distinct agents:</p>
+
+<ul class="list-disc pl-5 my-6 text-zinc-300 space-y-2">
+    <li><strong>The Gatekeeper (Mail Hook):</strong> Watches for incoming invoices, filters out spam, and classifies the document type.</li>
+    <li><strong>The Analyst (Gemini Flash):</strong> Extracts key data points (PO Number, Amount, Vendor, Due Date) with 99.9% accuracy.</li>
+    <li><strong>The Accountant (Xero API):</strong> Validates the data against our internal records and posts the draft bill for approval.</li>
+</ul>
+
+<div class="my-8 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+    <img src="/static/lab/tiredless_team.jpg" alt="The n8n workflow for invoice processing" class="w-full">
+    <div class="bg-zinc-900/50 p-4 text-xs text-zinc-500 font-mono border-t border-zinc-800">FIG 1: The invoice processing workflow in n8n.</div>
+</div>
+
+<h2>The Economics</h2>
+<p>The results were immediate and drastic. We reduced the processing time from 24 hours/week to near zero. The cost per invoice dropped from ~$4.50 (human time) to ~$0.02 (API costs).</p>
+
+<p>But the real win wasn't the money—it was the accuracy. Humans get tired at 4 PM on a Friday. The Tiredless Team processes the 500th invoice with the same precision as the first.</p>
+
+<div class="mt-8 p-6 bg-blue-900/20 border border-blue-800 rounded-xl">
+    <strong class="text-blue-400">Key Takeaway:</strong> Automation isn't just about speed; it's about reliability. By removing the human variable from standardized tasks, you don't just save time—you eliminate the source of error.
+</div>
+        """
+    },
+    {
         "id": "002",
         "title": "n8n vs. Make vs. Pipedream vs. Activepieces: My 40-Hour Quest for Free LinkedIn Automation",
         "slug": "free-linkedin-automation-n8n-vs-make-activepieces-review",
