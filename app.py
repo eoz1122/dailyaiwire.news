@@ -399,7 +399,7 @@ def get_db_connection():
 
 @app.context_processor
 def inject_config():
-    # Default Author Data
+    # 1. Default Author Data
     emre_data = {
         'name': 'Ali Emre Ozen',
         'title': 'VP, Head of Ad Operations & Analytics',
@@ -407,27 +407,45 @@ def inject_config():
         'linkedin': 'https://www.linkedin.com/in/emreozen/',
         'image': '/static/emre.jpg'
     }
-    
-    # Check fallback image existence logic
-    local_img = os.path.join(app.static_folder, 'emre.jpg')
-    if not os.path.exists(local_img):
-         emre_data['image'] = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
 
-    # Try to load from DB
+    # 2. Try to load overrides from DB
     try:
         conn = get_db_connection()
+        # Ensure table exists
         conn.execute('CREATE TABLE IF NOT EXISTS author_config (id INTEGER PRIMARY KEY, name TEXT, title TEXT, bio TEXT, linkedin TEXT, image TEXT)')
         row = conn.execute('SELECT * FROM author_config LIMIT 1').fetchone()
         conn.close()
+        
         if row:
             db_data = dict(row)
+            # Only update if fields are not empty
             if db_data.get('name'): emre_data['name'] = db_data['name']
             if db_data.get('title'): emre_data['title'] = db_data['title']
             if db_data.get('bio'): emre_data['bio'] = db_data['bio']
             if db_data.get('linkedin'): emre_data['linkedin'] = db_data['linkedin']
             if db_data.get('image'): emre_data['image'] = db_data['image']
     except:
-        pass
+        pass # DB failure shouldn't break the site
+        
+    # 3. Final Validation: Ensure Image Exists (Self-Healing)
+    current_img = emre_data.get('image', '')
+    if current_img.startswith('/'):
+        # Construct absolute path to check existence
+        # app.static_folder is absolute path to static dir
+        # current_img usually starts with /static/
+        if current_img.startswith('/static/'):
+            rel_path = current_img[8:] # remove /static/
+            abs_path = os.path.join(app.static_folder, rel_path)
+            
+            if not os.path.exists(abs_path):
+                # Image missing! Fallback.
+                fallback_local = os.path.join(app.static_folder, 'emre.jpg')
+                if os.path.exists(fallback_local):
+                    emre_data['image'] = '/static/emre.jpg'
+                else:
+                    emre_data['image'] = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
+    
+    # Helper for categories (unchanged)
 
     def get_cat_color(c):
         colors = {
