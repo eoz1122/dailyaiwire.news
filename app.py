@@ -854,9 +854,19 @@ def rss_feed():
             except:
                 pass
 
-        # Combine logic: Gist -> Hashtags (Question removed for LinkedIn)
+        # Combine logic: Gist -> Why it Matters -> Question -> Hashtags
         social_parts = []
-        social_parts.append(gist)
+        if gist:
+            social_parts.append(gist)
+        
+        # Add Why it Matters for length/depth if available
+        wim = a.get('why_it_matters', '')
+        if wim:
+            social_parts.append(f"Why it matters: {wim}")
+
+        # Restore Question
+        if question:
+            social_parts.append(f"🤔 {question}")
         
         if hashtags_str:
             social_parts.append(hashtags_str)
