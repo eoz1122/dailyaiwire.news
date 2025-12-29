@@ -151,7 +151,7 @@ def get_last_scan_timestamp() -> datetime:
     if row:
         return datetime.fromisoformat(row[0])
     # Fallback: 24 hours ago if no record exists
-    return datetime.now() - timedelta(hours=24)
+    return datetime.utcnow() - timedelta(hours=24)
 
 def update_last_scan_timestamp(ts: datetime):
     """Updates the last successful scan timestamp in metadata."""
@@ -163,7 +163,7 @@ def update_last_scan_timestamp(ts: datetime):
 
 def get_recent_published_titles(hours=36) -> List[str]:
     """Retrieves titles of articles published in the last X hours for deduplication."""
-    target_time = datetime.now() - timedelta(hours=hours)
+    target_time = datetime.utcnow() - timedelta(hours=hours)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT title FROM articles WHERE published_at > ?", (target_time.isoformat(),))
@@ -774,6 +774,8 @@ def process_social_queue():
                 distributor.distribute(article_data)
                 
                 cursor.execute("UPDATE social_queue SET status='SENT' WHERE id=?", (queue_id,))
+                # Update main articles table to stay in sync
+                cursor.execute("UPDATE articles SET shared_on_x=1, shared_at=? WHERE slug=?", (datetime.utcnow().isoformat(), slug))
                 print(f"✅ Successfully posted: {headline}")
             except Exception as e:
                 print(f"❌ Failed to post {headline}: {e}")
