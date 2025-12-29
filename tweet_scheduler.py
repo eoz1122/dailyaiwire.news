@@ -8,6 +8,10 @@ load_dotenv()
 
 import pytz
 from datetime import datetime, timedelta
+import sys
+
+# Ensure logs appear immediately in Supervisor
+sys.stdout.reconfigure(line_buffering=True)
 
 DB_PATH = "news.db"
 INTERVAL_SECONDS = 3600  # 1 hour (Max 24 articles per day)
