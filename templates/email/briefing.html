@@ -150,6 +150,23 @@
             text-decoration: underline;
         }
 
+        .signal-label-wrapper {
+            padding: 0 20px 24px;
+        }
+
+        .signal-sublabel {
+            font-size: 12px;
+            font-weight: 900;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .footer-brand {
+            font-size: 16px;
+            opacity: 0.5;
+        }
+
         @media screen and (max-width: 600px) {
             .editor-note-section {
                 padding: 0 20px 40px;
@@ -178,10 +195,8 @@
                 </div>
             </div>
 
-            <div style="padding: 0 20px 24px;">
-                <span
-                    style="font-size: 12px; font-weight: 900; color: #4b5563; text-transform: uppercase; letter-spacing: 3px;">The
-                    Signal // This Week</span>
+            <div class="signal-label-wrapper">
+                <span class="signal-sublabel">The Signal // This Week</span>
             </div>
 
             {% for art in articles %}
@@ -195,8 +210,7 @@
             {% endfor %}
 
             <div class="footer">
-                <div class="brand-name" style="font-size: 16px; opacity: 0.5;">DailyAI<span
-                        class="brand-accent">Wire</span></div>
+                <div class="brand-name footer-brand">DailyAI<span class="brand-accent">Wire</span></div>
                 <p class="footer-text">
                     &copy; 2025 DailyAIWire. All rights reserved.<br>
                     You are receiving this intelligence feed because you subscribed at dailyaiwire.news.<br>

@@ -81,9 +81,10 @@
                         <span>{{ "%.1f"|format(budget.percent_used) }}% Used</span>
                         <span>${{ "%.0f"|format(budget.monthly_cap) }} Cap</span>
                     </div>
+                    {% set progress_width = "width: " ~ ([budget.percent_used, 100]|min|round(1)) ~ "%;" %}
                     <div class="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
                         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 h-1.5 rounded-full transition-all duration-500 ease-out"
-                            style="width: {{ budget.percent_used if budget.percent_used < 100 else 100 }}%;"></div>
+                            style="{{ progress_width }}"></div>
                     </div>
                 </div>
             </div>
@@ -192,8 +193,9 @@
                                 <span class="text-xs font-mono font-bold text-zinc-400 w-12 text-right">{{
                                     "%.1f"|format(pct) }}%</span>
                                 <div class="flex-grow h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                    {% set cat_width = "width: " ~ (pct|round(1)) ~ "%;" %}
                                     <div class="h-full rounded-full transition-all duration-700 ease-out {{ bar_color }}"
-                                        style="width: {{ pct }}%;"></div>
+                                        style="{{ cat_width }}"></div>
                                 </div>
                             </div>
                         </td>
