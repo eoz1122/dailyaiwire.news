@@ -653,16 +653,16 @@ def index():
         carousel = []
     else:
         if page == 1:
-            carousel = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT 5').fetchall()
-            grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 5', (ITEMS_PER_PAGE,)).fetchall()
+            carousel = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT 10').fetchall()
+            grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
-            total_arts = max(0, total_arts_count - 5)
+            total_arts = max(0, total_arts_count - 10)
         else:
-            db_offset = 5 + ((page - 1) * ITEMS_PER_PAGE)
+            db_offset = 10 + ((page - 1) * ITEMS_PER_PAGE)
             grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
             carousel = []
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
-            total_arts = max(0, total_arts_count - 5)
+            total_arts = max(0, total_arts_count - 10)
 
     conn.close()
     
