@@ -55,13 +55,13 @@
     <meta property="og:site_name" content="DailyAIWire.news">
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://dailyaiwire.news{{ request.path }}">
-    <meta property="twitter:title"
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://dailyaiwire.news{{ request.path }}">
+    <meta name="twitter:title"
         content="{% block twitter_title %}DailyAIWire.news - AI Intelligence & Automation Insights{% endblock %}">
-    <meta property="twitter:description"
+    <meta name="twitter:description"
         content="{% block twitter_description %}Essential AI intelligence curated daily. Expert analysis on LLMs, robotics, and automation.{% endblock %}">
-    <meta property="twitter:image"
+    <meta name="twitter:image"
         content="{% block twitter_image %}https://dailyaiwire.news/static/og-image-v2.png{% endblock %}">
 
     <!-- AI Search Engine Optimization -->
@@ -439,7 +439,6 @@
                             <span
                                 class="text-2xl font-bold tracking-tighter brand-font leading-none text-[var(--text-primary)]">DailyAI<span
                                     class="blue-accent">Wire</span></span>
-                            <span class="ai-badge">AI-Curated</span>
                         </div>
                         <span class="text-[10px] text-zinc-500 font-medium tracking-widest uppercase">AI-First
                             Intelligence Feed</span>

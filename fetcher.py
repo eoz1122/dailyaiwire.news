@@ -257,7 +257,8 @@ def fetch_all_sources() -> List[Dict]:
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
         try:
-            feed = feedparser.parse(url)
+            # Fix: Use Browser User-Agent to bypass Cloudflare/Bot blocks on The Verge, VentureBeat, etc.
+            feed = feedparser.parse(url, agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
             # Limit Google News to 30 articles (AI filter will select the best ones from this larger pool)
             entries = feed.entries[:30] if source_name == "Google News" else feed.entries
             

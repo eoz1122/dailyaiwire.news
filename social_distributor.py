@@ -52,7 +52,7 @@ class SocialDistributor:
             # Clean markdown bolding
             gist_clean = gist.replace('**', '')
             
-            tweet_text = f"📢 AI-Curated: {headline}\n\n{gist_clean[:180]}...\n\nRead more: {link}"
+            tweet_text = f"📢 {headline}\n\n{gist_clean[:180]}...\n\nRead more: {link}"
             
             print("🐦 X (Twitter) Preview:")
             print("-" * 30)
