@@ -11,12 +11,14 @@
 ## 📐 Image Specifications
 
 ### **Recommended Specs:**
+
 - **Dimensions**: 1200px × 800px (3:2 aspect ratio) ← **BEST CHOICE**
 - **Format**: JPEG (.jpg)
 - **File Size**: 80-400 KB
 - **Quality**: 80-85% JPEG compression
 
 ### **Alternative Dimensions:**
+
 - 1200px × 675px (16:9 widescreen)
 - 1920px × 1280px (3:2 high quality)
 - 1600px × 900px (16:9 high quality)
@@ -28,6 +30,7 @@
 ### **Step 1: Prepare Your Images**
 
 Make sure your images are:
+
 - **1200×800 pixels** (or one of the alternative sizes above)
 - **Saved as JPEG** with 80-85% quality
 - **Under 400 KB** in file size
@@ -36,11 +39,13 @@ Make sure your images are:
 ### **Step 2: Name Your Files**
 
 Use this naming convention:
+
 ```
 [category]_[number].jpg
 ```
 
 **Available categories:**
+
 - `business` - Corporate AI, funding, M&A
 - `llms` - Language models, GPT, Claude, etc.
 - `robotics` - Physical AI, robots, automation
@@ -51,6 +56,7 @@ Use this naming convention:
 - `society` - Social impact, culture
 
 **Examples:**
+
 - `business_2.jpg` (third business image)
 - `llms_2.jpg` (third LLM image)
 - `robotics_2.jpg` (third robotics image)
@@ -58,6 +64,7 @@ Use this naming convention:
 ### **Step 3: Add Files to Directory**
 
 Place your images in:
+
 ```
 static/fallbacks/
 ```
@@ -89,16 +96,18 @@ This will randomly assign one of the available fallback images to each article i
 ## 🧪 Testing
 
 ### **Test Locally:**
+
 1. Start the Flask app: `python app.py`
 2. Visit: `http://localhost:8000/rss.xml`
 3. Check that all `<enclosure>` tags have valid image URLs
 
 ### **Test on VPS:**
+
 1. Push changes to git
 2. Pull on VPS
 3. Restart the app
 4. Visit: `https://dailyaiwire.news/rss.xml`
-5. Validate RSS feed: https://validator.w3.org/feed/
+5. Validate RSS feed: <https://validator.w3.org/feed/>
 
 ---
 
@@ -106,16 +115,16 @@ This will randomly assign one of the available fallback images to each article i
 
 As of last check, here's how your fallback images are distributed:
 
-| Category  | _0.jpg | _1.jpg | Total |
-|-----------|--------|--------|-------|
-| Business  | 51     | 46     | 97    |
-| LLMs      | 16     | 18     | 34    |
-| Tools     | 21     | 16     | 37    |
-| Science   | 9      | 9      | 18    |
-| Policy    | 5      | 6      | 11    |
-| Robotics  | 5      | 4      | 9     |
-| Security  | 4      | 4      | 8     |
-| Society   | 1      | 8      | 9     |
+| Category  | Variants | Total |
+|-----------|----------|-------|
+| Business  | 0, 1, 2, 3 | 97    |
+| LLMs      | 0, 1, 2  | 34    |
+| Tools     | 0, 1, 2  | 37    |
+| Science   | 0, 1, 2  | 18    |
+| Policy    | 0, 1, 2, 3 | 11    |
+| Robotics  | 0, 1, 2  | 9     |
+| Security  | 0, 1, 2, 3 | 8     |
+| Society   | 0, 1, 2, 3, 4 | 9     |
 
 **Total**: 223 articles using fallback images
 
@@ -124,35 +133,37 @@ As of last check, here's how your fallback images are distributed:
 ## 🎯 Quick Reference
 
 **Current working images:**
+
 ```
 /static/fallbacks/business_0.jpg    ✅
 /static/fallbacks/business_1.jpg    ✅
+/static/fallbacks/business_2.jpg    ✅
+/static/fallbacks/business_3.jpg    ✅ (New)
 /static/fallbacks/llms_0.jpg        ✅
 /static/fallbacks/llms_1.jpg        ✅
+/static/fallbacks/llms_2.jpg        ✅
 /static/fallbacks/policy_0.jpg      ✅
 /static/fallbacks/policy_1.jpg      ✅
+/static/fallbacks/policy_2.jpg      ✅
+/static/fallbacks/policy_3.jpg      ✅ (New)
 /static/fallbacks/robotics_0.jpg    ✅
 /static/fallbacks/robotics_1.jpg    ✅
+/static/fallbacks/robotics_2.jpg    ✅
 /static/fallbacks/science_0.jpg     ✅
 /static/fallbacks/science_1.jpg     ✅
+/static/fallbacks/science_2.jpg     ✅
 /static/fallbacks/security_0.jpg    ✅
 /static/fallbacks/security_1.jpg    ✅
+/static/fallbacks/security_2.jpg    ✅
+/static/fallbacks/security_3.jpg    ✅ (New)
 /static/fallbacks/society_0.jpg     ✅
 /static/fallbacks/society_1.jpg     ✅
+/static/fallbacks/society_2.jpg     ✅
+/static/fallbacks/society_3.jpg     ✅ (New)
+/static/fallbacks/society_4.jpg     ✅ (New)
 /static/fallbacks/tools_0.jpg       ✅
 /static/fallbacks/tools_1.jpg       ✅
-```
-
-**Ready to add (when you create them):**
-```
-/static/fallbacks/business_2.jpg    ⏳
-/static/fallbacks/llms_2.jpg        ⏳
-/static/fallbacks/policy_2.jpg      ⏳
-/static/fallbacks/robotics_2.jpg    ⏳
-/static/fallbacks/science_2.jpg     ⏳
-/static/fallbacks/security_2.jpg    ⏳
-/static/fallbacks/society_2.jpg     ⏳
-/static/fallbacks/tools_2.jpg       ⏳
+/static/fallbacks/tools_2.jpg       ✅
 ```
 
 ---

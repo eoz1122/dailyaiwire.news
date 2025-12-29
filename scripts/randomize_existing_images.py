@@ -6,35 +6,48 @@ DB_PATH = "news.db"
 CAT_MAP = {
     "LLMs": [
         "/static/fallbacks/llms_0.jpg",
-        "/static/fallbacks/llms_1.jpg"
+        "/static/fallbacks/llms_1.jpg",
+        "/static/fallbacks/llms_2.jpg"
     ],
     "Robotics": [
         "/static/fallbacks/robotics_0.jpg",
-        "/static/fallbacks/robotics_1.jpg"
+        "/static/fallbacks/robotics_1.jpg",
+        "/static/fallbacks/robotics_2.jpg"
     ],
     "Business": [
         "/static/fallbacks/business_0.jpg",
-        "/static/fallbacks/business_1.jpg"
+        "/static/fallbacks/business_1.jpg",
+        "/static/fallbacks/business_2.jpg",
+        "/static/fallbacks/business_3.jpg"
     ],
     "Tools": [
         "/static/fallbacks/tools_0.jpg",
-        "/static/fallbacks/tools_1.jpg"
+        "/static/fallbacks/tools_1.jpg",
+        "/static/fallbacks/tools_2.jpg"
     ],
     "Policy": [
         "/static/fallbacks/policy_0.jpg",
-        "/static/fallbacks/policy_1.jpg"
+        "/static/fallbacks/policy_1.jpg",
+        "/static/fallbacks/policy_2.jpg",
+        "/static/fallbacks/policy_3.jpg"
     ],
     "Science": [
         "/static/fallbacks/science_0.jpg",
-        "/static/fallbacks/science_1.jpg"
+        "/static/fallbacks/science_1.jpg",
+        "/static/fallbacks/science_2.jpg"
     ],
     "Security": [
         "/static/fallbacks/security_0.jpg",
-        "/static/fallbacks/security_1.jpg"
+        "/static/fallbacks/security_1.jpg",
+        "/static/fallbacks/security_2.jpg",
+        "/static/fallbacks/security_3.jpg"
     ],
     "Society": [
         "/static/fallbacks/society_0.jpg",
-        "/static/fallbacks/society_1.jpg"
+        "/static/fallbacks/society_1.jpg",
+        "/static/fallbacks/society_2.jpg",
+        "/static/fallbacks/society_3.jpg",
+        "/static/fallbacks/society_4.jpg"
     ]
 }
 
