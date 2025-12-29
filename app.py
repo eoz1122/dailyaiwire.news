@@ -644,10 +644,16 @@ def rss_feed():
     for art in articles_db:
         a = dict(art)
         try:
-            # Assuming YYYY-MM-DD format in DB
-            dt = datetime.strptime(a['published_at'], '%Y-%m-%d')
+            # Handle timestamps like '2025-12-28T11:00:00' or '2025-12-28 11:00:00'
+            clean_date = a['published_at'].replace('T', ' ').split('.')[0]
+            try:
+                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
+            
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except:
+            # Fallback only if absolutely unparsable, prevents "always now" issue
             a['pub_date_rss'] = formatdate()
         
         # Enclosure logic
