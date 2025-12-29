@@ -69,7 +69,11 @@ class BudgetTracker:
         return True
     
     def log_request(self, input_tokens=0, output_tokens=0, category="Uncategorized"):
-        """Log a completed API request with category tracking"""
+        """Log a completed API request with category tracking (Atomic Refresh)"""
+        # Reload to ensure we have latest data from other processes
+        self.load_usage()
+        self.reset_if_new_month()
+        
         cost = (input_tokens / 1000 * self.cost_per_1k_input_tokens + 
                 output_tokens / 1000 * self.cost_per_1k_output_tokens)
         
@@ -77,6 +81,10 @@ class BudgetTracker:
         self.data["requests"] += 1
         self.data["tokens_used"] += (input_tokens + output_tokens)
         
+        # Ensure breakdown exists
+        if "breakdown" not in self.data:
+            self.data["breakdown"] = {}
+            
         # Track category breakdown
         if category not in self.data["breakdown"]:
             self.data["breakdown"][category] = 0.0

@@ -72,12 +72,23 @@ def generate_newsletter_draft():
     """
     
     try:
+        from budget_tracker import BudgetTracker
+        budget = BudgetTracker()
+        
         model = genai.GenerativeModel("gemini-2.5-flash")
         response = model.generate_content(
             prompt, 
             generation_config={"response_mime_type": "application/json"}
         )
         
+        # Log Usage
+        if hasattr(response, 'usage_metadata'):
+            budget.log_request(
+                getattr(response.usage_metadata, 'prompt_token_count', 0),
+                getattr(response.usage_metadata, 'candidates_token_count', 0),
+                category="Weekly Digest"
+            )
+
         data = json.loads(response.text)
         
         # Save to DB

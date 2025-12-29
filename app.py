@@ -371,6 +371,15 @@ def admin_budget():
         except:
             pass
             
+    # Ensure breakdown exists for the UI
+    if "breakdown" not in data:
+        data["breakdown"] = {}
+        
+    # Ensure other numeric keys exist (fallback for corrupted JSON)
+    for key in ["total_spent", "requests", "tokens_used"]:
+        if key not in data:
+            data[key] = 0
+            
     # Calculate percentages
     if data['monthly_cap'] > 0:
         data['percent_used'] = (data['total_spent'] / data['monthly_cap']) * 100
