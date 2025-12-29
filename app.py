@@ -750,7 +750,7 @@ def rss_feed():
         if hashtags:
             social_copy.append(hashtags)
             
-        p['rss_description'] = "\n\n".join(social_copy) if social_copy else subtitle
+        p['clean_summary'] = "\n\n".join(social_copy) if social_copy else subtitle
         p['link'] = f"https://dailyaiwire.news/lab/{p['slug']}"
         
         articles.append(p)
@@ -760,6 +760,9 @@ def rss_feed():
     
     # Limit to 25 items total
     articles = articles[:25]
+    
+    xml = render_template('rss.xml', articles=articles, build_date=formatdate())
+    return Response(xml, mimetype='application/xml')
 
 def get_combined_lab_posts():
     """Fetch posts from both lab_posts.py and the blog_posts DB table"""

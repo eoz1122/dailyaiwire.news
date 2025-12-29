@@ -12,8 +12,8 @@
     {% for article in articles %}
         <item>
             <title>{{ article.title }}</title>
-            <link>https://dailyaiwire.news/article/{{ article.slug }}</link>
-            <guid>https://dailyaiwire.news/article/{{ article.slug }}</guid>
+            <link>{{ article.link }}</link>
+            <guid>{{ article.link }}</guid>
             <pubDate>{{ article.pub_date_rss }}</pubDate>
             <description><![CDATA[{{ article.clean_summary }}]]></description>
             <enclosure url="{{ article.enclosure_url }}" length="{{ article.enclosure_length }}" type="{{ article.enclosure_type }}" />
