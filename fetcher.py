@@ -439,7 +439,7 @@ def process_batch(batch: List[Dict]):
         "    \"headline\": \"Clicky Title\",\n"
         "    \"seo_slug\": \"url-safe-slug\",\n"
         "    \"image_query\": \"A concise keyword for an Unsplash image (e.g., 'robot arm', 'server farm')\",\n"
-        "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society']\",\n"
+        "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society', 'Ethics']\",\n"
         "    \"gist\": \"1-2 sentence bold summary\",\n"
         "    \"key_details\": [\"Extract 3-5 HARD DATA POINTS (numbers, dates, specs) ONLY. If the source content is vague or lacks specific metrics, return an empty list []. Do NOT output generic summaries here.\"],\n"
         "    \"why_it_matters\": \"Brief insight on impact (2-3 sentences max)\",\n"
@@ -573,6 +573,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 "Society": [
                     "/static/fallbacks/society_0.jpg",
                     "/static/fallbacks/society_1.jpg"
+                ],
+                "Ethics": [
+                    "/static/fallbacks/policy_0.jpg",
+                    "/static/fallbacks/policy_1.jpg"
                 ]
             }
             images = cat_map.get(cat, cat_map["Tools"])
@@ -631,6 +635,25 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 art.get('narration_script'),
                 art.get('thought_provoking_question')
             ))
+            
+            # STAGGERED SOCIAL QUEUING
+            # Queue for social media if not previously shared
+            # We stagger posts by 45 minutes to prevent flooding
+            if distributor and posts_count < social_limit:
+                 # Check if already processed to avoid duplicates in queue
+                 cursor.execute("SELECT id FROM social_queue WHERE slug = ?", (final_slug,))
+                 if not cursor.fetchone():
+                     # Calculate delay: (posts_count + 1) * 45 minutes from now
+                     delay_minutes = (posts_count + 1) * 45
+                     scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
+                     
+                     cursor.execute('''
+                        INSERT INTO social_queue (slug, headline, status, scheduled_time)
+                        VALUES (?, ?, 'PENDING', ?)
+                     ''', (final_slug, art.get('headline'), scheduled_time.isoformat()))
+                     
+                     print(f"🕒 Staggered social post for '{art.get('headline')}' at {scheduled_time.strftime('%H:%M')}")
+                     posts_count += 1
             
         except Exception as e:
             print(f"Error saving article {art.get('headline')}: {e}")
