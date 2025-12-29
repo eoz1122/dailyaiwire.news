@@ -466,20 +466,9 @@ def privacy(): return render_template('privacy.html')
 @app.route('/impressum')
 def impressum(): return render_template('impressum.html')
 
-@app.route('/lab')
-def lab_index():
-    conn = get_db_connection()
-    posts = conn.execute('SELECT * FROM blog_posts ORDER BY published_at DESC').fetchall()
-    conn.close()
-    return render_template('lab_index.html', posts=posts)
 
-@app.route('/lab/<slug>')
-def lab_post(slug):
-    conn = get_db_connection()
-    post = conn.execute('SELECT * FROM blog_posts WHERE slug = ?', (slug,)).fetchone()
-    conn.close()
-    if not post: abort(404)
-    return render_template('lab_post.html', post=post)
+# Lab routes defined below using file-based storage
+
 
 @app.after_request
 def add_header(r):
@@ -497,7 +486,7 @@ def sitemap():
     # Get articles
     articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
     # Get blog posts
-    blog_posts = conn.execute('SELECT slug, published_at FROM blog_posts ORDER BY published_at DESC').fetchall()
+    blog_posts = get_lab_posts()
     # Get categories for indexing
     categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
     conn.close()
@@ -531,7 +520,7 @@ def sitemap():
     
     # Blog posts
     for post in blog_posts:
-        pub_date = post['published_at'][:10] if post['published_at'] else now.strftime("%Y-%m-%d")
+        pub_date = post['published_at'][:10] if post.get('published_at') else now.strftime("%Y-%m-%d")
         xml.append(f'<url><loc>https://dailyaiwire.news/lab/{post["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>')
     
     xml.append('</urlset>')
