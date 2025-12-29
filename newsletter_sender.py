@@ -18,6 +18,7 @@ def get_active_subscribers():
     return subs
 
 def build_email_html(newsletter_id):
+    from flask import render_template
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -27,6 +28,7 @@ def build_email_html(newsletter_id):
     nl = cursor.fetchone()
     
     if not nl:
+        conn.close()
         return None
         
     article_ids = json.loads(nl['article_ids'])
@@ -38,65 +40,14 @@ def build_email_html(newsletter_id):
     
     conn.close()
     
-    # PREMIUM BRANDED HTML TEMPLATE
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #050505; color: #ffffff; margin: 0; padding: 0; }}
-            .container {{ max-width: 600px; margin: 0 auto; padding: 40px 20px; }}
-            .header {{ text-align: center; margin-bottom: 40px; }}
-            .logo {{ width: 80px; height: 80px; margin-bottom: 20px; }}
-            .brand-name {{ font-size: 24px; font-weight: 900; letter-spacing: -1px; text-transform: uppercase; }}
-            .blue-text {{ color: #2563eb; }}
-            .intro {{ font-size: 18px; line-height: 1.6; color: #d1d5db; margin-bottom: 40px; border-left: 4px solid #2563eb; padding-left: 20px; }}
-            .article-card {{ background-color: #111111; border: 1px solid #222222; border-radius: 16px; padding: 24px; margin-bottom: 24px; }}
-            .category {{ font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #2563eb; margin-bottom: 8px; }}
-            .title {{ font-size: 20px; font-weight: 800; margin-bottom: 12px; color: #ffffff; text-decoration: none; display: block; }}
-            .gist {{ font-size: 14px; line-height: 1.5; color: #9ca3af; }}
-            .footer {{ text-align: center; margin-top: 60px; padding-top: 40px; border-top: 1px solid #222222; color: #4b5563; font-size: 12px; }}
-            .btn {{ display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; font-weight: 900; text-decoration: none; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <img src="https://dailyaiwire.news/static/img/brand/logo_nodes.png" class="logo" alt="DailyAIWire">
-                <div class="brand-name">DailyAI<span class="blue-text">Wire</span></div>
-                <div style="font-size: 10px; color: #4b5563; margin-top: 5px; letter-spacing: 2px;">WEEKLY INTELLIGENCE REPORT</div>
-            </div>
-            
-            <div class="intro">
-                {nl['intro_text'].replace('\\n', '<br>')}
-            </div>
-            
-            <div class="briefing-header" style="margin-bottom: 24px; font-weight: 900; font-size: 12px; color: #4b5563; text-transform: uppercase; letter-spacing: 3px;">
-                The Signal // This Week
-            </div>
-    """
-    
-    for art in articles:
-        html += f"""
-            <div class="article-card">
-                <div class="category">{art['category']}</div>
-                <a href="https://dailyaiwire.news/article/{art['slug']}" class="title">{art['title']}</a>
-                <div class="gist">{art['gist']}</div>
-                <a href="https://dailyaiwire.news/article/{art['slug']}" class="btn">Analyze Full Signal</a>
-            </div>
-        """
-        
-    html += """
-            <div class="footer">
-                <p>&copy; 2025 DailyAIWire. All rights reserved.</p>
-                <p>You received this because you tuned into the Wire.</p>
-                <p><a href="https://dailyaiwire.news/unsubscribe" style="color: #4b5563;">Unsubscribe from Intelligence Feed</a></p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return html
+    # Render using the premium Jinja2 template
+    # Note: We need a Flask app context to use render_template
+    from app import app
+    with app.app_context():
+        return render_template('email/briefing.html', 
+                               subject=nl['subject'], 
+                               intro_text=nl['intro_text'].replace('\n', '<br>'), 
+                               articles=articles)
 
 def send_newsletter(newsletter_id):
     if not RESEND_API_KEY:

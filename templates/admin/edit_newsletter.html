@@ -21,14 +21,16 @@
                     <div>
                         <label class="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Subject
                             Line</label>
-                        <input type="text" name="subject" value="{{ newsletter.subject }}"
+                        <input type="text" name="subject" value="{{ newsletter.subject }}" title="Newsletter Subject"
+                            placeholder="Enter Subject Line"
                             class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-6 py-4 text-white focus:outline-none focus:border-blue-600 transition-all font-bold">
                     </div>
                     <div>
                         <label
                             class="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Editor's
                             Note (AI Narrative)</label>
-                        <textarea name="intro_text" rows="12"
+                        <textarea name="intro_text" rows="12" title="Editor's Note Content"
+                            placeholder="Synthesize the weekly narrative..."
                             class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-6 py-4 text-zinc-300 focus:outline-none focus:border-blue-600 transition-all leading-relaxed">{{ newsletter.intro_text }}</textarea>
                     </div>
                 </div>
@@ -57,7 +59,7 @@
                     <div class="mb-6">
                         <label
                             class="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Status</label>
-                        <select name="status"
+                        <select name="status" title="Newsletter Status"
                             class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-6 py-4 text-white focus:outline-none focus:border-blue-600 transition-all font-bold">
                             <option value="DRAFT" {% if newsletter.status=='DRAFT' %}selected{% endif %}>DRAFT</option>
                             <option value="SCHEDULED" {% if newsletter.status=='SCHEDULED' %}selected{% endif %}>
