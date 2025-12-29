@@ -707,8 +707,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                  # Check if already processed to avoid duplicates in queue
                  cursor.execute("SELECT id FROM social_queue WHERE slug = ?", (final_slug,))
                  if not cursor.fetchone():
-                     # Calculate delay: (posts_count + 1) * 30 minutes from now
-                     delay_minutes = (posts_count + 1) * 30
+                     # Calculate delay: (posts_count + 1) * 40 minutes from now
+                     delay_minutes = (posts_count + 1) * 40
                      scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
                      
                      cursor.execute('''
@@ -829,7 +829,7 @@ def main_loop():
     print("Starting DailyAIWire Intelligence Service...")
     
     last_fetch_time = 0
-    fetch_interval = 10800 # 3 hours
+    fetch_interval = 7200 # 2 hours (was 3 hours)
     
     while True:
         try:
