@@ -1,39 +1,37 @@
-{% extends 'admin/index.html' %}
+{% extends 'admin/base_admin.html' %}
 
-{% block body %}
-<div class="p-8">
-    <div class="flex items-center justify-between mb-8">
-        <h1 class="text-3xl font-black uppercase tracking-tighter text-white">Newsletter Subscribers</h1>
-        <div class="text-zinc-500 font-mono text-sm">Total: {{ subscribers|length }}</div>
-    </div>
+{% block admin_content %}
+<div class="mb-8 flex items-center justify-between">
+    <h1 class="text-xl font-bold text-white uppercase tracking-widest">Intelligence Feed Subscribers</h1>
+    <div class="text-zinc-500 font-mono text-xs">Total Segment: {{ subscribers|length }}</div>
+</div>
 
-    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-        <table class="w-full text-left">
-            <thead>
-                <tr
-                    class="bg-zinc-950 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-b border-zinc-800">
-                    <th class="px-6 py-4">ID</th>
-                    <th class="px-6 py-4">Email</th>
-                    <th class="px-6 py-4">Status</th>
-                    <th class="px-6 py-4">Joined</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-zinc-800">
-                {% for sub in subscribers %}
-                <tr class="hover:bg-zinc-800/30 transition-colors">
-                    <td class="px-6 py-4 text-zinc-600 font-mono text-xs">{{ sub.id }}</td>
-                    <td class="px-6 py-4 text-zinc-200 font-bold">{{ sub.email }}</td>
-                    <td class="px-6 py-4">
-                        <span
-                            class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest {% if sub.status == 'ACTIVE' %}bg-green-600/20 text-green-500{% else %}bg-red-600/20 text-red-500{% endif %}">
-                            {{ sub.status }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 text-zinc-500 text-xs">{{ sub.created_at }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+    <table class="w-full text-left">
+        <thead>
+            <tr
+                class="bg-zinc-950 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-b border-zinc-800">
+                <th class="px-6 py-4">ID</th>
+                <th class="px-6 py-4">Email Address</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4">Joined At</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-800">
+            {% for sub in subscribers %}
+            <tr class="hover:bg-zinc-800/30 transition-colors">
+                <td class="px-6 py-4 text-zinc-600 font-mono text-xs">{{ sub.id }}</td>
+                <td class="px-6 py-4 text-zinc-200 font-bold">{{ sub.email }}</td>
+                <td class="px-6 py-4">
+                    <span
+                        class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest {% if sub.status == 'ACTIVE' %}bg-green-600/20 text-green-500{% else %}bg-red-600/20 text-red-500{% endif %}">
+                        {{ sub.status }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-zinc-500 text-xs">{{ sub.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}
