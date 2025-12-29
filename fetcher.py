@@ -256,18 +256,18 @@ def fetch_all_sources() -> List[Dict]:
         ("The Verge", "https://www.theverge.com/rss/artificial-intelligence/index.xml"),
         ("TechCrunch", "https://techcrunch.com/category/artificial-intelligence/feed/"),
         ("Wired", "https://www.wired.com/feed/tag/ai/latest/rss"),
-        ("The Batch", "https://read.deeplearning.ai/the-batch/feed"),
+        # ("The Batch", "https://read.deeplearning.ai/the-batch/feed"), # 404 - No public RSS found
         ("Import AI", "https://importai.substack.com/feed"),
-        ("Ben's Bites", "https://bensbites.beehiiv.com/feed"),
-        ("DFKI (Germany)", "https://www.dfki.de/en/web/news-media/news/rss"),
+        # ("Ben's Bites", "https://bensbites.beehiiv.com/feed"), # 404 - Requires specific Beehiiv ID
+        ("DFKI (Germany)", "https://www.dfki.de/en/web/news-media/news/?type=9818"),
         
         # // RESEARCH LABS
-        ("OpenAI", "https://openai.com/news/rss"),
+        ("OpenAI", "https://openai.com/news/rss.xml"),
         ("DeepMind", "https://deepmind.com/blog/feed/basic/"),
         ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml"),
-        ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss/"),
+        ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"),
         ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"),
-        ("Anthropic", "https://www.anthropic.com/news/feed"),
+        ("Anthropic", "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml"),
         
         # // ENTERPRISE & MARKETS
         ("VentureBeat", "https://venturebeat.com/category/ai/feed/"),
