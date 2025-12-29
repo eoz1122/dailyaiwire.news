@@ -51,7 +51,7 @@
 
     <div class="prose prose-invert prose-orange max-w-none">
         <div class="blog-content text-zinc-300 space-y-8 text-lg leading-relaxed">
-            {{ post.content | remove_emojis | safe }}
+            {{ post.content | safe }}
         </div>
     </div>
 
@@ -63,7 +63,7 @@
                         Insights</h4>
                     <div class="flex flex-col sm:flex-row gap-4">
                         <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.url|urlencode }}"
-                            target="_blank"
+                            target="_blank" rel="noopener"
                             class="flex items-center justify-between sm:justify-start space-x-3 px-6 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-white transition-all group min-w-[160px] light-mode:bg-white light-mode:border-zinc-200 light-mode:hover:border-blue-600">
                             <svg class="w-4 h-4 text-white dark:text-white light-mode:text-zinc-800" fill="currentColor"
                                 viewBox="0 0 24 24">
@@ -75,7 +75,7 @@
                                 on X</span>
                         </a>
                         <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
-                            target="_blank"
+                            target="_blank" rel="noopener"
                             class="flex items-center justify-between sm:justify-start space-x-3 px-6 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] transition-all group min-w-[160px] light-mode:bg-white light-mode:border-zinc-200">
                             <svg class="w-4 h-4 text-[#0077b5]" fill="currentColor" viewBox="0 0 24 24">
                                 <path
