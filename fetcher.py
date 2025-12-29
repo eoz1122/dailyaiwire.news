@@ -611,7 +611,12 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 "Science": [
                     "/static/fallbacks/science_0.jpg",
                     "/static/fallbacks/science_1.jpg",
-                    "/static/fallbacks/science_2.jpg"
+                    "/static/fallbacks/science_2.jpg",
+                    "/static/fallbacks/science_3.jpg",
+                    "/static/fallbacks/science_4.jpg",
+                    "/static/fallbacks/science_5.jpg",
+                    "/static/fallbacks/science_6.jpg",
+                    "/static/fallbacks/science_7.jpg"
                 ],
                 "Security": [
                     "/static/fallbacks/security_0.jpg",
