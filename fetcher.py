@@ -707,8 +707,9 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                  # Check if already processed to avoid duplicates in queue
                  cursor.execute("SELECT id FROM social_queue WHERE slug = ?", (final_slug,))
                  if not cursor.fetchone():
-                     # Calculate delay: (posts_count + 1) * 40 minutes from now
-                     delay_minutes = (posts_count + 1) * 40
+                     # Calculate delay: Stagger by 30 mins, starting 5 mins from now
+                     # Post 1: +5m, Post 2: +35m, Post 3: +65m...
+                     delay_minutes = (posts_count * 30) + 5
                      scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
                      
                      cursor.execute('''
