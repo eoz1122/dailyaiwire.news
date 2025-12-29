@@ -547,6 +547,11 @@ def robots():
     except:
         return Response("User-agent: *\nAllow: /", mimetype='text/plain')
 
+@app.template_filter('remove_emojis')
+def remove_emojis(text):
+    if not text: return ""
+    return text.encode('ascii', 'ignore').decode('ascii')
+
 @app.route('/rss.xml')
 @app.route('/feed')
 @app.route('/rss')
@@ -600,6 +605,8 @@ def rss_feed():
                 full_summary += " This breakthrough represents a significant shift in the AI landscape."
             else:
                 full_summary = ". ".join(parts) + "."
+        
+
         
         
         # Add hashtags to RSS description (for social media automation)
