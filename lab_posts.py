@@ -81,26 +81,26 @@ lab_posts = [
                 <th class="py-3 px-4">My Verdict</th>
             </tr>
         </thead>
-        <tbody class="text-zinc-300">
+        <tbody class="text-zinc-500 font-medium"> <!-- Cleaned up text color for light mode compat -->
             <tr class="border-b border-zinc-800 bg-zinc-900/20">
                 <td class="py-4 px-4 font-bold text-white">n8n</td>
                 <td class="py-4 px-4">Scalability & Self-Hosting</td>
-                <td class="py-4 px-4 text-yellow-500">⭐⭐⭐⭐⭐ (The Winner)</td>
+                <td class="py-4 px-4"><span class="text-yellow-500">⭐⭐⭐⭐⭐</span> <span class="ml-2 text-yellow-600 dark:text-yellow-500">(The Winner)</span></td>
             </tr>
             <tr class="border-b border-zinc-800">
                 <td class="py-4 px-4 font-bold text-white">Make.com</td>
                 <td class="py-4 px-4">Visual Design & Simplicity</td>
-                <td class="py-4 px-4 text-yellow-500">⭐⭐⭐ (Best for small biz)</td>
+                <td class="py-4 px-4"><span class="text-yellow-500">⭐⭐⭐</span> <span class="ml-2 text-yellow-600 dark:text-yellow-500">(Best for small biz)</span></td>
             </tr>
             <tr class="border-b border-zinc-800 bg-zinc-900/20">
                 <td class="py-4 px-4 font-bold text-white">Activepieces</td>
                 <td class="py-4 px-4">Open Source Fans</td>
-                <td class="py-4 px-4 text-yellow-500">⭐⭐⭐⭐ (Great potential)</td>
+                <td class="py-4 px-4"><span class="text-yellow-500">⭐⭐⭐⭐</span> <span class="ml-2 text-yellow-600 dark:text-yellow-500">(Great potential)</span></td>
             </tr>
             <tr class="border-b border-zinc-800">
                 <td class="py-4 px-4 font-bold text-white">Pipedream</td>
                 <td class="py-4 px-4">Developers / Code-Heavy</td>
-                <td class="py-4 px-4 text-yellow-500">⭐⭐ (Too technical)</td>
+                <td class="py-4 px-4"><span class="text-yellow-500">⭐⭐</span> <span class="ml-2 text-yellow-600 dark:text-yellow-500">(Too technical)</span></td>
             </tr>
         </tbody>
     </table>
@@ -117,10 +117,10 @@ lab_posts = [
 <div class="mt-8 p-8 bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-3xl shadow-2xl relative overflow-hidden group">
     <div class="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-all"></div>
     
-    <h3 class="relative text-2xl font-black text-white mb-4 tracking-tight font-['Outfit']">Struggling to scale your own automations?</h3>
+    <h3 class="relative text-2xl font-black mb-4 tracking-tight font-['Outfit'] !text-white">Struggling to scale your own automations?</h3>
     
-    <p class="relative text-zinc-400 mb-6 leading-relaxed">
-        Building high-volume, cost-effective logic is a full-time job. If you are hitting credit limits on Make.com or struggling with the LinkedIn API—I can help. The logic I’ve built for Daily AI Wire is the same "Human-Engineered" engine that powers my other works, like <a href="https://englishspeakinggermany.online" target="_blank" rel="noopener" class="text-white border-b border-blue-500 hover:text-blue-400 transition-colors">English Speaking Vets</a>. Whether you need a custom Python microservice or a self-hosted n8n architecture built for your brand, let’s make your automation truly autonomous.
+    <p class="relative mb-6 leading-relaxed !text-zinc-400">
+        Building high-volume, cost-effective logic is a full-time job. If you are hitting credit limits on Make.com or struggling with the LinkedIn API—I can help. The logic I’ve built for Daily AI Wire is the same "Human-Engineered" engine that powers my other works, like <a href="https://englishspeakinggermany.online" target="_blank" rel="noopener" class="!text-white border-b border-blue-500 hover:!text-blue-400 transition-colors">English Speaking Vets</a>. Whether you need a custom Python microservice or a self-hosted n8n architecture built for your brand, let’s make your automation truly autonomous.
     </p>
 
     <a href="/contact" class="relative inline-flex items-center px-8 py-4 bg-white text-black font-black uppercase text-xs tracking-widest rounded-xl hover:bg-blue-600 hover:text-white transition-all transform hover:scale-105 shadow-xl">
