@@ -265,6 +265,38 @@ def admin_delete_article(id):
     return redirect(url_for('admin.index'))
 
 
+@app.route('/admin/budget')
+@login_required
+def admin_budget():
+    """Display Budget Tracker Report"""
+    tracker_file = os.path.join(os.path.dirname(__file__), "budget_tracker.json")
+    
+    data = {
+        "current_month": datetime.now().strftime("%Y-%m"),
+        "total_spent": 0.0,
+        "monthly_cap": float(os.getenv("MONTHLY_BUDGET_USD", "10.0")),
+        "requests": 0,
+        "tokens_used": 0,
+        "breakdown": {}
+    }
+    
+    if os.path.exists(tracker_file):
+        try:
+            with open(tracker_file, 'r') as f:
+                loaded = json.load(f)
+                data.update(loaded)
+        except:
+            pass
+            
+    # Calculate percentages
+    if data['monthly_cap'] > 0:
+        data['percent_used'] = (data['total_spent'] / data['monthly_cap']) * 100
+    else:
+        data['percent_used'] = 0
+        
+    return render_template('admin/budget.html', budget=data)
+
+
 @app.route('/admin/stock-manager', methods=['GET', 'POST'])
 @login_required
 def admin_files():

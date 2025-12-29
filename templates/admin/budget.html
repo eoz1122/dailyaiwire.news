@@ -1,0 +1,114 @@
+{% extends "admin/layout.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-white">💰 Cost & Usage Report</h1>
+        <div class="text-sm text-slate-500">
+            For Month: <span class="font-mono font-bold">{{ budget.current_month }}</span>
+        </div>
+    </div>
+
+    <!-- Alert if close to limit -->
+    {% if budget.percent_used > 80 %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                ⚠️
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-red-700">
+                    You have used <span class="font-bold">{{ "%.1f"|format(budget.percent_used) }}%</span> of your
+                    monthly budget!
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Card 1: Total Spent -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 border border-slate-200 dark:border-slate-700">
+            <h3 class="text-sm font-medium text-slate-500 mb-1">Total Spent</h3>
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">
+                ${{ "%.4f"|format(budget.total_spent) }}
+            </div>
+            <div class="mt-2 w-full bg-slate-100 rounded-full h-2.5 dark:bg-slate-700">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ [budget.percent_used, 100]|min }}%"></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                of ${{ "%.2f"|format(budget.monthly_cap) }} monthly cap
+            </p>
+        </div>
+
+        <!-- Card 2: Total Requests -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 border border-slate-200 dark:border-slate-700">
+            <h3 class="text-sm font-medium text-slate-500 mb-1">API Requests</h3>
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">
+                {{ budget.requests }}
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                calls to Gemini 2.5 Flash
+            </p>
+        </div>
+
+        <!-- Card 3: Tokens -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 border border-slate-200 dark:border-slate-700">
+            <h3 class="text-sm font-medium text-slate-500 mb-1">Tokens Processed</h3>
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">
+                {{ "{:,}".format(budget.tokens_used) }}
+            </div>
+            <p class="text-xs text-slate-500 mt-2">
+                Input + Output combined
+            </p>
+        </div>
+    </div>
+
+    <!-- Category Breakdown Table -->
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Category Breakdown</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                <thead class="bg-slate-50 dark:bg-slate-700 text-xs uppercase text-slate-500 dark:text-slate-400">
+                    <tr>
+                        <th class="px-6 py-3">Operation Category</th>
+                        <th class="px-6 py-3">Usage %</th>
+                        <th class="px-6 py-3 text-right">Cost (USD)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                    {% if budget.breakdown %}
+                    <!-- Manual Sorting provided by jinja helper usually, but simple dict iter here -->
+                    {% for category, amount in budget.breakdown.items() %}
+                    {% set pct = (amount / budget.total_spent * 100) if budget.total_spent > 0 else 0 %}
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                        <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">{{ category }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <span class="w-12 text-xs mr-2">{{ "%.1f"|format(pct) }}%</span>
+                                <div class="w-24 bg-slate-200 rounded-full h-1.5 dark:bg-slate-600">
+                                    <div class="bg-indigo-500 h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono font-bold">
+                            ${{ "%.5f"|format(amount) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-center text-slate-500">No usage data broken down yet.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
