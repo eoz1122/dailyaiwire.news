@@ -119,14 +119,14 @@ As of last check, here's how your fallback images are distributed:
 |-----------|----------|--------------|
 | Business  | 0-8      | 9            |
 | LLMs      | 0-3      | 4            |
-| Policy    | 0-3      | 4            |
+| Policy    | 0-7      | 8            |
 | Robotics  | 0-7      | 8            |
 | Science   | 0-7      | 8            |
 | Security  | 0-3      | 4            |
 | Society   | 0-4      | 5            |
 | Tools     | 0-2      | 3            |
 
-**Total**: 45 premium images in rotation (+2 generated backups)
+**Total**: 49 premium images in rotation (+2 generated backups)
 
 ---
 
@@ -154,6 +154,10 @@ As of last check, here's how your fallback images are distributed:
 /static/fallbacks/policy_1.jpg      ✅
 /static/fallbacks/policy_2.jpg      ✅
 /static/fallbacks/policy_3.jpg      ✅
+/static/fallbacks/policy_4.jpg      ✅ (New)
+/static/fallbacks/policy_5.jpg      ✅ (New)
+/static/fallbacks/policy_6.jpg      ✅ (New)
+/static/fallbacks/policy_7.jpg      ✅ (New)
 
 /static/fallbacks/robotics_0.jpg    ✅
 /static/fallbacks/robotics_1.jpg    ✅
