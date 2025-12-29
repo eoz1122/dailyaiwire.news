@@ -66,13 +66,13 @@ class SocialDistributor:
             else:
                 tweet_text = f"{headline}\n\n"
             
-            if question:
-                tweet_text += f"🤔 {question}\n\n"
-                
             tweet_text += f"{gist_clean}\n\n"
             
             if tags_str:
                 tweet_text += f"{tags_str}\n\n"
+                
+            if question:
+                tweet_text += f"🤔 {question}\n\n"
                 
             tweet_text += link
             
