@@ -253,7 +253,7 @@ def fetch_all_sources() -> List[Dict]:
     """Fetches news from multiple specific AI feeds and Google News."""
     sources = [
         # // PRIMARY WIRE
-        ("The Verge", "https://www.theverge.com/rss/artificial-intelligence/index.xml"),
+        ("The Verge", "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
         ("TechCrunch", "https://techcrunch.com/category/artificial-intelligence/feed/"),
         ("Wired", "https://www.wired.com/feed/tag/ai/latest/rss"),
         # ("The Batch", "https://read.deeplearning.ai/the-batch/feed"), # 404 - No public RSS found
