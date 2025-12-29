@@ -9,6 +9,7 @@ from flask_admin.model import BaseModelView
 from wtforms import TextAreaField
 from dotenv import load_dotenv
 from lab_posts import get_lab_posts, get_lab_post
+from budget_tracker import BudgetTracker
 
 load_dotenv()
 app = Flask(__name__)
@@ -109,6 +110,29 @@ def admin_subscribers():
     subscribers = conn.execute('SELECT * FROM subscribers ORDER BY created_at DESC').fetchall()
     conn.close()
     return render_template('admin/subscribers.html', subscribers=subscribers)
+
+@app.route('/admin/budget')
+@login_required
+def admin_budget():
+    tracker = BudgetTracker()
+    usage = tracker.data
+    
+    total_spent = usage.get('total_spent', 0.0)
+    monthly_cap = tracker.monthly_cap
+    percent_used = (total_spent / monthly_cap * 100) if monthly_cap > 0 else 0
+    
+    budget_view = {
+        'current_month': usage.get('current_month'),
+        'total_spent': total_spent,
+        'percent_used': percent_used,
+        'monthly_cap': monthly_cap,
+        'remaining': max(0, monthly_cap - total_spent),
+        'breakdown': usage.get('breakdown', {}),
+        'requests': usage.get('requests', 0),
+        'tokens_used': usage.get('tokens_used', 0)
+    }
+    
+    return render_template('admin/budget.html', budget=budget_view)
 
 @app.route('/admin/newsletters')
 @login_required
