@@ -296,10 +296,9 @@ def fetch_all_sources() -> List[Dict]:
     existing_urls = {row[0] for row in cursor.fetchall()}
     conn.close()
     
-    # GET STATE: Force scan of last 7 days to ensure new feeds (and low-frequency labs) are picked up
-    # (Previous logic of strictly using last_scan timestamp prevented new feeds from being ingested if they hadn't posted in the last hour)
-    last_scan = datetime.now() - timedelta(days=7)
-    print(f"📡 Scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
+    # GET STATE: Only fetch articles after last scan
+    last_scan = get_last_scan_timestamp()
+    print(f"📡 Only scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
 
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
