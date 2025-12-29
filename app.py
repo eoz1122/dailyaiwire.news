@@ -697,23 +697,32 @@ def rss_feed():
         a['enclosure_url'] = img_url
         a['enclosure_type'] = "image/jpeg" if "png" not in img_url.lower() else "image/png"
         # Prepare Description
-        a['rss_description'] = a.get('gist') or a.get('title')
-        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
+        # Prepare Social Copy for RSS Description
+        question = a.get('thought_provoking_question', '')
+        gist = a.get('gist', '') or a.get('title', '')
         
-
-        
-        
-        # Add hashtags to RSS description (for social media automation)
+        # Hashtags
         hashtags_str = ""
         if a.get('hashtags'):
             try:
                 hashtags = json.loads(a['hashtags']) if isinstance(a['hashtags'], str) else a['hashtags']
                 if hashtags:
-                    hashtags_str = " " + " ".join(hashtags)
+                    hashtags_str = " ".join(hashtags)
             except:
                 pass
+
+        # Combine logic: Question -> Gist -> Hashtags
+        social_parts = []
+        if question:
+            social_parts.append(f"🤔 {question}")
         
-        a['clean_summary'] = full_summary + hashtags_str
+        social_parts.append(gist)
+        
+        if hashtags_str:
+            social_parts.append(hashtags_str)
+            
+        a['clean_summary'] = "\n\n".join(social_parts)
+        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
         articles.append(a)
 
     # 2. Process Lab Posts
