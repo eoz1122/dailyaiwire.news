@@ -115,18 +115,18 @@ This will randomly assign one of the available fallback images to each article i
 
 As of last check, here's how your fallback images are distributed:
 
-| Category  | Variants | Total |
-|-----------|----------|-------|
-| Business  | 0, 1, 2, 3 | 97    |
-| LLMs      | 0, 1, 2  | 34    |
-| Tools     | 0, 1, 2  | 37    |
-| Science   | 0, 1, 2  | 18    |
-| Policy    | 0, 1, 2, 3 | 11    |
-| Robotics  | 0, 1, 2  | 9     |
-| Security  | 0, 1, 2, 3 | 8     |
-| Society   | 0, 1, 2, 3, 4 | 9     |
+| Category  | Variants | Total Images |
+|-----------|----------|--------------|
+| Business  | 0-8      | 9            |
+| LLMs      | 0-2      | 3            |
+| Policy    | 0-3      | 4            |
+| Robotics  | 0-2      | 3            |
+| Science   | 0-2      | 3            |
+| Security  | 0-3      | 4            |
+| Society   | 0-4      | 5            |
+| Tools     | 0-2      | 3            |
 
-**Total**: 223 articles using fallback images
+**Total**: 34 premium images in rotation (+2 generated backups)
 
 ---
 
@@ -138,29 +138,41 @@ As of last check, here's how your fallback images are distributed:
 /static/fallbacks/business_0.jpg    ✅
 /static/fallbacks/business_1.jpg    ✅
 /static/fallbacks/business_2.jpg    ✅
-/static/fallbacks/business_3.jpg    ✅ (New)
+/static/fallbacks/business_3.jpg    ✅
+/static/fallbacks/business_4.jpg    ✅ (New)
+/static/fallbacks/business_5.jpg    ✅ (New)
+/static/fallbacks/business_6.jpg    ✅ (New)
+/static/fallbacks/business_7.jpg    ✅ (New)
+/static/fallbacks/business_8.jpg    ✅ (New)
+
 /static/fallbacks/llms_0.jpg        ✅
 /static/fallbacks/llms_1.jpg        ✅
 /static/fallbacks/llms_2.jpg        ✅
+
 /static/fallbacks/policy_0.jpg      ✅
 /static/fallbacks/policy_1.jpg      ✅
 /static/fallbacks/policy_2.jpg      ✅
-/static/fallbacks/policy_3.jpg      ✅ (New)
+/static/fallbacks/policy_3.jpg      ✅
+
 /static/fallbacks/robotics_0.jpg    ✅
 /static/fallbacks/robotics_1.jpg    ✅
 /static/fallbacks/robotics_2.jpg    ✅
+
 /static/fallbacks/science_0.jpg     ✅
 /static/fallbacks/science_1.jpg     ✅
 /static/fallbacks/science_2.jpg     ✅
+
 /static/fallbacks/security_0.jpg    ✅
 /static/fallbacks/security_1.jpg    ✅
 /static/fallbacks/security_2.jpg    ✅
-/static/fallbacks/security_3.jpg    ✅ (New)
+/static/fallbacks/security_3.jpg    ✅
+
 /static/fallbacks/society_0.jpg     ✅
 /static/fallbacks/society_1.jpg     ✅
 /static/fallbacks/society_2.jpg     ✅
-/static/fallbacks/society_3.jpg     ✅ (New)
-/static/fallbacks/society_4.jpg     ✅ (New)
+/static/fallbacks/society_3.jpg     ✅
+/static/fallbacks/society_4.jpg     ✅
+
 /static/fallbacks/tools_0.jpg       ✅
 /static/fallbacks/tools_1.jpg       ✅
 /static/fallbacks/tools_2.jpg       ✅
