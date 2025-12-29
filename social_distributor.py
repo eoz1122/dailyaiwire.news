@@ -30,7 +30,7 @@ class SocialDistributor:
         self.base_url = "https://dailyaiwire.news"
 
     def post_to_x(self, article):
-        """Posts article gist and link to X (Twitter)."""
+        """Posts article gist, question, and link to X (Twitter)."""
         if not all([self.x_api_key, self.x_api_secret, self.x_access_token, self.x_access_secret]):
             print("⚠️ X (Twitter) credentials missing. Skipping post.")
             return
@@ -46,13 +46,27 @@ class SocialDistributor:
             
             headline = article.get('headline', 'New Intelligence')
             gist = article.get('gist', '')
+            question = article.get('thought_provoking_question', '')
             slug = article.get('seo_slug')
             link = f"{self.base_url}/article/{slug}"
+            hashtags = article.get('hashtags', [])
+            
+            # Use provided hashtags or generic ones
+            tags_str = " ".join(hashtags) if hashtags else "#AI #TechNews"
             
             # Clean markdown bolding
             gist_clean = gist.replace('**', '')
             
-            tweet_text = f"📢 {headline}\n\n{gist_clean[:180]}...\n\nRead more: {link}"
+            # Construct richer tweet
+            # We assume Premium X support, allowing up to 4000 10000+ chars, but let's stick to a solid 500-600 chars for good readability
+            tweet_text = f"📢 {headline}\n\n"
+            
+            if question:
+                tweet_text += f"🤔 {question}\n\n"
+                
+            tweet_text += f"{gist_clean}\n\n"
+            tweet_text += f"{tags_str}\n\n"
+            tweet_text += f"Read more: {link}"
             
             print("🐦 X (Twitter) Preview:")
             print("-" * 30)
