@@ -413,6 +413,7 @@ def process_batch(batch: List[Dict]):
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
             "Mandate: Use the optimized capabilities of Gemini 2.5 Flash for high-throughput intelligence analysis.\n"
             "Editorial Standards:\n"
+            "* LANGUAGE: ALL OUTPUT MUST BE IN ENGLISH. If the source content is in German or another language, TRANSLATE it on the fly.\n"
             "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
             "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"
             "* Tone: Authoritative, tech-forward, and urgent. Avoid corporate fluff and emojis.\n"
@@ -429,7 +430,7 @@ def process_batch(batch: List[Dict]):
         
         # Robust context: If scraper failed, use the title/rss snippet to provide at least some signal
         analysis_context = content[:3000] if content and len(content) > 100 else item['title']
-        batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']}\nSOURCE CONTENT: {analysis_context}")
+        batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']} (Ensure Output is English)\nSOURCE CONTENT: {analysis_context}")
 
     prompt = (
         f"Process the following {len(batch)} news articles and return a JSON list of objects matching this structure:\n"
