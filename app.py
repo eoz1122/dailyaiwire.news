@@ -711,6 +711,10 @@ def privacy(): return render_template('privacy.html')
 @app.route('/impressum')
 def impressum(): return render_template('impressum.html')
 
+@app.route('/thank-you')
+def thank_you_page():
+    return render_template('thank_you.html')
+
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
     email = request.form.get('email', '').strip()
@@ -722,15 +726,19 @@ def subscribe():
     try:
         conn.execute('INSERT INTO subscribers (email) VALUES (?)', (email,))
         conn.commit()
-        flash("Welcome to the Wire! Your intelligence feed is now active.")
-    except sqlite3.IntegrityError:
-        flash("You are already tuned into the Wire.")
-    except Exception as e:
-        flash("Neural link failed. Please try again later.")
-    finally:
+        # Success: Redirect to dedicated Thank You page
         conn.close()
-    
-    return redirect(request.referrer or '/')
+        return redirect(url_for('thank_you_page'))
+        
+    except sqlite3.IntegrityError:
+        # Already subscribed: Still redirect to Thank You page for good UX (treat as success)
+        conn.close()
+        return redirect(url_for('thank_you_page'))
+        
+    except Exception as e:
+        conn.close()
+        flash("Neural link failed. Please try again later.")
+        return redirect(request.referrer or '/')
 
 
 # Lab routes defined below using file-based storage
