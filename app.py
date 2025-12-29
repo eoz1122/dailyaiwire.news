@@ -696,9 +696,9 @@ def rss_feed():
             img_url = f"https://dailyaiwire.news{img_url}"
         a['enclosure_url'] = img_url
         a['enclosure_type'] = "image/jpeg" if "png" not in img_url.lower() else "image/png"
-                full_summary += " This breakthrough represents a significant shift in the AI landscape."
-            else:
-                full_summary = ". ".join(parts) + "."
+        # Prepare Description
+        a['rss_description'] = a.get('gist') or a.get('title')
+        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
         
 
         
@@ -715,9 +715,51 @@ def rss_feed():
         
         a['clean_summary'] = full_summary + hashtags_str
         articles.append(a)
+
+    # 2. Process Lab Posts
+    lab_posts = get_combined_lab_posts()
+    for post in lab_posts:
+        p = dict(post)
+        try:
+            dt = datetime.strptime(p['published_at'], '%Y-%m-%d')
+            p['pub_date_obj'] = dt
+            p['pub_date_rss'] = formatdate(float(dt.timestamp()))
+        except:
+            p['pub_date_obj'] = datetime.now()
+            p['pub_date_rss'] = formatdate()
+
+        # Enclosure
+        img_url = p.get('image') or "/static/img/default_lab.jpg"
+        if img_url.startswith('/'):
+            img_url = f"https://dailyaiwire.news{img_url}"
+        p['enclosure_url'] = img_url
+        p['enclosure_type'] = "image/jpeg"
+        p['enclosure_length'] = "0"
+
+        # RSS Description -> Social Copy
+        # Format: 🤔 Question \n\n Subtitle \n\n Hashtags
+        question = p.get('thought_provoking_question', '')
+        subtitle = p.get('subtitle', '')
+        hashtags = " ".join(p.get('hashtags', [])) if isinstance(p.get('hashtags'), list) else ""
         
-    xml = render_template('rss.xml', articles=articles, build_date=formatdate())
-    return Response(xml, mimetype='application/xml')
+        social_copy = []
+        if question:
+            social_copy.append(f"🤔 {question}")
+        if subtitle:
+            social_copy.append(subtitle)
+        if hashtags:
+            social_copy.append(hashtags)
+            
+        p['rss_description'] = "\n\n".join(social_copy) if social_copy else subtitle
+        p['link'] = f"https://dailyaiwire.news/lab/{p['slug']}"
+        
+        articles.append(p)
+
+    # 3. Sort Combined List by Date DESC
+    articles.sort(key=lambda x: x['pub_date_obj'], reverse=True)
+    
+    # Limit to 25 items total
+    articles = articles[:25]
 
 def get_combined_lab_posts():
     """Fetch posts from both lab_posts.py and the blog_posts DB table"""

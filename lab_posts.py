@@ -8,6 +8,8 @@ lab_posts = [
         "published_at": "2025-12-29",
         "date": "Dec 29, 2025",
         "image": "/static/lab/n8n_workflow.jpg", 
+        "thought_provoking_question": "Why do we keep paying for SaaS subscriptions when self-hosted tools can do the same job for free?",
+        "hashtags": ["#NoCode", "#Automation", "#n8n", "#MakeIntegromat", "#SaaS"],
         "content": """
 <p class="italic text-zinc-400 text-sm border-l-2 border-blue-500 pl-4 mb-8">Missed Part 1? Read <a href="/lab/the-tiredless-team-how-we-automated-our-entire-invoice-lifecycle" class="text-blue-500 hover:text-white transition-colors">The Tiredless Team: How We Automated Our Invoice Lifecycle</a>.</p>
 
@@ -138,6 +140,8 @@ lab_posts = [
         "published_at": "2025-12-29",
         "date": "Dec 29, 2025",
         "image": "/static/lab/ad_ops_reporting.jpg",
+        "thought_provoking_question": "Does your company solve 'architecture problems' by throwing more human hours at them?",
+        "hashtags": ["#AdOps", "#Automation", "#n8n", "#DataEngineering", "#Efficiency"],
         "content": """
 <p class="lead">In the programmatic world, we like to talk about "automation" and "real-time bidding," but the back-office reality is often much more primitive. For years, I watched our reporting process evolve into what I call a "Reporting Tax." Every morning, regardless of what else was happening in the business, a high-value member of our Ops team had to act as Human Glue. This meant logging into a disjointed ecosystem of platforms:</p>
 
