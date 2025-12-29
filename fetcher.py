@@ -259,13 +259,13 @@ def fetch_all_sources() -> List[Dict]:
         # ("The Batch", "https://read.deeplearning.ai/the-batch/feed"), # 404 - No public RSS found
         ("Import AI", "https://importai.substack.com/feed"),
         # ("Ben's Bites", "https://bensbites.beehiiv.com/feed"), # 404 - Requires specific Beehiiv ID
-        ("DFKI (Germany)", "https://www.dfki.de/en/web/news-media/news/?type=9818"),
+        ("DFKI (Germany)", "https://robotik.dfki-bremen.de/de/startseite/news-rss-feed"),
         
         # // RESEARCH LABS
         ("OpenAI", "https://openai.com/news/rss.xml"),
         ("DeepMind", "https://deepmind.com/blog/feed/basic/"),
         ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml"),
-        ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"),
+        # ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"), # 400 - Feed broken/unreliable
         ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"),
         ("Anthropic", "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml"),
         
@@ -286,9 +286,10 @@ def fetch_all_sources() -> List[Dict]:
     
     unique_articles = {}
     
-    # GET STATE: Only fetch articles after last scan
-    last_scan = get_last_scan_timestamp()
-    print(f"📡 Only scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
+    # GET STATE: Force scan of last 24h to ensure new feeds are picked up
+    # (Previous logic of strictly using last_scan timestamp prevented new feeds from being ingested if they hadn't posted in the last hour)
+    last_scan = datetime.now() - timedelta(hours=24)
+    print(f"📡 Scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
 
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
