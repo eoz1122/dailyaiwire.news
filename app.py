@@ -183,6 +183,36 @@ def admin_send_newsletter(id):
     
     return redirect(url_for('admin_newsletters'))
 
+@app.route('/admin/newsletter/preview')
+@login_required
+def admin_newsletter_preview():
+    """Renders the newsletter template with mock data for design review."""
+    mock_articles = [
+        {
+            "category": "Artificial Intelligence",
+            "title": "Gemini 2.5: The Dawn of True Reasoning Agents",
+            "gist": "Google's latest sweep of the Gemini architecture introduces self-correcting logic loops, allowing the model to 'think' twice before responding, effectively eliminating most hallucinations in complex coding tasks.",
+            "slug": "gemini-2.5-reasoning-agents"
+        },
+        {
+            "category": "Robotics",
+            "title": "Figure 02 Integrates OpenAI Vision for Factory Precision",
+            "gist": "The second generation Figure robot now utilizes a specialized vision-language model from OpenAI to identify and sort microscopic manufacturing defects with 99.8% accuracy.",
+            "slug": "figure-02-openai-vision"
+        },
+        {
+            "category": "Open Source",
+            "title": "Llama 4 Release Signals the End of Proprietary Moats",
+            "gist": "Meta's upcoming 400B parameter model is rumored to outperform GPT-5 across all reasoning benchmarks, forcing a massive pivot in the business models of closed-source giants.",
+            "slug": "llama-4- proprietary-moats"
+        }
+    ]
+    
+    return render_template('email/briefing.html', 
+                           subject="[PREVIEW] The Intelligence Briefing: Llama 4 and the Future of Moats",
+                           intro_text="This week was a transition from AI as a tool to AI as a teammate. The release of Gemini 2.5 and the rumors surrounding Llama 4 suggest that the scaling laws are still very much in effect, but the 'intelligence' is now moving into the reasoning layer. We are seeing models that don't just predict the next token, but predict the next *intended* outcome.",
+                           articles=mock_articles)
+
 @app.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_article(id):
