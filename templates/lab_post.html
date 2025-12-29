@@ -2,6 +2,17 @@
 
 {% block title %}{{ post.title }} | Automation Lab{% endblock %}
 
+{% block meta_title %}{{ post.title }} | Automation Lab{% endblock %}
+{% block meta_description %}{{ post.subtitle }}{% endblock %}
+
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ post.subtitle }}{% endblock %}
+{% block og_image %}https://dailyaiwire.news{{ post.image }}{% endblock %}
+
+{% block twitter_title %}{{ post.title }}{% endblock %}
+{% block twitter_description %}{{ post.subtitle }}{% endblock %}
+{% block twitter_image %}https://dailyaiwire.news{{ post.image }}{% endblock %}
+
 {% block content %}
 <article class="container mx-auto px-4 py-16 max-w-4xl">
     <header class="mb-12">

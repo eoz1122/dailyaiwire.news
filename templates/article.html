@@ -8,11 +8,13 @@
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ article.title }}{% endblock %}
 {% block og_description %}{{ article.gist }}{% endblock %}
-{% block og_image %}{{ article.image }}{% endblock %}
+{% block og_image %}{% if article.image and article.image.startswith('http') %}{{ article.image }}{% else
+%}https://dailyaiwire.news{{ article.image }}{% endif %}{% endblock %}
 
 {% block twitter_title %}{{ article.title }}{% endblock %}
 {% block twitter_description %}{{ article.gist }}{% endblock %}
-{% block twitter_image %}{{ article.image }}{% endblock %}
+{% block twitter_image %}{% if article.image and article.image.startswith('http') %}{{ article.image }}{% else
+%}https://dailyaiwire.news{{ article.image }}{% endif %}{% endblock %}
 
 {% block canonical %}https://dailyaiwire.news/article/{{ article.slug }}{% endblock %}
 
