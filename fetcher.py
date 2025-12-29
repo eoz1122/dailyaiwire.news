@@ -210,9 +210,27 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     try:
         model_name = 'gemini-2.5-flash'
         print(f"⚡ using AI Model (Filter): {model_name}")
+        
+        # Budget Check
+        estimated_tokens = len(prompt) // 4 + 500
+        from budget_tracker import BudgetTracker
+        # Instantiate strictly for this check if not passed (though ideally passed)
+        # To avoid circular imports or redefining, we rely on the global 'budget' object if available
+        # But 'budget' is defined at module level (line 31), so it's available here.
+        if not budget.can_make_request(estimated_tokens):
+             print("Skipping filter due to budget.")
+             return articles[:8] # Fallback
+
         model = genai.GenerativeModel(model_name)
-        # Fix: Gemini occasionally adds "Indices: " prefix
         response = model.generate_content(prompt)
+        
+        # Log Usage
+        if hasattr(response, 'usage_metadata'):
+             budget.log_request(
+                 getattr(response.usage_metadata, 'prompt_token_count', 0),
+                 getattr(response.usage_metadata, 'candidates_token_count', 0)
+             )
+
         text = response.text.replace('Indices:', '').strip()
         indices = [int(i.strip()) for i in text.split(',') if i.strip().isdigit()]
         
