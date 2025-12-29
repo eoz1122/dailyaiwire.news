@@ -711,11 +711,8 @@ def rss_feed():
             except:
                 pass
 
-        # Combine logic: Question -> Gist -> Hashtags
+        # Combine logic: Gist -> Hashtags (Question removed for LinkedIn)
         social_parts = []
-        if question:
-            social_parts.append(f"🤔 {question}")
-        
         social_parts.append(gist)
         
         if hashtags_str:
@@ -758,9 +755,8 @@ def rss_feed():
         subtitle = p.get('subtitle', '')
         hashtags = " ".join(p.get('hashtags', [])) if isinstance(p.get('hashtags'), list) else ""
         
+        # RSS Description -> Social Copy (Question removed for LinkedIn)
         social_copy = []
-        if question:
-            social_copy.append(f"🤔 {question}")
         if subtitle:
             social_copy.append(subtitle)
         if hashtags:
