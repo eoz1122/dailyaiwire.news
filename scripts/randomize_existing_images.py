@@ -7,18 +7,29 @@ CAT_MAP = {
     "LLMs": [
         "/static/fallbacks/llms_0.jpg",
         "/static/fallbacks/llms_1.jpg",
-        "/static/fallbacks/llms_2.jpg"
+        "/static/fallbacks/llms_2.jpg",
+        "/static/fallbacks/llms_3.jpg"
     ],
     "Robotics": [
         "/static/fallbacks/robotics_0.jpg",
         "/static/fallbacks/robotics_1.jpg",
-        "/static/fallbacks/robotics_2.jpg"
+        "/static/fallbacks/robotics_2.jpg",
+        "/static/fallbacks/robotics_3.jpg",
+        "/static/fallbacks/robotics_4.jpg",
+        "/static/fallbacks/robotics_5.jpg",
+        "/static/fallbacks/robotics_6.jpg",
+        "/static/fallbacks/robotics_7.jpg"
     ],
     "Business": [
         "/static/fallbacks/business_0.jpg",
         "/static/fallbacks/business_1.jpg",
         "/static/fallbacks/business_2.jpg",
-        "/static/fallbacks/business_3.jpg"
+        "/static/fallbacks/business_3.jpg",
+        "/static/fallbacks/business_4.jpg",
+        "/static/fallbacks/business_5.jpg",
+        "/static/fallbacks/business_6.jpg",
+        "/static/fallbacks/business_7.jpg",
+        "/static/fallbacks/business_8.jpg"
     ],
     "Tools": [
         "/static/fallbacks/tools_0.jpg",

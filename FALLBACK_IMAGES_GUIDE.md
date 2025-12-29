@@ -118,15 +118,15 @@ As of last check, here's how your fallback images are distributed:
 | Category  | Variants | Total Images |
 |-----------|----------|--------------|
 | Business  | 0-8      | 9            |
-| LLMs      | 0-2      | 3            |
+| LLMs      | 0-3      | 4            |
 | Policy    | 0-3      | 4            |
-| Robotics  | 0-2      | 3            |
+| Robotics  | 0-7      | 8            |
 | Science   | 0-2      | 3            |
 | Security  | 0-3      | 4            |
 | Society   | 0-4      | 5            |
 | Tools     | 0-2      | 3            |
 
-**Total**: 34 premium images in rotation (+2 generated backups)
+**Total**: 40 premium images in rotation (+2 generated backups)
 
 ---
 
@@ -139,15 +139,16 @@ As of last check, here's how your fallback images are distributed:
 /static/fallbacks/business_1.jpg    ✅
 /static/fallbacks/business_2.jpg    ✅
 /static/fallbacks/business_3.jpg    ✅
-/static/fallbacks/business_4.jpg    ✅ (New)
-/static/fallbacks/business_5.jpg    ✅ (New)
-/static/fallbacks/business_6.jpg    ✅ (New)
-/static/fallbacks/business_7.jpg    ✅ (New)
-/static/fallbacks/business_8.jpg    ✅ (New)
+/static/fallbacks/business_4.jpg    ✅
+/static/fallbacks/business_5.jpg    ✅
+/static/fallbacks/business_6.jpg    ✅
+/static/fallbacks/business_7.jpg    ✅
+/static/fallbacks/business_8.jpg    ✅
 
 /static/fallbacks/llms_0.jpg        ✅
 /static/fallbacks/llms_1.jpg        ✅
 /static/fallbacks/llms_2.jpg        ✅
+/static/fallbacks/llms_3.jpg        ✅
 
 /static/fallbacks/policy_0.jpg      ✅
 /static/fallbacks/policy_1.jpg      ✅
@@ -157,6 +158,11 @@ As of last check, here's how your fallback images are distributed:
 /static/fallbacks/robotics_0.jpg    ✅
 /static/fallbacks/robotics_1.jpg    ✅
 /static/fallbacks/robotics_2.jpg    ✅
+/static/fallbacks/robotics_3.jpg    ✅ (New)
+/static/fallbacks/robotics_4.jpg    ✅ (New)
+/static/fallbacks/robotics_5.jpg    ✅ (New)
+/static/fallbacks/robotics_6.jpg    ✅ (New)
+/static/fallbacks/robotics_7.jpg    ✅ (New)
 
 /static/fallbacks/science_0.jpg     ✅
 /static/fallbacks/science_1.jpg     ✅
