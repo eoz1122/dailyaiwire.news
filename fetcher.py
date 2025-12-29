@@ -292,8 +292,23 @@ def fetch_all_sources() -> List[Dict]:
     for source_name, url in sources:
         print(f"Fetching from {source_name}...")
         try:
-            # Fix: Use Browser User-Agent to bypass Cloudflare/Bot blocks on The Verge, VentureBeat, etc.
-            feed = feedparser.parse(url, agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            # Fix: Use requests with timeout to prevent hanging on unresponsive feeds (e.g., DFKI)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            try:
+                if source_name == "Hacker News (AI)":
+                    # Special case for hnrss which might need looser timeout or specific headers
+                    resp = requests.get(url, headers=headers, timeout=15)
+                else:
+                    resp = requests.get(url, headers=headers, timeout=10)
+                
+                resp.raise_for_status()
+                feed = feedparser.parse(resp.content)
+            except Exception as req_err:
+                print(f"   ⚠️ Connection error for {source_name}: {req_err}")
+                continue
+
             # Limit Google News to 30 articles (AI filter will select the best ones from this larger pool)
             entries = feed.entries[:30] if source_name == "Google News" else feed.entries
             
