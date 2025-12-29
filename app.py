@@ -100,6 +100,89 @@ class MyAdminIndexView(AdminIndexView):
 
 admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
 
+# --- Newsletter Admin Routes ---
+
+@app.route('/admin/subscribers')
+@login_required
+def admin_subscribers():
+    conn = get_db_connection()
+    subscribers = conn.execute('SELECT * FROM subscribers ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return render_template('admin/subscribers.html', subscribers=subscribers)
+
+@app.route('/admin/newsletters')
+@login_required
+def admin_newsletters():
+    conn = get_db_connection()
+    newsletters = conn.execute('SELECT * FROM newsletters ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return render_template('admin/newsletters.html', newsletters=newsletters)
+
+@app.route('/admin/newsletter/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_newsletter(id):
+    conn = get_db_connection()
+    if request.method == 'POST':
+        subject = request.form.get('subject')
+        intro_text = request.form.get('intro_text')
+        status = request.form.get('status')
+        
+        conn.execute('UPDATE newsletters SET subject=?, intro_text=?, status=? WHERE id=?', 
+                     (subject, intro_text, status, id))
+        conn.commit()
+        flash("Newsletter updated.")
+        return redirect(url_for('admin_newsletters'))
+
+    newsletter = conn.execute('SELECT * FROM newsletters WHERE id=?', (id,)).fetchone()
+    if not newsletter:
+        abort(404)
+    
+    # Get associated articles
+    article_ids = json.loads(newsletter['article_ids'])
+    articles = []
+    if article_ids:
+        placeholders = ', '.join(['?'] * len(article_ids))
+        articles = conn.execute(f'SELECT title, gist FROM articles WHERE id IN ({placeholders})', article_ids).fetchall()
+        
+    conn.close()
+    return render_template('admin/edit_newsletter.html', newsletter=newsletter, articles=articles)
+
+@app.route('/admin/newsletter/delete/<int:id>')
+@login_required
+def admin_delete_newsletter(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM newsletters WHERE id=?', (id,))
+    conn.commit()
+    conn.close()
+    flash("Newsletter deleted.")
+    return redirect(url_for('admin_newsletters'))
+
+@app.route('/admin/newsletter/generate')
+@login_required
+def admin_generate_newsletter():
+    import subprocess
+    import sys
+    # Runs the curator script as a separate process
+    try:
+        subprocess.Popen([sys.executable, 'weekly_curator.py'], cwd=os.getcwd())
+        flash("AI Curation Engine started. Draft will appear in a few seconds.")
+    except Exception as e:
+        flash(f"Failed to start curation: {e}")
+    
+    return redirect(url_for('admin_newsletters'))
+
+@app.route('/admin/newsletter/send/<int:id>')
+@login_required
+def admin_send_newsletter(id):
+    from newsletter_sender import send_newsletter
+    success = send_newsletter(id)
+    if success:
+        flash("Signal broadcast successful. Intelligence delivered to subscribers.")
+    else:
+        flash("Signal broadcast failed. Check logs/API key.")
+    
+    return redirect(url_for('admin_newsletters'))
+
 @app.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_article(id):
@@ -588,6 +671,27 @@ def privacy(): return render_template('privacy.html')
 
 @app.route('/impressum')
 def impressum(): return render_template('impressum.html')
+
+@app.route('/subscribe', methods=['POST'])
+def subscribe():
+    email = request.form.get('email', '').strip()
+    if not email:
+        flash("Please provide a valid email address.")
+        return redirect(request.referrer or '/')
+    
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO subscribers (email) VALUES (?)', (email,))
+        conn.commit()
+        flash("Welcome to the Wire! Your intelligence feed is now active.")
+    except sqlite3.IntegrityError:
+        flash("You are already tuned into the Wire.")
+    except Exception as e:
+        flash("Neural link failed. Please try again later.")
+    finally:
+        conn.close()
+    
+    return redirect(request.referrer or '/')
 
 
 # Lab routes defined below using file-based storage

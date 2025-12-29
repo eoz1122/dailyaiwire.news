@@ -475,6 +475,7 @@ def process_batch(batch: List[Dict]):
         "    \"hashtags\": [\"Generate 3-5 relevant hashtags for social media (e.g., #AI, #MachineLearning, #TechNews). Include mix of broad and specific tags.\"],\n"
         "    \"thought_provoking_question\": \"A short, engaging question derived from the article content to spark discussion on social media.\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
+        "    \"importance_score\": \"A score from 1-100 reflecting the article's strategic value for a weekly intelligence report (100 = must-read, landmark news; 1 = minor daily update)\",\n"
         "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\",\n"
         "    \"narration_script\": \"A high-signal, narrative script for a 1-minute audio read (approx 150 words). MUST START with this exact short branding: 'Intelligence from DailyAIWire dot news.' followed by a brief pause. Use smooth transitions (e.g., 'Starting with...', 'Interestingly...', 'Looking ahead...'). Do not use headers. Focus on making it sound like a professional news segment.\"\n"
         "  }\n"
@@ -637,8 +638,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -660,7 +661,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 json.dumps(art.get('hashtags', [])),
                 original.get('original_author'),
                 art.get('narration_script'),
-                art.get('thought_provoking_question')
+                art.get('thought_provoking_question'),
+                art.get('importance_score', 50)
             ))
             
             # STAGGERED SOCIAL QUEUING
