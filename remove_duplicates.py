@@ -4,6 +4,8 @@ import difflib
 import os
 import json
 import google.generativeai as genai
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
 from dotenv import load_dotenv
 
 load_dotenv()
