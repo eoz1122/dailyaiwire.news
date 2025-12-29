@@ -260,6 +260,8 @@ def fetch_all_sources() -> List[Dict]:
         ("Import AI", "https://importai.substack.com/feed"),
         # ("Ben's Bites", "https://bensbites.beehiiv.com/feed"), # 404 - Requires specific Beehiiv ID
         ("DFKI (Germany)", "https://robotik.dfki-bremen.de/de/startseite/news-rss-feed"),
+        ("BracAI (EU)", "https://www.bracai.eu/blog-feed.xml"),
+        ("Zukunftszentrum KI NRW", "https://www.zukunftszentrum-ki.nrw/feed/"),
         
         # // RESEARCH LABS
         ("OpenAI", "https://openai.com/news/rss.xml"),
