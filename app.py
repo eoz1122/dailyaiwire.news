@@ -8,6 +8,7 @@ from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.model import BaseModelView
 from wtforms import TextAreaField
 from dotenv import load_dotenv
+from lab_posts import get_lab_posts, get_lab_post
 
 load_dotenv()
 app = Flask(__name__)
@@ -616,6 +617,27 @@ def rss_feed():
         
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
+
+@app.route('/lab')
+def lab_index():
+    posts = get_lab_posts()
+    return render_template('lab_index.html', posts=posts)
+
+@app.route('/lab/<slug>')
+def lab_post(slug):
+    post = get_lab_post(slug)
+    if not post:
+        abort(404)
+    
+    # Author details for the template
+    emre = {
+        "name": "Emre Ozen",
+        "title": "VP, Head of Ad Ops",
+        "image": "/static/fallbacks/tools_2.jpg", 
+        "linkedin": "https://www.linkedin.com/in/emre-ozen-953537135/" 
+    }
+    
+    return render_template('lab_post.html', post=post, emre=emre)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
