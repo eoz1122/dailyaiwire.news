@@ -334,7 +334,7 @@ def fetch_all_sources() -> List[Dict]:
                 if pub_date_struct:
                     dt_published = datetime(*pub_date_struct[:6])
                 else:
-                    dt_published = datetime.now()
+                    dt_published = datetime.utcnow()
 
                 # STATEFUL CHECK: Must be newer than last scan
                 if dt_published <= last_scan:
@@ -710,7 +710,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                      # Calculate delay: Stagger by 30 mins, starting 5 mins from now
                      # Post 1: +5m, Post 2: +35m, Post 3: +65m...
                      delay_minutes = (posts_count * 30) + 5
-                     scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
+                     scheduled_time = datetime.utcnow() + timedelta(minutes=delay_minutes)
                      
                      cursor.execute('''
                         INSERT INTO social_queue (slug, headline, status, scheduled_time)
@@ -735,7 +735,7 @@ def process_social_queue():
     cursor.execute('''
         SELECT id, slug, headline FROM social_queue 
         WHERE status='PENDING' AND scheduled_time <= ?
-    ''', (datetime.now().isoformat(),))
+    ''', (datetime.utcnow().isoformat(),))
     
     pending = cursor.fetchall()
     
@@ -780,7 +780,7 @@ def main():
     init_db()
     
     # Record scan start time
-    scan_start_time = datetime.now()
+    scan_start_time = datetime.utcnow()
     
     print("Aggregating Intelligence from Multiple Sources...")
     new_articles = fetch_all_sources()
