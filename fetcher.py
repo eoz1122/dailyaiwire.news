@@ -289,6 +289,13 @@ def fetch_all_sources() -> List[Dict]:
     
     unique_articles = {}
     
+    # PRE-FETCH: Get existing URLs from DB to avoid re-processing
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT source_url FROM articles")
+    existing_urls = {row[0] for row in cursor.fetchall()}
+    conn.close()
+    
     # GET STATE: Force scan of last 7 days to ensure new feeds (and low-frequency labs) are picked up
     # (Previous logic of strictly using last_scan timestamp prevented new feeds from being ingested if they hadn't posted in the last hour)
     last_scan = datetime.now() - timedelta(days=7)
@@ -340,7 +347,7 @@ def fetch_all_sources() -> List[Dict]:
                     title = title.rsplit(" - ", 1)[0]
                     
                 link = entry.link
-                if link not in unique_articles:
+                if link not in unique_articles and link not in existing_urls:
                     real_source = source_name
                     if source_name == "Google News" and hasattr(entry, 'source') and 'title' in entry.source:
                         real_source = entry.source.title
