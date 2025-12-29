@@ -14,6 +14,7 @@ from slugify import slugify
 from dotenv import load_dotenv
 from typing import List, Dict, Tuple
 from bs4 import BeautifulSoup
+import requests
 
 from social_distributor import SocialDistributor
 from audio_generator import AudioGenerator
