@@ -58,6 +58,10 @@ def init_db():
             audio_male TEXT, -- Path to generated male audio
             audio_female TEXT, -- Path to generated female audio
             narration_script TEXT, -- AI-generated script for 1-minute read
+            thought_provoking_question TEXT,
+            importance_score INTEGER DEFAULT 50,
+            original_author TEXT,
+            hashtags TEXT, -- Stored as JSON string
             shared_on_x BOOLEAN DEFAULT 0,
             shared_at TIMESTAMP
         )
@@ -105,6 +109,12 @@ def init_db():
     # Add thought_provoking_question if it doesn't exist
     try:
         cursor.execute("ALTER TABLE articles ADD COLUMN thought_provoking_question TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
+    # Add importance_score if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE articles ADD COLUMN importance_score INTEGER DEFAULT 50")
     except sqlite3.OperationalError:
         pass # Already exists
 
@@ -697,7 +707,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 original.get('original_author'),
                 art.get('narration_script'),
                 art.get('thought_provoking_question'),
-                art.get('importance_score', 50)
+                int(art.get('importance_score', 50) or 50)
             ))
             
             # STAGGERED SOCIAL QUEUING
