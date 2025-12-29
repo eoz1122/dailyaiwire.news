@@ -19,12 +19,16 @@ class BudgetTracker:
         if os.path.exists(self.budget_file):
             with open(self.budget_file, 'r') as f:
                 self.data = json.load(f)
+                # Migration: Ensure breakdown exists
+                if "breakdown" not in self.data:
+                    self.data["breakdown"] = {}
         else:
             self.data = {
                 "current_month": datetime.now().strftime("%Y-%m"),
                 "total_spent": 0.0,
                 "requests": 0,
-                "tokens_used": 0
+                "tokens_used": 0,
+                "breakdown": {}
             }
     
     def save_usage(self):
@@ -42,7 +46,8 @@ class BudgetTracker:
                 "current_month": current_month,
                 "total_spent": 0.0,
                 "requests": 0,
-                "tokens_used": 0
+                "tokens_used": 0,
+                "breakdown": {}
             }
             self.save_usage()
     
@@ -63,14 +68,20 @@ class BudgetTracker:
         
         return True
     
-    def log_request(self, input_tokens=0, output_tokens=0):
-        """Log a completed API request"""
+    def log_request(self, input_tokens=0, output_tokens=0, category="Uncategorized"):
+        """Log a completed API request with category tracking"""
         cost = (input_tokens / 1000 * self.cost_per_1k_input_tokens + 
                 output_tokens / 1000 * self.cost_per_1k_output_tokens)
         
         self.data["total_spent"] += cost
         self.data["requests"] += 1
         self.data["tokens_used"] += (input_tokens + output_tokens)
+        
+        # Track category breakdown
+        if category not in self.data["breakdown"]:
+            self.data["breakdown"][category] = 0.0
+        self.data["breakdown"][category] += cost
+        
         self.save_usage()
         
         # Print status every 10 requests
@@ -78,12 +89,20 @@ class BudgetTracker:
             self.print_status()
     
     def print_status(self):
-        """Print current budget status"""
+        """Print current budget status with breakdown"""
         percentage = (self.data["total_spent"] / self.monthly_cap) * 100
         print(f"\n💰 Budget Status ({self.data['current_month']})")
         print(f"   Spent: ${self.data['total_spent']:.4f} / ${self.monthly_cap:.2f} ({percentage:.1f}%)")
         print(f"   Requests: {self.data['requests']}")
         print(f"   Tokens: {self.data['tokens_used']:,}")
         
+        if self.data.get("breakdown"):
+            print("   --- Cost Breakdown ---")
+            # Sort by highest cost
+            sorted_cats = sorted(self.data["breakdown"].items(), key=lambda x: x[1], reverse=True)
+            for cat, amount in sorted_cats:
+                cat_percent = (amount / self.data['total_spent']) * 100 if self.data['total_spent'] > 0 else 0
+                print(f"   • {cat:<20}: ${amount:.4f} ({cat_percent:.1f}%)")
+
         if percentage > 80:
             print(f"   ⚠️  WARNING: {percentage:.1f}% of budget used!")

@@ -228,7 +228,8 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
         if hasattr(response, 'usage_metadata'):
              budget.log_request(
                  getattr(response.usage_metadata, 'prompt_token_count', 0),
-                 getattr(response.usage_metadata, 'candidates_token_count', 0)
+                 getattr(response.usage_metadata, 'candidates_token_count', 0),
+                 category="Headline Filter"
              )
 
         text = response.text.replace('Indices:', '').strip()
@@ -456,7 +457,7 @@ def process_batch(batch: List[Dict]):
                 if hasattr(response, 'usage_metadata'):
                     input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
                     output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
-                    budget.log_request(input_tokens, output_tokens)
+                    budget.log_request(input_tokens, output_tokens, category="Article Analysis")
                 
                 # Cleanup: Strip markdown blocks if Gemini added them
                 raw_json = response.text.strip()
