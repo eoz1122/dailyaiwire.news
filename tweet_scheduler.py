@@ -1,6 +1,7 @@
 import sqlite3
 import time
 import os
+import json
 from social_distributor import SocialDistributor
 from dotenv import load_dotenv
 
@@ -109,7 +110,9 @@ def main_loop():
                     'headline': article['title'],
                     'gist': article['gist'],
                     'seo_slug': article['slug'],
-                    'source': article.get('source', '')
+                    'source': article.get('source', ''),
+                    'hashtags': json.loads(article['hashtags']) if article.get('hashtags') else [],
+                    'thought_provoking_question': article.get('thought_provoking_question', '')
                 }
                 
                 if distributor.post_to_x(article_for_dist):
