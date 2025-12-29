@@ -486,7 +486,7 @@ def sitemap():
     # Get articles
     articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
     # Get blog posts
-    blog_posts = get_lab_posts()
+    blog_posts = get_combined_lab_posts()
     # Get categories for indexing
     categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
     conn.close()
@@ -614,14 +614,42 @@ def rss_feed():
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
 
+def get_combined_lab_posts():
+    """Fetch posts from both lab_posts.py and the blog_posts DB table"""
+    posts = list(get_lab_posts())
+    
+    conn = get_db_connection()
+    try:
+        rows = conn.execute('SELECT * FROM blog_posts').fetchall()
+        for r in rows:
+            posts.append(dict(r))
+    except:
+        pass # Table might not exist yet
+    conn.close()
+    
+    # Sort by published_at DESC
+    posts.sort(key=lambda x: x.get('published_at', ''), reverse=True)
+    return posts
+
 @app.route('/lab')
 def lab_index():
-    posts = get_lab_posts()
+    posts = get_combined_lab_posts()
     return render_template('lab_index.html', posts=posts)
 
 @app.route('/lab/<slug>')
 def lab_post(slug):
     post = get_lab_post(slug)
+    
+    # If not in file, check DB
+    if not post:
+        conn = get_db_connection()
+        try:
+            row = conn.execute('SELECT * FROM blog_posts WHERE slug = ?', (slug,)).fetchone()
+            if row: post = dict(row)
+        except:
+            pass
+        conn.close()
+        
     if not post:
         abort(404)
     
