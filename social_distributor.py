@@ -57,9 +57,14 @@ class SocialDistributor:
             # Clean markdown bolding
             gist_clean = gist.replace('**', '')
             
+            source = article.get('source', '')
+            
             # Construct richer tweet
-            # We assume Premium X support, allowing up to 4000 10000+ chars, but let's stick to a solid 500-600 chars for good readability
-            tweet_text = f"{headline}\n\n"
+            # We have a Blue Tick (Premium X) - NO TRIMMING needed.
+            if source:
+                tweet_text = f"{headline} (Source: {source})\n\n"
+            else:
+                tweet_text = f"{headline}\n\n"
             
             if question:
                 tweet_text += f"🤔 {question}\n\n"

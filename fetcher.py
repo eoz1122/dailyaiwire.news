@@ -670,8 +670,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                  # Check if already processed to avoid duplicates in queue
                  cursor.execute("SELECT id FROM social_queue WHERE slug = ?", (final_slug,))
                  if not cursor.fetchone():
-                     # Calculate delay: (posts_count + 1) * 45 minutes from now
-                     delay_minutes = (posts_count + 1) * 45
+                     # Calculate delay: (posts_count + 1) * 30 minutes from now
+                     delay_minutes = (posts_count + 1) * 30
                      scheduled_time = datetime.now() + timedelta(minutes=delay_minutes)
                      
                      cursor.execute('''
@@ -711,13 +711,18 @@ def process_social_queue():
         queue_id, slug, headline = row
         print(f"🚀 Processing scheduled post: {headline}")
         
-        cursor.execute('SELECT full_json FROM articles WHERE slug = ?', (slug,))
+        cursor.execute('''
+            SELECT a.full_json, a.source FROM articles a
+            JOIN social_queue sq ON sq.slug = a.slug
+            WHERE sq.id = ?
+        ''', (queue_id,))
         art_row = cursor.fetchone()
         
         if art_row:
             try:
                 article_data = json.loads(art_row[0])
                 article_data['seo_slug'] = slug
+                article_data['source'] = art_row[1] # Inject source for attribution
                 distributor.distribute(article_data)
                 
                 cursor.execute("UPDATE social_queue SET status='SENT' WHERE id=?", (queue_id,))
@@ -787,7 +792,7 @@ def main_loop():
     print("Starting DailyAIWire Intelligence Service...")
     
     last_fetch_time = 0
-    fetch_interval = 3600 # 1 hour
+    fetch_interval = 10800 # 3 hours
     
     while True:
         try:
@@ -798,6 +803,9 @@ def main_loop():
                 print(f"⏰ Starting scheduled fetch cycle at {time.strftime('%H:%M:%S')}")
                 main()
                 last_fetch_time = time.time()
+            
+            # Run Social Queue processing every minute
+            process_social_queue()
             
             # Sleep for 1 minute before next tick
             time.sleep(60)

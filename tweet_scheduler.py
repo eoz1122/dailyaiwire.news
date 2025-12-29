@@ -14,7 +14,7 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 
 DB_PATH = "news.db"
-INTERVAL_SECONDS = 3600  # 1 hour (Max 24 articles per day)
+INTERVAL_SECONDS = 1800  # 30 minutes (Max 48 articles per day)
 QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
@@ -108,7 +108,8 @@ def main_loop():
                 article_for_dist = {
                     'headline': article['title'],
                     'gist': article['gist'],
-                    'seo_slug': article['slug']
+                    'seo_slug': article['slug'],
+                    'source': article.get('source', '')
                 }
                 
                 if distributor.post_to_x(article_for_dist):
