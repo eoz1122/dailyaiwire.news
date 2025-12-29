@@ -167,16 +167,18 @@
 
                     {% for category, amount in sorted_categories %}
                     {% set pct = (amount / budget.total_spent * 100) if budget.total_spent > 0 else 0 %}
+
+                    {# Determine colors based on rank #}
+                    {% set dot_color = 'bg-indigo-500' if loop.index == 1 else 'bg-blue-500' if loop.index == 2 else
+                    'bg-cyan-500' if loop.index == 3 else 'bg-zinc-600' %}
+                    {% set bar_color = 'bg-indigo-500' if loop.index == 1 else 'bg-blue-600' if loop.index == 2 else
+                    'bg-cyan-600' if loop.index == 3 else 'bg-zinc-500' %}
+
                     <tr class="group hover:bg-zinc-800/30 transition-colors">
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <!-- Category Icon/Dot -->
-                                <div class="w-2 h-2 rounded-full 
-                                            {{ 'bg-indigo-500' if loop.index == 1 else 
-                                               'bg-blue-500' if loop.index == 2 else 
-                                               'bg-cyan-500' if loop.index == 3 else 
-                                               'bg-zinc-600' }}">
-                                </div>
+                                <div class="w-2 h-2 rounded-full {{ dot_color }}"></div>
                                 <div>
                                     <div class="font-bold text-zinc-200 group-hover:text-white transition-colors">{{
                                         category }}</div>
@@ -190,11 +192,8 @@
                                 <span class="text-xs font-mono font-bold text-zinc-400 w-12 text-right">{{
                                     "%.1f"|format(pct) }}%</span>
                                 <div class="flex-grow h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-700 ease-out
-                                                {{ 'bg-indigo-500' if loop.index == 1 else 
-                                                   'bg-blue-600' if loop.index == 2 else 
-                                                   'bg-cyan-600' if loop.index == 3 else 
-                                                   'bg-zinc-500' }}" style="width: {{ pct }}%"></div>
+                                    <div class="h-full rounded-full transition-all duration-700 ease-out {{ bar_color }}"
+                                        style="width: {{ pct }}%"></div>
                                 </div>
                             </div>
                         </td>
