@@ -18,11 +18,9 @@ def diagnose():
     now_de = datetime.now(TIMEZONE)
     print(f"Current Time (DE):  {now_de.strftime('%Y-%m-%d %H:%M:%S')} (Hour: {now_de.hour})")
     
-    # 2. Quiet Window Check
-    is_quiet = QUIET_START <= now_de.hour < QUIET_END
-    status_emoji = '🔴' if is_quiet else '🟢'
-    print(f"Quiet Window:       {status_emoji} {'ACTIVE (Sleeping)' if is_quiet else 'INACTIVE (Running)'}")
-    print(f"Allowed Window:     09:00 - 04:00 (Next day)")
+    # 2. Quiet Window Check (Policy: 24/7)
+    print(f"Quiet Window:       🟢 DISABLED (Running 24/7)")
+    print(f"Allowed Window:     All Hours")
 
     # 3. Database Check
     if not os.path.exists(DB_PATH):

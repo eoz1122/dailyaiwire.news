@@ -78,14 +78,12 @@ def main_loop():
             # 0. Daily Reset: Clear anything from previous days
             clear_stale_queue()
 
-            # 1. Quiet Hours Check (Enforced)
-            now_de = datetime.now(TIMEZONE)
-            if QUIET_START <= now_de.hour < QUIET_END:
-                print(f"🌙 Quiet Window Active ({QUIET_START}:00 - {QUIET_END}:00). Zzz...")
-                time.sleep(300) # Check every 5 mins
-                continue
+            # 1. Quiet Hours: Disabled (24/7 Operation)
+            # now_de = datetime.now(TIMEZONE)
+            # if QUIET_START <= now_de.hour < QUIET_END:
+            #     ...
 
-            # 2. Check 4-hour gap (Verified against Database)
+            # 2. Check 1-hour gap (Verified against Database)
             last_shared_time = get_last_post_time()
             time_since_last = (datetime.now() - last_shared_time).total_seconds()
             
