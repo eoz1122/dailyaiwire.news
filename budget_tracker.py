@@ -9,7 +9,7 @@ class BudgetTracker:
     def __init__(self, budget_file="budget_tracker.json", monthly_cap_usd=10.0):
         self.budget_file = budget_file
         self.monthly_cap = monthly_cap_usd
-        # Gemini 2.5 Flash pricing (as of Dec 2024)
+        # Gemini 1.5 Flash pricing (Standard Rate)
         self.cost_per_1k_input_tokens = 0.000075   # $0.075 per 1M tokens
         self.cost_per_1k_output_tokens = 0.0003    # $0.30 per 1M tokens
         self.load_usage()
