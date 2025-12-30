@@ -146,6 +146,82 @@ def admin_newsletters():
     conn.close()
     return render_template('admin/newsletters.html', newsletters=newsletters)
 
+# --- Editorials / Lab Admin Routes ---
+
+@app.route('/admin/editorials')
+@login_required
+def admin_editorials():
+    conn = get_db_connection()
+    # Check if table exists just in case
+    try:
+        posts = conn.execute('SELECT * FROM blog_posts ORDER BY published_at DESC').fetchall()
+    except:
+        posts = []
+    conn.close()
+    return render_template('admin/editorials.html', posts=posts)
+
+@app.route('/admin/editorial/edit/<id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_editorial(id):
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        slug = request.form.get('slug')
+        if not slug:
+            slug = slugify(title)
+        
+        content = request.form.get('content')
+        subtitle = request.form.get('subtitle')
+        
+        # Ensure table exists
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS blog_posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT UNIQUE,
+                title TEXT,
+                subtitle TEXT,
+                content TEXT,
+                image TEXT,
+                author_name TEXT,
+                author_title TEXT,
+                author_image TEXT,
+                author_linkedin TEXT,
+                meta_description TEXT,
+                published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        if id == 'new':
+            conn.execute('INSERT INTO blog_posts (title, slug, content, subtitle, published_at) VALUES (?, ?, ?, ?, ?)',
+                         (title, slug, content, subtitle, datetime.now()))
+        else:
+            conn.execute('UPDATE blog_posts SET title=?, slug=?, content=?, subtitle=? WHERE id=?',
+                         (title, slug, content, subtitle, id))
+        conn.commit()
+        conn.close()
+        flash('Post saved successfully.')
+        return redirect(url_for('admin_editorials'))
+
+    post = {}
+    if id != 'new':
+        try:
+            post_row = conn.execute('SELECT * FROM blog_posts WHERE id = ?', (id,)).fetchone()
+            if post_row:
+                post = dict(post_row)
+        except:
+            pass
+    
+    conn.close()
+    return render_template('admin/edit_editorial.html', post=post, id=id)
+
+def slugify(text):
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[\s_-]+', '-', text)
+    return text
+
+
 @app.route('/admin/newsletter/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_newsletter(id):
