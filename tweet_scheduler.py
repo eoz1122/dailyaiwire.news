@@ -36,28 +36,26 @@ def get_next_article_to_share():
     return dict(article) if article else None
 
 def clear_stale_queue():
-    """Marks all unshared articles from PREVIOUS days as 'Skipped' (shared_on_x = 1).
-    This ensures that every morning we start with a fresh slate of news."""
+    """Marks all unshared articles older than 48 hours as 'Skipped'.
+    Ensures the queue doesn't get backed up with irrelevant old news."""
     conn = get_db_connection()
-    # Use local date comparison to find articles older than today
-    count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND date(published_at) < date('now', 'localtime')").rowcount
+    # UTC-aware comparison: Older than 2 days
+    limit_time = (datetime.utcnow() - timedelta(days=2)).isoformat()
+    count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND published_at < ?", (limit_time,)).rowcount
     if count > 0:
-        print(f"🧹 Daily Reset: Cleared {count} stale articles from the queue.")
+        print(f"🧹 Queue Maintenance: Cleared {count} stale articles.")
     conn.commit()
     conn.close()
 
 def get_last_post_time():
     conn = get_db_connection()
-    # Get the timestamp of the most recently shared article
-    # We use shared_at if available, fallback to published_at if not
     row = conn.execute('SELECT shared_at FROM articles WHERE shared_on_x = 1 ORDER BY shared_at DESC LIMIT 1').fetchone()
     conn.close()
     if row and row['shared_at']:
         try:
-            # Handle different timestamp formats (ISO or DB format)
             ts = row['shared_at']
             if 'T' in ts:
-                return datetime.fromisoformat(ts).replace(tzinfo=None)
+                return datetime.fromisoformat(ts)
             return datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
         except:
             return datetime.min
@@ -65,8 +63,8 @@ def get_last_post_time():
 
 def mark_as_shared(slug):
     conn = get_db_connection()
-    # Set shared_on_x = 1 and shared_at to current time in UTC/System format
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Use UTC for sharing timestamp
+    now_str = datetime.utcnow().isoformat()
     conn.execute('UPDATE articles SET shared_on_x = 1, shared_at = ? WHERE slug = ?', (now_str, slug))
     conn.commit()
     conn.close()
@@ -90,11 +88,11 @@ def main_loop():
 
             # 2. Check 1-hour gap (Verified against Database)
             last_shared_time = get_last_post_time()
-            time_since_last = (datetime.now() - last_shared_time).total_seconds()
+            time_since_last = (datetime.utcnow() - last_shared_time).total_seconds()
             
             if time_since_last < INTERVAL_SECONDS:
                 remaining = INTERVAL_SECONDS - time_since_last
-                print(f"⏳ 1-hour gap active. {remaining/60:.0f} mins remaining until next allowed post.")
+                print(f"⏳ GAP CONTROL: {remaining/60:.0f} mins remaining until next allowed post.")
                 time.sleep(min(remaining, 600)) 
                 continue
 
