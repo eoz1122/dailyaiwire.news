@@ -56,7 +56,7 @@
                 {{ article['gist']|replace("**", "") }}
 
                 {% if article['hashtags'] %}
-                {% for tag in article['hashtags']|from_json %}{{ tag }} {% endfor %}
+                {% for tag in article['hashtags'] %}{{ tag }} {% endfor %}
                 {% endif %}
 
                 🤔 {{ article['thought_provoking_question'] }}

@@ -216,6 +216,13 @@ def admin_social_queue():
     processed = []
     for a in articles:
         d = dict(a)
+        if d.get('hashtags'):
+            try:
+                d['hashtags'] = json.loads(d['hashtags'])
+            except:
+                d['hashtags'] = []
+        else:
+            d['hashtags'] = []
         processed.append(d)
         
     return render_template('admin/social_queue.html', articles=processed)
