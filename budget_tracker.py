@@ -75,8 +75,8 @@ class BudgetTracker:
             print(f"   Monthly cap: ${self.monthly_cap:.2f}")
             return False
             
-        # 2. Check Daily Safety Cap ($0.50/day hard limit)
-        daily_cap = 0.50
+        # 2. Check Daily Safety Cap ($1.50/day hard limit)
+        daily_cap = 1.50
         projected_daily = self.data.get("daily_spent", 0.0) + estimated_cost
         if projected_daily > daily_cap:
              print(f"🚨 DAILY SPEND LIMIT REACHED (${daily_cap})!")
