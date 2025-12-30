@@ -26,13 +26,26 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def get_next_article_to_share():
-    conn = get_db_connection()
-    # Breaking News First: Prioritize the absolute newest unshared article (DESC).
-    # Older unshared articles stay in the queue and are only used as 'fillers' 
-    # if no fresher intelligence has arrived by the next posting window.
-    # Prioritize HIGH SIGNAL: Order by importance_score first, then newest.
-    article = conn.execute('SELECT * FROM articles WHERE shared_on_x = 0 OR shared_on_x IS NULL ORDER BY importance_score DESC, published_at DESC LIMIT 1').fetchone()
+    # Hybrid Logic: Importance + Freshness
+    # We give a dynamic score boost to recent news so it surfaces faster.
+    # - < 6 hours old: +20 points
+    # - < 12 hours old: +10 points
+    # This allows a fresh 'Normal' story to beat a stale 'Very High' story, but preserves true 'Breaking' news.
+    query = '''
+        SELECT *, 
+        (importance_score + 
+            CASE 
+                WHEN published_at > datetime('now', '-6 hours') THEN 20 
+                WHEN published_at > datetime('now', '-12 hours') THEN 10 
+                ELSE 0 
+            END
+        ) as hybrid_rank 
+        FROM articles 
+        WHERE shared_on_x = 0 OR shared_on_x IS NULL 
+        ORDER BY hybrid_rank DESC
+        LIMIT 1
+    '''
+    article = conn.execute(query).fetchone()
     conn.close()
     return dict(article) if article else None
 

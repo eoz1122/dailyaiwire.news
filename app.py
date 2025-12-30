@@ -203,11 +203,19 @@ def admin_unblock_source():
 @login_required
 def admin_social_queue():
     conn = get_db_connection()
-    # Fetch unshared articles, prioritizing high score and newness
+    # Hybrid Sort: Match the Scheduler's logic (Importance + Freshness Bonus)
     articles = conn.execute('''
-        SELECT * FROM articles 
+        SELECT *, 
+        (importance_score + 
+            CASE 
+                WHEN published_at > datetime('now', '-6 hours') THEN 20 
+                WHEN published_at > datetime('now', '-12 hours') THEN 10 
+                ELSE 0 
+            END
+        ) as hybrid_rank 
+        FROM articles 
         WHERE (shared_on_x = 0 OR shared_on_x IS NULL) 
-        ORDER BY importance_score DESC, published_at DESC 
+        ORDER BY hybrid_rank DESC 
         LIMIT 50
     ''').fetchall()
     conn.close()
