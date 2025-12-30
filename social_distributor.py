@@ -86,6 +86,9 @@ class SocialDistributor:
             print(f"✅ Posted to X! ID: {response.data['id']}")
             return True
         except Exception as e:
+            # CRITICAL LOOP FIX: Re-raise "Too Many Requests" so the scheduler knows to sleep
+            if "429" in str(e) or "Too Many Requests" in str(e):
+                raise e
             print(f"❌ Error posting to X: {e}")
             return False
 
