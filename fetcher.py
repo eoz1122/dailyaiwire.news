@@ -592,7 +592,7 @@ def process_batch(batch: List[Dict]):
         "    \"hashtags\": [\"Generate 3-5 relevant hashtags for social media (e.g., #AI, #MachineLearning, #TechNews). Include mix of broad and specific tags.\"],\n"
         "    \"thought_provoking_question\": \"A short, engaging question derived from the article content to spark discussion on social media.\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
-        "    \"importance_score\": \"A score from 1-100 reflecting the article's strategic value for a weekly intelligence report (100 = must-read, landmark news; 1 = minor daily update)\",\n"
+        "    \"importance_score\": \"A score from 40-100 reflecting the article's strategic value. Scale: 90+ (Major Breakthrough), 70-89 (High Impact/Must Read), 50-69 (Standard Daily Update/Niche Interest), <50 (Low Priority). Do NOT default everything to 1.\",\n"
         "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\",\n"
         "    \"narration_script\": \"A high-signal, narrative script for a 1-minute audio read (approx 150 words). MUST START with this exact short branding: 'Intelligence from DailyAIWire dot news.' followed by a brief pause. Use smooth transitions (e.g., 'Starting with...', 'Interestingly...', 'Looking ahead...'). Do not use headers. Focus on making it sound like a professional news segment.\"\n"
         "  }\n"
