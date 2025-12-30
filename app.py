@@ -67,35 +67,39 @@ class MyAdminIndexView(AdminIndexView):
         offset = (page - 1) * per_page
         
         date_filter = request.args.get('date', type=str) # YYYY-MM-DD
+        search_query = request.args.get('q', '', type=str)
         
         conn = get_db_connection()
         
-        query = 'SELECT id, title, category, published_at, slug FROM articles'
+        # Base query structure for WHERE clause
+        conditions = []
         params = []
         
         if date_filter:
-            query += ' WHERE date(published_at) = ?'
+            conditions.append('date(published_at) = ?')
             params.append(date_filter)
             
-        query += ' ORDER BY published_at DESC LIMIT ? OFFSET ?'
-        params.extend([per_page, offset])
-        
-        articles = conn.execute(query, params).fetchall()
-        
-        # Total count for simpler "Next" button logic
-        total_query = 'SELECT COUNT(*) FROM articles'
-        total_params = []
-        if date_filter:
-            total_query += ' WHERE date(published_at) = ?'
-            total_params.append(date_filter)
+        if search_query:
+            conditions.append('title LIKE ?')
+            params.append(f'%{search_query}%')
             
-        total_query_result = conn.execute(total_query, total_params).fetchone()
+        where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
+        
+        # Main Articles Query
+        query = f'SELECT id, title, category, published_at, slug, importance_score FROM articles{where_clause} ORDER BY published_at DESC LIMIT ? OFFSET ?'
+        query_params = params + [per_page, offset]
+        
+        articles = conn.execute(query, query_params).fetchall()
+        
+        # Total count for pagination
+        total_query = f'SELECT COUNT(*) FROM articles{where_clause}'
+        total_query_result = conn.execute(total_query, params).fetchone()
         total = total_query_result[0] if total_query_result else 0
         has_next = (offset + per_page) < total
         
         conn.close()
         
-        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter)
+        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query)
 
 
 

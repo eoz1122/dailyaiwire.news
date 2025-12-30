@@ -5,15 +5,19 @@
 <div class="glass-card rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl">
     <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
         <h2 class="text-xl font-bold text-white">Manage Intelligence</h2>
-        <!-- Filter -->
-        <form method="GET" class="flex gap-2">
+        <!-- Filter & Search -->
+        <form method="GET" class="flex gap-2 items-center">
+            <input type="text" name="q" value="{{ q or '' }}" placeholder="Search titles..."
+                class="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
+
             <input type="date" name="date" value="{{ date_filter or '' }}" aria-label="Filter by Date"
                 class="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+
             <button type="submit"
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                Filter
+                Search
             </button>
-            {% if date_filter %}
+            {% if date_filter or q %}
             <a href="{{ url_for('admin.index') }}"
                 class="text-sm text-red-400 hover:text-white flex items-center">Clear</a>
             {% endif %}
@@ -22,9 +26,10 @@
 
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-zinc-400">
-            <thead class="bg-zinc-900/80 text-zinc-200 uppercase font-bold text-[10px] tracking-widest">
+            <thead
+                class="bg-zinc-800 text-white uppercase font-bold text-[10px] tracking-widest border-b border-zinc-700">
                 <tr>
-                    <th class="px-6 py-4 border-r border-zinc-800/50">ID</th>
+                    <th class="px-6 py-4 border-r border-zinc-700">ID</th>
                     <th class="px-6 py-4">Title</th>
                     <th class="px-6 py-4">Category</th>
                     <th class="px-6 py-4">Score</th>
