@@ -138,6 +138,67 @@ def admin_budget():
     
     return render_template('admin/budget.html', budget=budget_view)
 
+@app.route('/admin/sources')
+@login_required
+def admin_sources():
+    conn = get_db_connection()
+    
+    # 1. Get Top Sources by Volume
+    usage_query = """
+        SELECT source, count(*) as count 
+        FROM articles 
+        WHERE source IS NOT NULL AND source != '' 
+        GROUP BY source 
+        ORDER BY count DESC 
+        LIMIT 50
+    """
+    sources_raw = conn.execute(usage_query).fetchall()
+    
+    # 2. Get Blocked Sources
+    try:
+        blocked_raw = conn.execute('SELECT * FROM blocked_sources ORDER BY added_at DESC').fetchall()
+    except sqlite3.OperationalError:
+        # Create table if not exists (Lazy Migration for safety)
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS blocked_sources (
+                domain TEXT PRIMARY KEY,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        blocked_raw = []
+
+    conn.close()
+    
+    return render_template('admin/sources.html', sources=sources_raw, blocked=blocked_raw)
+
+@app.route('/admin/block-source', methods=['POST'])
+@login_required
+def admin_block_source():
+    domain = request.form.get('domain')
+    if domain:
+        conn = get_db_connection()
+        try:
+            conn.execute('INSERT OR IGNORE INTO blocked_sources (domain) VALUES (?)', (domain,))
+            conn.commit()
+            flash(f"Blocked source: {domain}")
+        except Exception as e:
+            flash(f"Error blocking source: {e}")
+        conn.close()
+    return redirect(url_for('admin_sources'))
+
+@app.route('/admin/unblock-source', methods=['POST'])
+@login_required
+def admin_unblock_source():
+    domain = request.form.get('domain')
+    if domain:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM blocked_sources WHERE domain = ?', (domain,))
+        conn.commit()
+        conn.close()
+        flash(f"Unblocked source: {domain}")
+    return redirect(url_for('admin_sources'))
+
 @app.route('/admin/newsletters')
 @login_required
 def admin_newsletters():

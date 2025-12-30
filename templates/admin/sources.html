@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Source Intelligence | DailyAIWire Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Admin Navigation Overlay (Compact) -->
+    <div class="flex justify-end mb-6 gap-3">
+        <a href="{{ url_for('admin.index') }}"
+            class="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm">
+            ← Dashboard
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-12">
+        <h1 class="text-3xl md:text-4xl font-black tracking-tighter text-[#0c0c0c] uppercase flex items-center gap-2">
+            SOURCE INTELLIGENCE <span class="text-[#2563eb]">MODULE</span>
+        </h1>
+        <p class="text-zinc-400 text-base font-medium mt-1">
+            Analyze active sources and manage blocklists
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        <!-- COLUMN 1: ACTIVE SOURCES -->
+        <div class="bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm">
+            <h2 class="text-xl font-black text-[#1a1a1a] flex items-center gap-3 uppercase tracking-tighter mb-6">
+                Active Sources (Top 50)
+            </h2>
+
+            <div class="overflow-hidden bg-zinc-50 rounded-2xl border border-zinc-100">
+                <table class="w-full text-left">
+                    <thead class="bg-[#e4e4e7] text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                        <tr>
+                            <th class="px-6 py-4">Source Name</th>
+                            <th class="px-6 py-4 text-center">Articles</th>
+                            <th class="px-6 py-4 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200">
+                        {% for row in sources %}
+                        <tr class="group hover:bg-white transition-all">
+                            <td class="px-6 py-4">
+                                <span class="font-bold text-sm text-[#1a1a1a]">{{ row['source'] }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {{ row['count'] }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <form action="{{ url_for('admin_block_source') }}" method="POST" class="inline">
+                                    <input type="hidden" name="domain" value="{{ row['source'] }}">
+                                    <button type="submit"
+                                        class="text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition-colors">
+                                        BLOCK
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="px-6 py-8 text-center text-zinc-400 text-xs uppercase font-bold">
+                                No sources found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- COLUMN 2: BLOCKED SOURCES -->
+        <div class="bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm">
+            <h2
+                class="text-xl font-black text-[#1a1a1a] flex items-center gap-3 uppercase tracking-tighter mb-6 text-red-600">
+                🚫 Blocked Sources
+            </h2>
+
+            <!-- Manual Block Form -->
+            <form action="{{ url_for('admin_block_source') }}" method="POST" class="mb-6 flex gap-2">
+                <input type="text" name="domain" placeholder="Enter domain to block (e.g., example.com)"
+                    class="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                <button type="submit"
+                    class="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-red-700 transition-colors">
+                    Add
+                </button>
+            </form>
+
+            <div class="overflow-hidden bg-red-50 rounded-2xl border border-red-100">
+                <table class="w-full text-left">
+                    <thead class="bg-red-100 text-[10px] font-black text-red-800 uppercase tracking-widest">
+                        <tr>
+                            <th class="px-6 py-4">Blocked Domain</th>
+                            <th class="px-6 py-4 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-red-200">
+                        {% for row in blocked %}
+                        <tr class="group hover:bg-white transition-all">
+                            <td class="px-6 py-4">
+                                <span class="font-bold text-sm text-red-900">{{ row['domain'] }}</span>
+                                <div class="text-[10px] text-red-400 font-mono mt-0.5">{{ row['added_at'] }}</div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <form action="{{ url_for('admin_unblock_source') }}" method="POST" class="inline">
+                                    <input type="hidden" name="domain" value="{{ row['domain'] }}">
+                                    <button type="submit"
+                                        class="text-[10px] font-black uppercase tracking-wider text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg border border-green-200 transition-colors">
+                                        UNBLOCK
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="2" class="px-6 py-8 text-center text-red-300 text-xs uppercase font-bold">
+                                No blocked sources.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

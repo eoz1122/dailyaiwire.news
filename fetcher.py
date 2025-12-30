@@ -195,6 +195,14 @@ def update_last_scan_timestamp(ts: datetime):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO metadata (key, value) VALUES ('last_scan_timestamp', ?)", (ts.isoformat(),))
+    # Blocked Sources Table (Dynamic Blocklist)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS blocked_sources (
+            domain TEXT PRIMARY KEY,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -214,14 +222,39 @@ def is_spam(title: str) -> bool:
     return any(keyword in title_lower for keyword in spam_keywords)
 
 def is_ignored_source(source_name: str) -> bool:
-    """Filters out sources that are too local or irrelevant."""
-    blocked = [
+    """Filters out sources that are too local, irrelevant, or explicitly blocked."""
+    # 1. Hardcoded Blocklist (Legacy/Emergency)
+    blocked_defaults = [
         "Kurdistan24", "kurdistan24.net", 
         "Seacoastonline.com", "Pittsburgh Post-Gazette",
         "KERA News", "Oregon Public Broadcasting - OPB",
         "pymnts", "pymnts.com"
     ]
-    return any(b.lower() in source_name.lower() for b in blocked)
+    
+    if any(b.lower() in source_name.lower() for b in blocked_defaults):
+        return True
+
+    # 2. Dynamic Blocklist from DB
+    # Note: For high performance in a loop, ideally we load this once outside. 
+    # But for safety/simplicity in this context, we check. 
+    # To optimize: We will cache this in 'fetch_all_sources' and pass it down in a future refactor.
+    # For now, let's do a quick check (SQLite is fast).
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        # Check for exact match or partial domain match
+        # We'll fetch all blocked domains and check in python to be flexible
+        cur.execute("SELECT domain FROM blocked_sources")
+        blocked_db = [row[0].lower() for row in cur.fetchall()]
+        conn.close()
+        
+        if any(b in source_name.lower() for b in blocked_db):
+            return True
+            
+    except Exception:
+        pass # If DB fails, fallback to allowing (or just hardcoded list)
+
+    return False
 
 def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] = []) -> List[Dict]:
     """Uses Gemini to filter for high-value AI news headlines and exclude duplicates/similar stories."""
