@@ -54,10 +54,10 @@
                         </span>
                     </td>
                     <td class="px-6 py-4">
-                        <span class="px-2 py-1 rounded text-xs font-bold 
-                            {% if article.importance_score|default(0) >= 80 %}bg-green-900/30 text-green-400 border border-green-800
-                            {% elif article.importance_score|default(0) >= 50 %}bg-yellow-900/30 text-yellow-400 border border-yellow-800
-                            {% else %}bg-zinc-800 text-zinc-500 border border-zinc-700{% endif %}">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-black shadow-sm
+                            {% if article.importance_score|default(0) >= 80 %}bg-emerald-600 text-white
+                            {% elif article.importance_score|default(0) >= 50 %}bg-amber-500 text-black
+                            {% else %}bg-zinc-500 text-white{% endif %}">
                             {{ article.importance_score|default('-') }}
                         </span>
                     </td>
