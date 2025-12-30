@@ -1,0 +1,294 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "pollTimes": {
+                    "item": [
+                        {
+                            "mode": "everyX",
+                            "value": 3
+                        }
+                    ]
+                },
+                "feedUrl": "https://dailyaiwire.news/rss"
+            },
+            "id": "175ec364-7442-46a0-8e72-531ed59854ec",
+            "name": "RSS Feed Trigger",
+            "type": "n8n-nodes-base.rssFeedReadTrigger",
+            "typeVersion": 1,
+            "position": [
+                2160,
+                608
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "id-1",
+                            "name": "linkedInOrganizationId",
+                            "value": "110891956",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "includeOtherFields": true,
+                "options": {}
+            },
+            "id": "d022152c-adad-46c4-9662-f1d98e899b4d",
+            "name": "Workflow Configuration",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                2608,
+                608
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "id-1",
+                            "name": "postText",
+                            "value": "={{ \n  (() => {\n    // Unicode bolding function for the title\n    const toBold = (t) => [...t].map(c => {\n      const code = c.codePointAt(0);\n      if (code >= 65 && code <= 90) return String.fromCodePoint(code + 120211); \n      if (code >= 97 && code <= 122) return String.fromCodePoint(code + 120205); \n      if (code >= 48 && code <= 57) return String.fromCodePoint(code + 120734);  \n      return c;\n    }).join('');\n\n    const boldTitle = toBold($json.title || \"Latest AI Update\");\n    \n    // Tech-focused Category Emoji\n    const category = $json.categories && $json.categories[0] ? `🛰️ [${$json.categories[0].toUpperCase()}]` : '🛰️ [ AI NEWS ]';\n    \n    // Append UTM Parameters to the link\n    const utmParams = \"?utm_source=linkedin&utm_medium=social&utm_campaign=dailyaiwire_automation\";\n    const trackedLink = `${$json.link}${utmParams}`;\n    \n    const footer = \"📡 Follow DailyAIWire for autonomous AI news\";\n    \n    return `${boldTitle}\\n\\n${category}\\n\\n${$json.contentSnippet}\\n\\n${footer}\\n\\n🔗 ${trackedLink}`;\n  })() \n}}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "id-2",
+                            "name": "postUrl",
+                            "value": "={{ $json.link }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "includeOtherFields": true,
+                "options": {
+                    "stripBinary": false
+                }
+            },
+            "id": "1724bb63-5ecf-427b-b6e1-f79fb792808a",
+            "name": "Format Post Content",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                3488,
+                528
+            ]
+        },
+        {
+            "parameters": {
+                "postAs": "organization",
+                "organization": "={{ $('Workflow Configuration').first().json.linkedInOrganizationId }}",
+                "text": "={{ $json.postText }}",
+                "shareMediaCategory": "ARTICLE",
+                "additionalFields": {
+                    "originalUrl": "={{ $('RSS Feed Trigger').item.json.link }}?utm_source=linkedin&utm_medium=social&utm_campaign=dailyaiwire_automation",
+                    "thumbnailBinaryPropertyName": "data",
+                    "title": "={{ $('RSS Feed Trigger').item.json.title }}"
+                }
+            },
+            "id": "733dded4-c91e-4d53-902f-ba8eb8b592f3",
+            "name": "Post to LinkedIn Company Page",
+            "type": "n8n-nodes-base.linkedIn",
+            "typeVersion": 1,
+            "position": [
+                3712,
+                528
+            ],
+            "credentials": {
+                "linkedInOAuth2Api": {
+                    "id": "5jdnWFpHaXXQgmOa",
+                    "name": "LinkedIn account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {
+                    "reset": false
+                }
+            },
+            "id": "a34108d9-2570-4692-8484-12fc8e7d647d",
+            "name": "Loop Over Items",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                2832,
+                608
+            ],
+            "alwaysOutputData": false,
+            "executeOnce": false
+        },
+        {
+            "parameters": {
+                "maxItems": 12
+            },
+            "id": "57c5ae34-b7cd-40ee-952a-70dcb10ab4f0",
+            "name": "Limit to 12 Articles",
+            "type": "n8n-nodes-base.limit",
+            "typeVersion": 1,
+            "position": [
+                2384,
+                608
+            ]
+        },
+        {
+            "parameters": {
+                "amount": "=15",
+                "unit": "minutes"
+            },
+            "id": "7413507b-38ca-40d5-903e-9c8e3cee8eeb",
+            "name": "Wait 15mins Between Posts",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                3936,
+                608
+            ],
+            "webhookId": "fc0d0aea-dcbf-43bd-ad80-a204233a8466"
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.enclosure.url }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "file"
+                        }
+                    }
+                }
+            },
+            "id": "dccb8492-1a31-4582-aaf0-842a6a787755",
+            "name": "Download Thumbnail Image",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3296,
+                528
+            ],
+            "onError": "continueRegularOutput"
+        },
+        {
+            "parameters": {
+                "jsCode": "// 1. Access the workflow's persistent memory\nconst staticData = $getWorkflowStaticData('global');\nstaticData.processedIds = staticData.processedIds || [];\n\n// 2. We will store the articles that pass our \"New Content\" test here\nconst newArticles = [];\n\n// 3. Loop through all incoming articles (the entire batch)\nfor (const item of $input.all()) {\n    const articleId = item.json.link;\n\n    // Check if this specific link is in our memory\n    if (!staticData.processedIds.includes(articleId)) {\n        // If it's new, add it to our \"Memory\"\n        staticData.processedIds.push(articleId);\n        \n        // Add the actual article data to our output list\n        newArticles.push(item);\n    }\n}\n\n// 4. Keep the memory clean (Keep only the last 100 IDs)\nif (staticData.processedIds.length > 100) {\n    staticData.processedIds = staticData.processedIds.slice(-100);\n}\n\n// 5. Output only the new, unique articles\nreturn newArticles;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                3040,
+                528
+            ],
+            "id": "a54ddc46-7fc2-4ad3-8185-41108ffdfde6",
+            "name": "Code in JavaScript"
+        }
+    ],
+    "connections": {
+        "RSS Feed Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Limit to 12 Articles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Workflow Configuration": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Items",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Post Content": {
+            "main": [
+                [
+                    {
+                        "node": "Post to LinkedIn Company Page",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Post to LinkedIn Company Page": {
+            "main": [
+                [
+                    {
+                        "node": "Wait 15mins Between Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop Over Items": {
+            "main": [
+                [],
+                [
+                    {
+                        "node": "Code in JavaScript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Limit to 12 Articles": {
+            "main": [
+                [
+                    {
+                        "node": "Workflow Configuration",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait 15mins Between Posts": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Over Items",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download Thumbnail Image": {
+            "main": [
+                [
+                    {
+                        "node": "Format Post Content",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Code in JavaScript": {
+            "main": [
+                [
+                    {
+                        "node": "Download Thumbnail Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "270c68f897332b7f036122a46bc796bdf1164e861cf33478a2e9f2d242936361"
+    }
+}

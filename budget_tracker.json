@@ -1,6 +1,10 @@
 {
   "current_month": "2025-12",
-  "total_spent": 0.047086075,
-  "requests": 69,
-  "tokens_used": 186415
+  "total_spent": 0.001822125,
+  "requests": 2,
+  "tokens_used": 10429,
+  "breakdown": {
+    "Headline Filter": 0.00017782499999999997,
+    "Article Analysis": 0.0016443
+  }
 }

@@ -165,6 +165,15 @@ def init_db():
             value TEXT
         )
     ''')
+
+    # Processing Attempts Log (The "Crash Loop" Circuit Breaker)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS processing_attempts (
+            url TEXT PRIMARY KEY,
+            attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT
+        )
+    ''')
     
     conn.commit()
     conn.close()
@@ -420,7 +429,48 @@ def fetch_all_sources() -> List[Dict]:
 
     # ACTIVATE AI FILTERING WITH 36H DUPLICATE AWARENESS
     recent_titles = get_recent_published_titles(hours=36)
-    return filter_high_signal_headlines(all_articles, recent_titles)
+    
+    # FILTER: Remove any URLs we have already ATTEMPTED to process in the last 24h
+    # This prevents the "infinite retry loop" if the script crashes after API call but before DB save.
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    # Clean up old attempts > 24h to keep table small
+    cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+    cur.execute("DELETE FROM processing_attempts WHERE attempted_at < ?", (cutoff,))
+    conn.commit()
+    
+    # Get recent attempts
+    cur.execute("SELECT url FROM processing_attempts")
+    attempted_urls = {row[0] for row in cur.fetchall()}
+    conn.close()
+    
+    # Filter candidates
+    candidates = []
+    for art in all_articles:
+        if art['link'] not in attempted_urls:
+            candidates.append(art)
+        else:
+            # print(f"🚫 Skipping recently attempted URL: {art['link']}") 
+            pass
+            
+    if not candidates:
+        print("All candidates have already been attempted recently. Skipping.")
+        return []
+
+    return filter_high_signal_headlines(candidates, recent_titles)
+
+def log_processing_attempt(url: str, status="PROCESSING"):
+    """Logs that we are about to try processing this URL."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("INSERT OR REPLACE INTO processing_attempts (url, status, attempted_at) VALUES (?, ?, ?)", 
+                   (url, status, datetime.utcnow().isoformat()))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"⚠️ Failed to log attempt: {e}")
+
 
 def extract_content(url: str) -> Tuple[str, str]:
     """Extracts text content and social image from a URL with multiple fallbacks."""
@@ -495,6 +545,9 @@ def process_batch(batch: List[Dict]):
         # Robust context: If scraper failed, use the title/rss snippet to provide at least some signal
         analysis_context = content[:3000] if content and len(content) > 100 else item['title']
         batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']} (Ensure Output is English)\nSOURCE CONTENT: {analysis_context}")
+
+        # CRITICAL: Mark as attempted immediately to prevent loops
+        log_processing_attempt(item['link'], status="SENT_TO_API")
 
     prompt = (
         f"Process the following {len(batch)} news articles and return a JSON list of objects matching this structure:\n"
