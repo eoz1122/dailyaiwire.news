@@ -563,23 +563,36 @@ def process_batch(batch: List[Dict]):
     )
 
     batch_input = []
+    skipped_low_quality = 0
+    
     for idx, item in enumerate(batch):
         content, og_image, author = extract_content(item['link'])
         item['scraped_image'] = og_image  # Attach to batch item for save_to_db
         item['original_author'] = author
         
-        # Robust context: If scraper failed, use the title/rss snippet to provide at least some signal
-        analysis_context = content[:3000] if content and len(content) > 100 else item['title']
+        # QUALITY CONTROL: If scraper got nothing (<300 chars), SKIP IT.
+        # This prevents "Title-Only" analysis which leads to "No content provided" and wasted money.
+        if not content or len(content) < 300:
+            print(f"📉 Low Content Signal ({len(content) if content else 0} chars). Skipping: {item['title']}")
+            log_processing_attempt(item['link'], status="SKIPPED_LOW_CONTENT")
+            skipped_low_quality += 1
+            continue
+
+        analysis_context = content[:3500] 
         batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']} (Ensure Output is English)\nSOURCE CONTENT: {analysis_context}")
 
         # CRITICAL: Mark as attempted immediately to prevent loops
         log_processing_attempt(item['link'], status="SENT_TO_API")
 
+    if not batch_input:
+        print("⚠️ All articles in this batch were skipped due to low content.")
+        return []
+
     prompt = (
-        f"Process the following {len(batch)} news articles and return a JSON list of objects matching this structure:\n"
+        f"Process the following {len(batch_input)} news articles (some ID indices may be skipped) and return a JSON list of objects matching this structure:\n"
         "[\n"
         "  {\n"
-        "    \"batch_id\": 0,\n"
+        "    \"batch_id\": [Integer matching the ARTICLE ID provided below],\n"
         "    \"headline\": \"Clicky Title\",\n"
         "    \"seo_slug\": \"url-safe-slug\",\n"
         "    \"image_query\": \"A concise keyword for an Unsplash image (e.g., 'robot arm', 'server farm')\",\n"
