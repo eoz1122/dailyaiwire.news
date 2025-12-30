@@ -394,9 +394,34 @@ def fetch_all_sources() -> List[Dict]:
                     
                 link = entry.link
                 if link not in unique_articles and link not in existing_urls:
+                    # SMART SOURCE DISCOVERY
+                    # Aggregators often list themselves as the source. We want the Real Publisher.
                     real_source = source_name
-                    if source_name == "Google News" and hasattr(entry, 'source') and 'title' in entry.source:
-                        real_source = entry.source.title
+                    
+                    if source_name in ["Google News", "Hacker News (AI)", "Papers with Code"]:
+                        # 1. Try to get it from feed metadata if available
+                        if hasattr(entry, 'source') and 'title' in entry.source:
+                            real_source = entry.source.title
+                        
+                        # 2. If that fails or is generic, extract from URL domain
+                        if not real_source or real_source == source_name:
+                            try:
+                                from urllib.parse import urlparse
+                                domain = urlparse(link).netloc
+                                # Remove www. and common suffixes to make it look like a "Source Name"
+                                domain = domain.replace('www.', '')
+                                if domain:
+                                    real_source = domain.split('.')[0].title() # e.g. 'bbc.co.uk' -> 'Bbc'
+                                    
+                                    # Dictionary for common overrides to make them pretty
+                                    overrides = {
+                                        'Bbc': 'BBC News', 'Ycombinator': 'Hacker News', 'Github': 'GitHub',
+                                        'Arxiv': 'ArXiv Research', 'Youtube': 'YouTube', 'Nytimes': 'NY Times',
+                                        'Wsj': 'Wall Street Journal', 'Cnbc': 'CNBC', 'Techcrunch': 'TechCrunch'
+                                    }
+                                    real_source = overrides.get(real_source, real_source)
+                            except:
+                                pass # Keep original on error
 
                     # IGNORE LOCAL/BLOCKED SOURCES
                     if is_ignored_source(real_source):
@@ -404,7 +429,7 @@ def fetch_all_sources() -> List[Dict]:
 
                     unique_articles[link] = {
                         "title": title,
-                        "source": real_source,
+                        "source": real_source, # Now holds 'BBC News' instead of 'Hacker News (AI)'
                         "link": link,
                         "published": dt_published.isoformat()
                     }
