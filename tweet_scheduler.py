@@ -15,7 +15,7 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 
 DB_PATH = "news.db"
-INTERVAL_SECONDS = 1800  # 30 minutes (Max 48 articles per day)
+INTERVAL_SECONDS = 7200  # 2 hours (12/day = 360/month. Safe for 500/month limit)
 QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
