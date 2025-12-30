@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Social Queue | DailyAIWire Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Navigation -->
+    <div class="flex justify-end mb-6 gap-3">
+        <a href="{{ url_for('admin.index') }}"
+            class="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm">
+            ← Dashboard
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-12">
+        <h1 class="text-3xl md:text-4xl font-black tracking-tighter text-[#0c0c0c] uppercase flex items-center gap-2">
+            Social Media <span class="text-[#1da1f2]">Queue</span>
+        </h1>
+        <p class="text-zinc-400 text-base font-medium mt-1">
+            Manually copy posts and mark them as shared to bypass automation.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-8">
+        {% for article in articles %}
+        <div class="bg-white border border-zinc-100 p-8 rounded-[2rem] shadow-sm relative group">
+
+            <div class="absolute top-6 right-6 flex gap-2">
+                <!-- Mark Sent Form -->
+                <form action="{{ url_for('admin_mark_shared', id=article['id']) }}" method="POST">
+                    <button type="submit"
+                        class="bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
+                            </path>
+                        </svg>
+                        Mark as Sent
+                    </button>
+                </form>
+            </div>
+
+            <div class="mb-6 pr-32">
+                <h3 class="text-xl font-bold text-zinc-900 mb-2">{{ article['title'] }}</h3>
+                <div class="flex items-center gap-3 text-xs font-mono text-zinc-400">
+                    <span class="bg-zinc-100 px-2 py-1 rounded">{{ article['published_at'] }}</span>
+                    <span>Source: {{ article['source'] }}</span>
+                </div>
+            </div>
+
+            <!-- Pre-formatted Tweet Box -->
+            <div class="bg-zinc-50 border border-zinc-200 rounded-xl p-4 relative font-mono text-sm text-zinc-600 mb-4 whitespace-pre-wrap"
+                id="tweet-{{ article['id'] }}">{{ article['title'] }} {{ "(Source: " + article['source'] + ")" if
+                article['source'] else "" }}
+
+                {{ article['gist']|replace("**", "") }}
+
+                {% if article['hashtags'] %}
+                {% for tag in article['hashtags']|from_json %}{{ tag }} {% endfor %}
+                {% endif %}
+
+                🤔 {{ article['thought_provoking_question'] }}
+
+                https://dailyaiwire.news/article/{{ article['slug'] }}</div>
+
+            <button onclick="copyToClipboard('tweet-{{ article['id'] }}')"
+                class="w-full bg-[#1da1f2] hover:bg-[#1a91da] text-white py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
+                </svg>
+                Copy Tweet Content
+            </button>
+
+        </div>
+        {% else %}
+        <div class="text-center py-12 text-zinc-400">
+            No unshared articles found in queue.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    function copyToClipboard(elementId) {
+        const text = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Tweet copied to clipboard! Open X (Twitter) to paste.");
+        });
+    }
+</script>
+{% endblock %}

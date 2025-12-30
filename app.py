@@ -199,6 +199,38 @@ def admin_unblock_source():
         flash(f"Unblocked source: {domain}")
     return redirect(url_for('admin_sources'))
 
+@app.route('/admin/social-queue')
+@login_required
+def admin_social_queue():
+    conn = get_db_connection()
+    # Fetch unshared articles, prioritizing high score and newness
+    articles = conn.execute('''
+        SELECT * FROM articles 
+        WHERE (shared_on_x = 0 OR shared_on_x IS NULL) 
+        ORDER BY importance_score DESC, published_at DESC 
+        LIMIT 50
+    ''').fetchall()
+    conn.close()
+    
+    # Pre-process JSON fields for template
+    processed = []
+    for a in articles:
+        d = dict(a)
+        processed.append(d)
+        
+    return render_template('admin/social_queue.html', articles=processed)
+
+@app.route('/admin/mark-shared/<int:id>', methods=['POST'])
+@login_required
+def admin_mark_shared(id):
+    conn = get_db_connection()
+    conn.execute('UPDATE articles SET shared_on_x = 1, shared_at = ? WHERE id = ?', 
+                 (datetime.utcnow().isoformat(), id))
+    conn.commit()
+    conn.close()
+    flash("Article marked as shared. Automation will skip it.")
+    return redirect(url_for('admin_social_queue'))
+
 @app.route('/admin/newsletters')
 @login_required
 def admin_newsletters():
