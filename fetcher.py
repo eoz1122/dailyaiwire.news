@@ -218,7 +218,8 @@ def is_ignored_source(source_name: str) -> bool:
     blocked = [
         "Kurdistan24", "kurdistan24.net", 
         "Seacoastonline.com", "Pittsburgh Post-Gazette",
-        "KERA News", "Oregon Public Broadcasting - OPB"
+        "KERA News", "Oregon Public Broadcasting - OPB",
+        "pymnts", "pymnts.com"
     ]
     return any(b.lower() in source_name.lower() for b in blocked)
 
