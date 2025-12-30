@@ -47,17 +47,36 @@ def catch_up_posting():
         return
 
     print(f"found {len(articles)} missed articles.")
-    print("⚡ Will post them with a 90 second delay between each to prevent rate limits.")
+    print("⚡ Will post them with a delay to prevent rate limits.")
     
-    for i, art in enumerate(articles):
+    i = 0
+    while i < len(articles):
+        art = articles[i]
         print(f"\n[{i+1}/{len(articles)}] Posting: {art['title']}")
         
+        # On-the-fly Source Cleanup (Fixes old entries in DB)
+        real_source = art.get('source', '')
+        if real_source in ["Hacker News (AI)", "Google News", "Papers with Code"]:
+             try:
+                from urllib.parse import urlparse
+                domain = urlparse(art['source_url']).netloc.replace('www.', '')
+                if domain:
+                    real_source = domain.split('.')[0].title()
+                    overrides = {
+                        'Bbc': 'BBC News', 'Ycombinator': 'Hacker News', 'Github': 'GitHub',
+                        'Arxiv': 'ArXiv', 'Youtube': 'YouTube', 'Nytimes': 'NY Times',
+                        'Wsj': 'WSJ', 'Cnbc': 'CNBC', 'Techcrunch': 'TechCrunch'
+                    }
+                    real_source = overrides.get(real_source, real_source)
+             except:
+                pass
+
         # Prepare payload
         payload = {
             'headline': art['title'],
             'gist': art['gist'],
             'seo_slug': art['slug'],
-            'source': art.get('source', ''),
+            'source': real_source,
             'hashtags': json.loads(art['hashtags']) if art.get('hashtags') else [],
             'thought_provoking_question': art.get('thought_provoking_question', '')
         }
@@ -72,14 +91,23 @@ def catch_up_posting():
                 conn.commit()
                 conn.close()
                 print("✅ Published successfully!")
+                i += 1 # Move to next
+                print("⏳ Waiting 120 seconds...")
+                time.sleep(120)
             else:
-                print("⚠️ Failed to publish.")
+                print("⚠️ Failed to publish (False returned).")
+                i += 1
+                time.sleep(10)
         except Exception as e:
-            print(f"❌ Error publishing: {e}")
-            
-        if i < len(articles) - 1:
-            print("⏳ Waiting 90 seconds...")
-            time.sleep(90)
+            if "429" in str(e):
+                print("🛑 RATE LIMIT HIT (429). Sleeping for 15 minutes before retrying...")
+                time.sleep(900)
+                # Do not increment i, retry same article
+            else:
+                print(f"❌ Error publishing: {e}")
+                i += 1
+                time.sleep(10)
+
 
     print("\n🎉 Backlog cleared!")
 
