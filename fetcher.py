@@ -664,7 +664,8 @@ def process_batch(batch: List[Dict]):
             try:
                 response = model.generate_content(
                     prompt,
-                    generation_config={"response_mime_type": "application/json"}
+                    generation_config={"response_mime_type": "application/json"},
+                    request_options={'timeout': 600}
                 )
                 
                 # Log token usage for budget tracking
