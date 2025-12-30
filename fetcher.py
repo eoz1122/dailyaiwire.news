@@ -157,7 +157,6 @@ def init_db():
             cost_estimate REAL
         )
     ''')
-    ''')
 
     # Metadata Table for scan tracking
     cursor.execute('''
@@ -285,8 +284,8 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
         print(f"Filtered down to {len(filtered)} high-signal articles.")
         return filtered
     except Exception as e:
-        print(f"Headline filtering failed: {e}. Proceeding with all unique articles.")
-        return articles
+        print(f"Headline filtering failed: {e}. Proceeding with first 10 articles as fallback.")
+        return articles[:10]
 
 def fetch_all_sources() -> List[Dict]:
     """Fetches news from multiple specific AI feeds and Google News."""
@@ -849,7 +848,13 @@ def main():
 
     print(f"New High-Signal Articles to Process: {len(new_articles)}")
     
-    # Process in batches of 4 for efficiency
+    # Process in batches for efficiency
+    # HARD LIMIT: Never process more than 16 articles per cycle to prevent token spikes
+    MAX_ARTICLES_PER_CYCLE = 16
+    if len(new_articles) > MAX_ARTICLES_PER_CYCLE:
+        print(f"⚠️ Cap reached! Truncating {len(new_articles)} articles to {MAX_ARTICLES_PER_CYCLE}")
+        new_articles = new_articles[:MAX_ARTICLES_PER_CYCLE]
+
     batch_size = 4
     distributor = SocialDistributor()
     total_posts_sent = 0
