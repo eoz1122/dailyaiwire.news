@@ -545,13 +545,28 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
     cursor = conn.cursor()
     
     for art in processed_articles:
-        # Skip articles where AI failed to find content
+        # Skip articles where AI failed to find content or hit a paywall/blocker
         gist = str(art.get('gist', '')).lower()
         impact = str(art.get('why_it_matters', '')).lower()
         headline = str(art.get('headline', '')).lower()
+        analysis = str(art.get('deep_analysis', '')).lower()
+
+        blacklist = [
+            "source content missing",
+            "javascript is disabled",
+            "enable javascript",
+            "article unavailable",
+            "content access",
+            "access denied",
+            "please enable js",
+            "browser to continue"
+        ]
         
-        if "source content missing" in gist or "source content missing" in impact or "source content missing" in headline:
-            print(f"Skipping '{art.get('headline')}' due to missing content signal.")
+        if any(b in gist for b in blacklist) or \
+           any(b in impact for b in blacklist) or \
+           any(b in headline for b in blacklist) or \
+           any(b in analysis for b in blacklist):
+            print(f"Skipping '{art.get('headline')}' due to content blocker signal (JS/Access Denied).")
             continue
 
         # Determine the article identifier (Gemini's provided slug or derived from title)
