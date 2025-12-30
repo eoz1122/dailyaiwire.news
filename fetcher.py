@@ -710,25 +710,9 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 int(art.get('importance_score', 50) or 50)
             ))
             
-            # STAGGERED SOCIAL QUEUING
-            # Queue for social media if not previously shared
-            # We stagger posts by 45 minutes to prevent flooding
-            if distributor and posts_count < social_limit:
-                 # Check if already processed to avoid duplicates in queue
-                 cursor.execute("SELECT id FROM social_queue WHERE slug = ?", (final_slug,))
-                 if not cursor.fetchone():
-                     # Calculate delay: Stagger by 30 mins, starting 5 mins from now
-                     # Post 1: +5m, Post 2: +35m, Post 3: +65m...
-                     delay_minutes = (posts_count * 30) + 5
-                     scheduled_time = datetime.utcnow() + timedelta(minutes=delay_minutes)
-                     
-                     cursor.execute('''
-                        INSERT INTO social_queue (slug, headline, status, scheduled_time)
-                        VALUES (?, ?, 'PENDING', ?)
-                     ''', (final_slug, art.get('headline'), scheduled_time.isoformat()))
-                     
-                     print(f"🕒 Staggered social post for '{art.get('headline')}' at {scheduled_time.strftime('%H:%M')}")
-                     posts_count += 1
+            # STAGGERED SOCIAL QUEUING - DISABLED
+            # Consolidating all posting into tweet_scheduler.py for strict 1h gaps.
+            pass
             
         except Exception as e:
             print(f"Error saving article {art.get('headline')}: {e}")
@@ -854,8 +838,9 @@ def main_loop():
                 main()
                 last_fetch_time = time.time()
             
-            # Run Social Queue processing every minute
-            process_social_queue()
+            # Social posting is now handled exclusively by tweet_scheduler.py 
+            # to prevent double-posting and 429 Rate Limits.
+            # process_social_queue()
             
             # Sleep for 1 minute before next tick
             time.sleep(60)
