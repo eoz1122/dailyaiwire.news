@@ -230,6 +230,12 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
 
     print(f"AI Pre-Filtering {len(articles)} headlines for signal quality and deduplication...")
     
+    # OPTIMIZATION: If we have very few articles, don't waste an AI call filtering them.
+    # Also prevents errors when asking "Top 8" from a list of 1.
+    if len(articles) <= 5:
+        print(f"Skipping AI filter (Small batch: {len(articles)} articles). processing all.")
+        return articles
+    
     # Bundle headlines for efficient batch checking
     headline_list = "\n".join([f"{idx}: {a['title']}" for idx, a in enumerate(articles)])
     recent_titles_block = "\n".join([f"- {t}" for t in recent_titles]) if recent_titles else "None"
