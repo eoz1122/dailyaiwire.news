@@ -130,6 +130,35 @@ def init_db():
         )
     ''')
 
+    # Editorials Table (Opinion/Human Content)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS editorials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT UNIQUE,
+            title TEXT,
+            subtitle TEXT,
+            content TEXT,
+            author TEXT DEFAULT 'Emre Ozen',
+            image TEXT,
+            published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_published BOOLEAN DEFAULT 0
+        )
+    ''')
+
+    # AI Logs Table (Audit Trail)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            model TEXT,
+            prompt_type TEXT,
+            prompt_text TEXT,
+            response_text TEXT,
+            cost_estimate REAL
+        )
+    ''')
+    ''')
+
     # Metadata Table for scan tracking
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS metadata (
@@ -667,8 +696,24 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                     "/static/fallbacks/policy_3.jpg"
                 ]
             }
+            # Fallback Logic: Avoid back-to-back duplicates
             images = cat_map.get(cat, cat_map["Tools"])
-            image_url = random.choice(images)
+            
+            # Check the most recently saved article's image to avoid repetition
+            try:
+                last_img_row = cursor.execute("SELECT image FROM articles ORDER BY id DESC LIMIT 1").fetchone()
+                last_img = last_img_row[0] if last_img_row else None
+            except:
+                last_img = None
+
+            # Filter out the last used image if possible
+            available_images = [img for img in images if img != last_img]
+            
+            # If no images left (e.g. only 1 fallback exists), revert to full list
+            if not available_images:
+                available_images = images
+                
+            image_url = random.choice(available_images)
 
         # 3. Robust Slug Generation
         final_slug = art.get('seo_slug')
