@@ -102,7 +102,8 @@ def main_loop():
             article = get_next_article_to_share()
             
             if article:
-                print(f"📡 Next up for X: {article['title']}")
+                print(f"📡 Found unshared article: {article['title']}")
+                print(f"⏰ Article published at: {article['published_at']}")
                 
                 article_for_dist = {
                     'headline': article['title'],
@@ -113,17 +114,16 @@ def main_loop():
                     'thought_provoking_question': article.get('thought_provoking_question', '')
                 }
                 
+                print(f"🚀 Attempting to post to X...")
                 if distributor.post_to_x(article_for_dist):
                     mark_as_shared(article['slug'])
-                    print(f"✅ Successfully shared. Next post in 1 hour.")
+                    print(f"✅ Successfully shared. Waiting {INTERVAL_SECONDS/60:.0f} mins.")
                 else:
-                    # If we hit a 429, we should be AGGRESSIVE about waiting.
-                    # Usually, 429 resets in 15-60 mins, but sometimes it's daily.
-                    print(f"⚠️ [RATE LIMIT / ERROR] Post failed. Cooling down for 1 hour to reset quotas...")
-                    time.sleep(3600) # Full 1 hour cooldown
+                    print(f"⚠️ [X ERROR] Post failed. Cooling down for 1 hour...")
+                    time.sleep(3600) 
             else:
-                print("📭 No unshared articles. Checking again in 30 mins...")
-                time.sleep(1800)
+                print("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
+                time.sleep(600)
                 
         except Exception as e:
             print(f"⚠️ Scheduler Error: {e}")
