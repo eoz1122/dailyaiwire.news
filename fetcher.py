@@ -817,7 +817,7 @@ def main():
         processed = process_batch(batch)
         if processed:
             # Save WITHOUT audio generation (pass None for audio_gen)
-            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=2, posts_count=total_posts_sent, audio_gen=None)
+            total_posts_sent = save_to_db(processed, batch, distributor, social_limit=5, posts_count=total_posts_sent, audio_gen=None)
             articles_saved += len(processed)
             print(f"Saved {len(processed)} articles from batch. Social posts sent so far: {total_posts_sent}")
         
