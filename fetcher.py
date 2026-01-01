@@ -622,16 +622,22 @@ def process_batch(batch: List[Dict]):
     model = genai.GenerativeModel(
         model_name=model_name,
         system_instruction=(
-            "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
-            "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
-            "Mandate: Use the optimized capabilities of Gemini 1.5 Flash for high-throughput intelligence analysis.\n"
-            "Editorial Standards:\n"
-            "* LANGUAGE: ALL OUTPUT MUST BE IN ENGLISH. If the source content is in German or another language, TRANSLATE it on the fly.\n"
-            "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
-            "* The Hook: Start with a punchy opening sentence that contextualizes the news immediately.\n"
-            "* Tone: Authoritative, tech-forward, and urgent. Avoid corporate fluff and emojis.\n"
-            "* Content: Focus on extraction of hard facts, expert quotes, and strategic implications.\n"
-            "* Formatting: Return PLAIN TEXT for all fields. DO NOT use markdown, bolding (**), or italics. For 'deep_analysis', USE NEWLINES to create paragraph breaks."
+            "## ROLE\n"
+            "Lead Intelligence Strategist for DailyAIWire. AI-First Execution; Human-Led Responsibility.\n"
+            "Your mission is to transform raw technical data into high-density executive intelligence. Priority: Factual Density > Narrative Flow.\n\n"
+            
+            "## TASK: EXECUTIVE INTELLIGENCE SYNTHESIS\n"
+            "Analyze the input to produce structured JSON. Follow the 'Pure Signal' philosophy: strip away marketing fluff and prioritize facts, specs, and market implications.\n\n"
+            
+            "## 2026 COMPLIANCE & SAFETY GUARDRAILS\n"
+            "- TRANSFORMATIVE VOICE: Use original analytical phrasing. Do not reproduce the source's unique metaphors. DO NOT copy more than 7 consecutive words.\n"
+            "- HALLUCINATION PREVENTION: Base all analysis exclusively on the provided input. If data is unclear, omit it.\n"
+            "- STEP-BY-STEP REASONING: For 'Outlook', logically link predictions to specific source facts.\n\n"
+
+            "## TOKEN & PERFORMANCE OPTIMIZATION\n"
+            "- STRICT BREVITY: Use concise, professional language.\n"
+            "- DETERMINISTIC BIAS: Prioritize consistency and factual accuracy.\n"
+            "- FORMAT: Output strictly in valid JSON."
         )
     )
 
@@ -665,22 +671,24 @@ def process_batch(batch: List[Dict]):
         f"Process the following {len(batch_input)} news articles (some ID indices may be skipped) and return a JSON list of objects matching this structure:\n"
         "[\n"
         "  {\n"
+        "    \"status\": \"SUCCESS | INSUFFICIENT_DATA\",\n"
         "    \"batch_id\": [Integer matching the ARTICLE ID provided below],\n"
-        "    \"headline\": \"Clicky Title\",\n"
+        "    \"headline\": \"Clicky but Factual Title\",\n"
         "    \"seo_slug\": \"url-safe-slug\",\n"
-        "    \"image_query\": \"A concise keyword for an Unsplash image (e.g., 'robot arm', 'server farm')\",\n"
+        "    \"image_query\": \"A concise keyword for an Unsplash image\",\n"
         "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society', 'Ethics']\",\n"
-        "    \"gist\": \"1-2 sentence bold summary\",\n"
-        "    \"key_details\": [\"Extract 3-5 HARD DATA POINTS (numbers, dates, specs) ONLY. If the source content is vague or lacks specific metrics, return an empty list []. Do NOT output generic summaries here.\"],\n"
+        "    \"gist\": \"Single bold sentence (max 25 tokens).\",\n"
+        "    \"key_details\": [\"Extract 2-5 verifiable facts (hard data points). If <2 verifiable facts, set status to INSUFFICIENT_DATA and leave empty.\"],\n"
         "    \"why_it_matters\": \"Brief insight on impact (2-3 sentences max)\",\n"
-        "    \"optimistic_outlook\": \"Upside analysis in 2-3 sentences. Focus on positive potential and opportunities.\",\n"
-        "    \"pessimistic_outlook\": \"Downside/Risk analysis in 2-3 sentences. Focus on concerns and challenges.\",\n"
-        "    \"hashtags\": [\"Generate 3-5 relevant hashtags for social media (e.g., #AI, #MachineLearning, #TechNews). Include mix of broad and specific tags.\"],\n"
-        "    \"thought_provoking_question\": \"A short, engaging question derived from the article content to spark discussion on social media.\",\n"
+        "    \"optimistic_outlook\": \"Upside analysis in 2-3 sentences. Focus on positive potential.\",\n"
+        "    \"pessimistic_outlook\": \"Downside/Risk analysis in 2-3 sentences. Focus on concerns.\",\n"
+        "    \"hashtags\": [\"3-5 relevant hashtags\"],\n"
+        "    \"thought_provoking_question\": \"A short, engaging question to spark discussion.\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
-        "    \"importance_score\": \"A score from 40-100 reflecting the article's strategic value. Scale: 90+ (Major Breakthrough), 70-89 (High Impact/Must Read), 50-69 (Standard Daily Update/Niche Interest), <50 (Low Priority). Do NOT default everything to 1.\",\n"
-        "    \"deep_analysis\": \"A comprehensive summary of at least 300 words. MUST use multiple paragraphs separated by newlines for better readability. Do not output a single wall of text.\",\n"
-        "    \"narration_script\": \"A high-signal, narrative script for a 1-minute audio read (approx 150 words). MUST START with this exact short branding: 'Intelligence from DailyAIWire dot news.' followed by a brief pause. Use smooth transitions (e.g., 'Starting with...', 'Interestingly...', 'Looking ahead...'). Do not use headers. Focus on making it sound like a professional news segment.\"\n"
+        "    \"importance_score\": \"40-100 reflecting strategic value.\",\n"
+        "    \"deep_analysis\": \"300+ words. Comprehensive summary using multiple paragraphs.\",\n"
+        "    \"narration_script\": \"1-minute radio script starting with 'Intelligence from DailyAIWire dot news...'.\",\n"
+        "    \"metadata\": { \"ai_detected\": true, \"model\": \"Gemini 2.5 Flash\", \"label\": \"EU AI Act Art. 50 Compliant\" }\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input)
@@ -739,11 +747,25 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
     cursor = conn.cursor()
     
     for art in processed_articles:
+        # 1. Status Check (New 2026 Guardrail)
+        if art.get('status') == "INSUFFICIENT_DATA":
+            print(f"Skipping '{art.get('headline')}' - AI flagged as Insufficient Data.")
+            continue
+
         # Skip articles where AI failed to find content or hit a paywall/blocker
         gist = str(art.get('gist', '')).lower()
         impact = str(art.get('why_it_matters', '')).lower()
         headline = str(art.get('headline', '')).lower()
-        analysis = str(art.get('deep_analysis', '')).lower()
+        analysis = str(art.get('deep_analysis', ''))
+
+        # 2. Transparency & Attribution Injection (EU AI Act)
+        # We append this programmatically to guarantee it appears on all platforms.
+        footer = "\n\n_Context: This intelligence report was compiled by the DailyAIWire Strategy Engine. Verified for Art. 50 Compliance._"
+        if footer not in analysis:
+            art['deep_analysis'] = analysis + footer
+            analysis = art['deep_analysis'].lower() # Update for blacklist check
+
+        blacklist = [
 
         blacklist = [
             "source content missing",
