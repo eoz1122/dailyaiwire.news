@@ -876,7 +876,25 @@ def article(slug):
     try: d['design_tokens'] = json.loads(art['design_tokens'])
     except: d['design_tokens'] = {}
     
-    return render_template('article.html', article=d)
+    # SEO Internal Linking: Fetch 3 Related Articles (Same Category)
+    conn = get_db_connection()
+    related = conn.execute('''
+        SELECT title, slug, image, category, published_at 
+        FROM articles 
+        WHERE category = ? AND id != ? 
+        ORDER BY published_at DESC LIMIT 3
+    ''', (d['category'], d['id'])).fetchall()
+    conn.close()
+    
+    related_articles = []
+    for r in related:
+        rd = dict(r)
+        # Ensure image path is correct for frontend
+        if rd['image'] and not rd['image'].startswith('http') and not rd['image'].startswith('/'):
+             rd['image'] = '/' + rd['image']
+        related_articles.append(rd)
+
+    return render_template('article.html', article=d, related_articles=related_articles)
 
 @app.route('/about')
 def about(): return render_template('about.html')
