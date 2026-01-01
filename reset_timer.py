@@ -13,9 +13,13 @@ def reset_scan_time():
     print(f"Resetting last_scan_timestamp to: {new_time}")
     cursor.execute("INSERT OR REPLACE INTO metadata (key, value) VALUES ('last_scan_timestamp', ?)", (new_time,))
     
+    # CRITICAL: Clear the "Attempted" memory so it retries articles that failed/crashed
+    print("Clearing processing_attempts history...")
+    cursor.execute("DELETE FROM processing_attempts")
+    
     conn.commit()
     conn.close()
-    print("Done. Run fetcher.py now.")
+    print("Done. Memory wiped. Run fetcher.py now to re-process everything.")
 
 if __name__ == "__main__":
     reset_scan_time()
