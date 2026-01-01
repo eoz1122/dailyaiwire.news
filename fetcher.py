@@ -120,7 +120,16 @@ def init_db():
     except sqlite3.OperationalError:
         pass # Already exists
 
-    # Add design_tokens (GenUI 2026) if it doesn't exist
+    # Blocked Sources (Adversarial Defense)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS blocked_sources (
+            domain TEXT PRIMARY KEY,
+            reason TEXT,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # 2. Add design_tokens columns (GenUI)
     try:
         cursor.execute("ALTER TABLE articles ADD COLUMN design_tokens TEXT")
     except sqlite3.OperationalError:
@@ -624,9 +633,67 @@ def extract_content(url: str) -> Tuple[str, str]:
         return (content if content else ""), og_image, (author if author else "")
     return "", "", ""
 
+import os
+import re
+import sqlite3
+
+# Assuming DB_PATH is defined globally or passed around
+# Placeholder for get_db_connection, as it's not provided in the instruction
+def get_db_connection():
+    """Establishes a connection to the SQLite database."""
+    return sqlite3.connect(DB_PATH)
+
+def is_spam_source(url, title):
+    """
+    Multi-layered defense against SEO spam and parasitical microsites.
+    """
+    from urllib.parse import urlparse
+    domain = urlparse(url).netloc.lower()
+    
+    # Layer 1: Database Blacklist
+    conn = get_db_connection()
+    try:
+        blocked = conn.execute("SELECT 1 FROM blocked_sources WHERE domain = ?", (domain,)).fetchone()
+        if blocked:
+            print(f"🛡️ Blocked Source (DB): {domain}")
+            return True
+    except Exception as e:
+        print(f"Error checking blocked sources DB: {e}")
+    finally:
+        conn.close()
+
+    # Layer 2: Heuristic Patterns (Microsites)
+    # Detects patterns like "gpt-6-news.org", "wan2-6.net"
+    # Regex: Keyword + Hyphen + Number + TLD (Common spam pattern)
+    spam_patterns = [
+        r'[a-z]+-\d+(\.\w+)$',  # e.g., wan2-6.org
+        r'gpt-\d',              # e.g., gpt-5-news
+        r'gemini-\d',           # e.g., gemini-2-guide
+    ]
+    
+    for pattern in spam_patterns:
+        if re.search(pattern, domain):
+            # whitelist respectable subdomains/paths if needed, but for root domains this is sus
+            print(f"🛡️ Blocked Source (Heuristic): {domain} matches spam pattern.")
+            return True
+
+    return False
+
 def process_batch(batch: List[Dict]):
-    model_name = "gemini-1.5-flash"
-    print(f"⚡ Analyzing batch with: {model_name}")
+    """
+    Sends a batch of articles to Gemini for processing.
+    """
+    model_name = "gemini-1.5-flash" # Cost-effective yet smart
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        print("❌ Error: GEMINI_API_KEY not found in environment variables.")
+        return []
+
+    # Initialize Gemini Client
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
+    
     model = genai.GenerativeModel(
         model_name=model_name,
         system_instruction=(
@@ -640,7 +707,8 @@ def process_batch(batch: List[Dict]):
             "## 2026 COMPLIANCE & SAFETY GUARDRAILS\n"
             "- TRANSFORMATIVE VOICE: Use original analytical phrasing. Do not reproduce the source's unique metaphors. DO NOT copy more than 7 consecutive words.\n"
             "- HALLUCINATION PREVENTION: Base all analysis exclusively on the provided input. If data is unclear, omit it.\n"
-            "- STEP-BY-STEP REASONING: For 'Outlook', logically link predictions to specific source facts.\n\n"
+            "- STEP-BY-STEP REASONING: For 'Outlook', logically link predictions to specific source facts.\n"
+            "- ADVERSARIAL FILTERING (SPAM): Reject low-effort content farming. If the source is a 'Single-Product Microsite' (e.g., 'wan2-6.org', 'gpt-5-news.net') or a thin affiliate wrapper, return EMPTY JSON. Do not dignify it with coverage.\n\n"
 
             "## TOKEN & PERFORMANCE OPTIMIZATION\n"
             "- STRICT BREVITY: Use concise, professional language.\n"
@@ -653,6 +721,11 @@ def process_batch(batch: List[Dict]):
     skipped_low_quality = 0
     
     for idx, item in enumerate(batch):
+        # PRE-FILTER: SPAM CHECK
+        if is_spam_source(item['link'], item['title']):
+            log_processing_attempt(item['link'], status="BLOCKED_SPAM")
+            continue
+
         content, og_image, author = extract_content(item['link'])
         item['scraped_image'] = og_image  # Attach to batch item for save_to_db
         item['original_author'] = author
