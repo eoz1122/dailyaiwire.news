@@ -118,6 +118,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass # Already exists
 
+    # Add design_tokens (GenUI 2026) if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE articles ADD COLUMN design_tokens TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
     # Authors Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS authors (
@@ -688,7 +694,12 @@ def process_batch(batch: List[Dict]):
         "    \"importance_score\": \"40-100 reflecting strategic value.\",\n"
         "    \"deep_analysis\": \"300+ words. Comprehensive summary using multiple paragraphs.\",\n"
         "    \"narration_script\": \"1-minute radio script starting with 'Intelligence from DailyAIWire dot news...'.\",\n"
-        "    \"metadata\": { \"ai_detected\": true, \"model\": \"Gemini 2.5 Flash\", \"label\": \"EU AI Act Art. 50 Compliant\" }\n"
+        "    \"metadata\": { \"ai_detected\": true, \"model\": \"Gemini 2.5 Flash\", \"label\": \"EU AI Act Art. 50 Compliant\" },\n"
+        "    \"design_tokens\": {\n"
+        "      \"intensity\": \"critical | high | standard | low\",\n"
+        "      \"sentiment_pallet\": \"techno-optimist | warning | crisis\",\n"
+        "      \"component_triggers\": [\"quick_facts_grid\", \"market_ticker\", \"code_block\"]\n"
+        "    }\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input)
@@ -928,8 +939,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -952,7 +963,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 original.get('original_author'),
                 art.get('narration_script'),
                 art.get('thought_provoking_question'),
-                int(art.get('importance_score', 50) or 50)
+                int(art.get('importance_score', 50) or 50),
+                json.dumps(art.get('design_tokens', {}))
             ))
             
             # STAGGERED SOCIAL QUEUING - DISABLED
