@@ -177,12 +177,31 @@ def admin_sources():
 @login_required
 def admin_block_source():
     domain = request.form.get('domain')
+    nuke = request.form.get('nuke') # Checkbox or button value
+    
     if domain:
         conn = get_db_connection()
         try:
+            # 1. Block the domain
             conn.execute('INSERT OR IGNORE INTO blocked_sources (domain) VALUES (?)', (domain,))
+            
+            # 2. Nuke if requested (Active Purge)
+            if nuke:
+                # Use LIKE to catch subdomains or exact matches depending on how 'source' is stored.
+                # Usually source is 'The Verge', not url.
+                # But here we are blocking by *domain*? 
+                # The 'sources' page lists names like 'TechCrunch'.
+                # The 'blocked_sources' table stores domains.
+                # We need to be careful. The UI passes 'source' name as 'domain' based on the loop {{ row['source'] }}.
+                # So we are banning "The Verge", not "theverge.com" in the current UI logic?
+                # Let's clean this up: The loop in sources.html uses row['source'].
+                # So we delete where source = ?
+                conn.execute('DELETE FROM articles WHERE source = ?', (domain,))
+                flash(f"NUKED source: {domain} (Blocked + Deleted Articles)")
+            else:
+                flash(f"Blocked source: {domain}")
+                
             conn.commit()
-            flash(f"Blocked source: {domain}")
         except Exception as e:
             flash(f"Error blocking source: {e}")
         conn.close()
