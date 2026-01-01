@@ -679,11 +679,13 @@ def is_spam_source(url, title):
 
     return False
 
+import ai_config
+
 def process_batch(batch: List[Dict]):
     """
     Sends a batch of articles to Gemini for processing.
     """
-    model_name = "gemini-1.5-flash" # Cost-effective yet smart
+    model_name = ai_config.DEFAULT_MODEL
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
@@ -696,25 +698,8 @@ def process_batch(batch: List[Dict]):
     
     model = genai.GenerativeModel(
         model_name=model_name,
-        system_instruction=(
-            "## ROLE\n"
-            "Lead Intelligence Strategist for DailyAIWire. AI-First Execution; Human-Led Responsibility.\n"
-            "Your mission is to transform raw technical data into high-density executive intelligence. Priority: Factual Density > Narrative Flow.\n\n"
-            
-            "## TASK: EXECUTIVE INTELLIGENCE SYNTHESIS\n"
-            "Analyze the input to produce structured JSON. Follow the 'Pure Signal' philosophy: strip away marketing fluff and prioritize facts, specs, and market implications.\n\n"
-            
-            "## 2026 COMPLIANCE & SAFETY GUARDRAILS\n"
-            "- TRANSFORMATIVE VOICE: Use original analytical phrasing. Do not reproduce the source's unique metaphors. DO NOT copy more than 7 consecutive words.\n"
-            "- HALLUCINATION PREVENTION: Base all analysis exclusively on the provided input. If data is unclear, omit it.\n"
-            "- STEP-BY-STEP REASONING: For 'Outlook', logically link predictions to specific source facts.\n"
-            "- ADVERSARIAL FILTERING (SPAM): Reject low-effort content farming. If the source is a 'Single-Product Microsite' (e.g., 'wan2-6.org', 'gpt-5-news.net') or a thin affiliate wrapper, return EMPTY JSON. Do not dignify it with coverage.\n\n"
-
-            "## TOKEN & PERFORMANCE OPTIMIZATION\n"
-            "- STRICT BREVITY: Use concise, professional language.\n"
-            "- DETERMINISTIC BIAS: Prioritize consistency and factual accuracy.\n"
-            "- FORMAT: Output strictly in valid JSON."
-        )
+        system_instruction=ai_config.get_system_instruction(),
+        generation_config=ai_config.GENERATION_CONFIG
     )
 
     batch_input = []
