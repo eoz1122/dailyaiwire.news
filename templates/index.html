@@ -46,7 +46,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 <!-- Featured Carousel (8 Recent Articles) -->
 {% if carousel_articles %}
 <div class="mb-8 lg:col-span-3 relative overflow-hidden rounded-2xl glass-card" id="carousel-container">
-    <div class="relative h-96" id="carousel">
+    <div class="relative h-[28rem] md:h-[32rem] lg:h-[40rem]" id="carousel">
         {% for art in carousel_articles %}
         <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100 z-10{% else %}opacity-0 z-0 pointer-events-none{% endif %}"
             data-index="{{ loop.index0 }}">

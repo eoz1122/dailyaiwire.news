@@ -116,667 +116,649 @@
 
             <!-- Audio Intelligence Section -->
             {% if article.audio_male or article.audio_female %}
-            <div
-                class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-8 flex gap-6 shadow-xl relative overflow-hidden group">
-                <!-- Big Icon -->
+            <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+
+            <!-- Sentinel for Intersection Observer to know when to dock -->
+            <div id="audio-sentinel"></div>
+
+            <div id="audio-wrapper" class="mb-12 transition-all duration-500 ease-in-out">
                 <div
-                    class="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center shrink-0 border border-zinc-800 shadow-inner">
-                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" <script
-                            src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js">
-                            </script>
+                    class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden group shadow-2xl">
 
-                            <!-- Sentinel for Intersection Observer to know when to dock -->
-                            <div id="audio-sentinel"></div>
+                    <!-- Dynamic Background Pulse -->
+                    <div
+                        class="absolute inset-0 bg-gradient-to-r {{ theme_class.split(' ')[2] if 'bg-' in theme_class else 'from-blue-900/10' }} to-transparent opacity-20 animate-pulse">
+                    </div>
 
-                            <div id="audio-wrapper" class="mb-12 transition-all duration-500 ease-in-out">
-                                <div
-                                    class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden group shadow-2xl">
-
-                                    <!-- Dynamic Background Pulse -->
-                                    <div
-                                        class="absolute inset-0 bg-gradient-to-r {{ theme_class.split(' ')[2] if 'bg-' in theme_class else 'from-blue-900/10' }} to-transparent opacity-20 animate-pulse">
-                                    </div>
-
-                                    <!-- Header -->
-                                    <div class="flex items-center justify-between mb-4 relative z-10">
-                                        <div class="flex items-center gap-2">
-                                            <span class="relative flex h-2 w-2">
-                                                <span
-                                                    class="animate-ping absolute inline-flex h-full w-full rounded-full {{ 'bg-red-500' if intensity == 'critical' else 'bg-blue-400' }} opacity-75"></span>
-                                                <span
-                                                    class="relative inline-flex rounded-full h-2 w-2 {{ 'bg-red-500' if intensity == 'critical' else 'bg-blue-500' }}"></span>
-                                            </span>
-                                            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-                                                Sonic Intelligence</h3>
-                                        </div>
-                                        <button id="speed-toggle" onclick="toggleSpeed()"
-                                            class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">
-                                            1.0x
-                                        </button>
-                                    </div>
-
-                                    <!-- Waveform Visualizer -->
-                                    <div id="waveform"
-                                        class="w-full h-16 mb-6 relative z-10 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
-                                        <!-- Loading State -->
-                                        <div id="wave-loading"
-                                            class="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 font-mono hidden">
-                                            ANALYZING AUDIO DATA...
-                                        </div>
-                                    </div>
-
-                                    <!-- Controls -->
-                                    <div class="flex items-center justify-between relative z-10">
-                                        <div class="flex gap-3">
-                                            {% if article.audio_male %}
-                                            <button onclick="playAudio('male')"
-                                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
-                                                id="btn-male" data-src="{{ article.audio_male }}">
-                                                <svg class="w-3 h-3 play-icon" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                                <svg class="w-3 h-3 pause-icon hidden" fill="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                                </svg>
-                                                Male
-                                            </button>
-                                            {% endif %}
-                                            {% if article.audio_female %}
-                                            <button onclick="playAudio('female')"
-                                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
-                                                id="btn-female" data-src="{{ article.audio_female }}">
-                                                <svg class="w-3 h-3 play-icon" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                                <svg class="w-3 h-3 pause-icon hidden" fill="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                                                </svg>
-                                                Female
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                        <div class="text-[10px] font-mono text-zinc-500 font-bold" id="time-display">
-                                            00:00 / 00:00</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <script>
-                                // --- GenUI Configuration ---
-                                // Determinist color mapping based on Jinja variables
-                                const THEME_COLORS = {
-                                    'critical': '#ef4444', // Red-500
-                                    'warning': '#f59e0b',  // Amber-500
-                                    'techno-optimist': '#3b82f6', // Blue-500
-                                    'standard': '#3b82f6'
-                                };
-
-                                // Using Jinja to inject the current sentiment color
-                                const WAVE_COLOR = "{{ 'critical' if intensity == 'critical' else ('warning' if sentiment == 'warning' else 'techno-optimist') }}";
-                                const PRIMARY_COLOR = THEME_COLORS[WAVE_COLOR] || '#3b82f6';
-
-                                // --- Global State ---
-                                let wavesurfer = null;
-                                let currentGender = null;
-                                let isSticky = false;
-
-                                // --- Initialization ---
-                                document.addEventListener('DOMContentLoaded', () => {
-                                    initWavesurfer();
-                                    initStickyBehavior();
-                                });
-
-                                function initWavesurfer() {
-                                    wavesurfer = WaveSurfer.create({
-                                        container: '#waveform',
-                                        waveColor: '#52525b', // zinc-600
-                                        progressColor: PRIMARY_COLOR,
-                                        cursorColor: '#ffffff',
-                                        barWidth: 3,
-                                        barGap: 2,
-                                        barRadius: 3,
-                                        height: 64,
-                                        normalize: true,
-                                        backend: 'MediaElement' // Better for long audio
-                                    });
-
-                                    // Event Listeners
-                                    wavesurfer.on('ready', () => {
-                                        document.getElementById('wave-loading').classList.add('hidden');
-                                        updateTime();
-                                    });
-
-                                    wavesurfer.on('audioprocess', updateTime);
-                                    wavesurfer.on('finish', resetIcons);
-                                }
-
-                                function playAudio(gender) {
-                                    const btn = document.getElementById(`btn-${gender}`);
-                                    const src = btn.getAttribute('data-src');
-                                    const loadingMsg = document.getElementById('wave-loading');
-
-                                    if (currentGender === gender) {
-                                        // Toggle logic
-                                        wavesurfer.playPause();
-                                        toggleIcons(btn, wavesurfer.isPlaying());
-                                    } else {
-                                        // Switch track
-                                        currentGender = gender;
-                                        loadingMsg.classList.remove('hidden');
-
-                                        wavesurfer.load(src);
-                                        wavesurfer.once('ready', () => {
-                                            wavesurfer.play();
-                                            loadingMsg.classList.add('hidden');
-                                            // Reset all icons then set active
-                                            resetIcons();
-                                            toggleIcons(btn, true);
-
-                                            // Restore speed
-                                            const speed = parseFloat(document.getElementById('speed-toggle').innerText);
-                                            wavesurfer.setPlaybackRate(speed);
-                                        });
-                                    }
-                                }
-
-                                // --- UI Helpers ---
-                                function toggleIcons(btn, isPlaying) {
-                                    // Reset all others
-                                    document.querySelectorAll('.audio-btn').forEach(b => {
-                                        if (b !== btn) {
-                                            b.classList.remove('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
-                                            b.querySelector('.play-icon').classList.remove('hidden');
-                                            b.querySelector('.pause-icon').classList.add('hidden');
-                                        }
-                                    });
-
-                                    const playIcon = btn.querySelector('.play-icon');
-                                    const pauseIcon = btn.querySelector('.pause-icon');
-
-                                    if (isPlaying) {
-                                        playIcon.classList.add('hidden');
-                                        pauseIcon.classList.remove('hidden');
-                                        btn.classList.add('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
-                                    } else {
-                                        playIcon.classList.remove('hidden');
-                                        pauseIcon.classList.add('hidden');
-                                        btn.classList.remove('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
-                                    }
-                                }
-
-                                function resetIcons() {
-                                    document.querySelectorAll('.audio-btn').forEach(btn => {
-                                        toggleIcons(btn, false);
-                                    });
-                                }
-
-                                function toggleSpeed() {
-                                    const speeds = [1.0, 1.25, 1.5, 2.0];
-                                    const currentRate = wavesurfer.getPlaybackRate();
-                                    let idx = speeds.indexOf(currentRate);
-                                    // Handle float precision or custom rates
-                                    if (idx === -1) idx = 0;
-
-                                    const nextSpeed = speeds[(idx + 1) % speeds.length];
-                                    wavesurfer.setPlaybackRate(nextSpeed);
-                                    document.getElementById('speed-toggle').innerText = nextSpeed + 'x';
-                                }
-
-                                function updateTime() {
-                                    const curr = wavesurfer.getCurrentTime();
-                                    const dur = wavesurfer.getDuration();
-                                    document.getElementById('time-display').innerText = `${formatTime(curr)} / ${formatTime(dur)}`;
-                                }
-
-                                function formatTime(seconds) {
-                                    if (!seconds || isNaN(seconds)) return "00:00";
-                                    const m = Math.floor(seconds / 60);
-                                    const s = Math.floor(seconds % 60);
-                                    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                                }
-
-                                // --- Sticky Experience Logic ---
-                                function initStickyBehavior() {
-                                    const sentinel = document.getElementById('audio-sentinel');
-                                    const wrapper = document.getElementById('audio-wrapper');
-
-                                    const observer = new IntersectionObserver((entries) => {
-                                        // Only dock if audio is playing or has been started (don't annoy user if they haven't interacted)
-                                        if (!currentGender) return;
-
-                                        entries.forEach(entry => {
-                                            if (!entry.isIntersecting) {
-                                                // Scrolled past -> Dock it
-                                                makeSticky(true);
-                                            } else {
-                                                // Spying sentinel -> Restore it
-                                                makeSticky(false);
-                                            }
-                                        });
-                                    }, { threshold: 0 });
-
-                                    observer.observe(sentinel);
-
-                                    function makeSticky(active) {
-                                        if (isSticky === active) return;
-                                        isSticky = active;
-
-                                        const innerCard = wrapper.children[0];
-
-                                        if (active) {
-                                            // Dock to Bottom
-                                            wrapper.style.height = wrapper.offsetHeight + 'px'; // Prevent layout shift
-                                            innerCard.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-50', 'bg-zinc-900/95', 'backdrop-blur-xl', 'border-t', 'border-zinc-700', 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]');
-                                            innerCard.classList.remove('rounded-2xl', 'border');
-                                            innerCard.style.borderRadius = "0";
-                                            innerCard.style.margin = "0";
-
-                                            // Compact mode for sticky
-                                            document.getElementById('waveform').style.height = '32px';
-                                            wavesurfer.setHeight(32);
-                                        } else {
-                                            // Restore to top
-                                            wrapper.style.height = 'auto'; // Reset
-                                            innerCard.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-50', 'bg-zinc-900/95', 'backdrop-blur-xl', 'border-t', 'border-zinc-700', 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]');
-                                            innerCard.classList.add('rounded-2xl', 'border');
-                                            innerCard.style.borderRadius = ""; // Reset inline
-
-                                            // Restore height
-                                            document.getElementById('waveform').style.height = '64px';
-                                            wavesurfer.setHeight(64);
-                                        }
-                                    }
-                                }
-                            </script>
-                            {% endif %}
-
-                            <!-- The Gist summary box -->
-                            <div
-                                class="border-l-4 border-blue-600 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
-                                <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist
-                                </h3>
-                                <p class="text-xl font-semibold leading-relaxed text-zinc-100">
-                                    {{ article.gist.replace('**', '') }}
-                                </p>
-                            </div>
-
-
-
-                            <!-- ELI5 Section (Now Prominent) -->
-                            {% if article.eli5 %}
-                            <div
-                                class="bg-blue-700/10 border border-blue-700/20 rounded-2xl p-6 mb-12 flex items-start space-x-4 shadow-sm">
-                                <div class="bg-blue-700 p-2 rounded-lg text-white">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h3 class="text-blue-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">
-                                        Explain Like I'm
-                                        Five</h3>
-                                    <p class="text-zinc-200 text-lg italic leading-relaxed font-medium">
-                                        "{{ article.eli5.replace('**', '') }}"
-                                    </p>
-                                </div>
-                            </div>
-                            {% endif %}
-
-                            <!-- Secondary CTA (After ELI5) -->
-                            <div class="mb-12 flex justify-center md:justify-start">
-                                <a href="{{ article.source_url }}" target="_blank"
-                                    class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 hover:bg-blue-700 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all border border-zinc-700 hover:border-blue-600 shadow-lg group">
-                                    <span>Read Full Story on {{ article.source }}</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                        class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                    </svg>
-                                </a>
-                            </div>
-
-                            <!-- Deep Analysis Section -->
-                            <section class="mb-8">
-                                <h3
-                                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 border-blue-700 pl-4 py-1">
-                                    Deep Intelligence Analysis</h3>
-                                <div class="text-zinc-300 text-lg leading-relaxed space-y-4">
-                                    {{ article.deep_analysis | replace('\n', '<br>') | safe }}
-                                </div>
-                            </section>
-                            <!-- Why It Matters Section -->
-                            <section class="mb-8 mt-10 pt-8 border-t border-zinc-800">
-                                <h3
-                                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
-                                    Impact
-                                    Assessment</h3>
-                                <p class="text-zinc-300 text-lg leading-relaxed mb-8">
-                                    {{ article.why_it_matters }}
-                                </p>
-
-                                <!-- Prominent Link to Source -->
-                                <a href="{{ article.source_url }}" target="_blank"
-                                    class="inline-flex items-center justify-center w-full md:w-auto px-12 py-6 bg-blue-700 hover:bg-blue-600 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all shadow-xl hover:shadow-blue-600/20 group">
-                                    <span>Read Full Story on {{ article.source }}</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                        class="h-6 w-6 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                    </svg>
-                                </a>
-                            </section>
-
-                            <!-- Key Details Section -->
-                            {% if article.key_details and article.key_details|length > 0 %}
-                            <section class="mb-12">
-                                <h3
-                                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
-                                    Key
-                                    Details</h3>
-                                <ul class="space-y-4">{%- for detail in article.key_details -%}
-                                    <li class="flex items-start">
-                                        <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
-                                        <span class="text-zinc-300 text-lg">{{ detail }}</span>
-                                    </li>{%- endfor -%}
-                                </ul>
-                            </section>
-                            {% endif %}
-
-                            <!-- Analysis Grid: Optimistic vs Pessimistic -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
-                                <div
-                                    class="glass-card p-8 rounded-3xl border-green-500/20 bg-green-500/5 light-mode:bg-green-100 light-mode:border-green-300 transition-colors">
-                                    <div class="flex items-center space-x-2 mb-6">
-                                        <div class="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900"
-                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                            </svg>
-                                        </div>
-                                        <h4
-                                            class="text-green-500 light-mode:text-green-800 font-black uppercase tracking-widest">
-                                            Optimistic Outlook</h4>
-                                    </div>
-                                    <p class="text-zinc-300 light-mode:text-zinc-900 font-medium">{{ article.bull_case
-                                        }}</p>
-                                </div>
-
-                                <div
-                                    class="glass-card p-8 rounded-3xl border-red-500/20 bg-red-500/5 light-mode:bg-red-100 light-mode:border-red-300 transition-colors">
-                                    <div class="flex items-center space-x-2 mb-6">
-                                        <div class="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900"
-                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                                                    d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
-                                            </svg>
-                                        </div>
-                                        <h4
-                                            class="text-red-500 light-mode:text-red-800 font-black uppercase tracking-widest">
-                                            Pessimistic Outlook</h4>
-                                    </div>
-                                    <p class="text-zinc-300 light-mode:text-zinc-900 font-medium">{{ article.bear_case
-                                        }}</p>
-                                </div>
-                            </div>
-
-                            <!-- Premium Newsletter CTA: Compact & Theme-Aware -->
-                            <div class="mt-16 mb-12 px-4 md:px-0">
-                                <div
-                                    class="bg-black light-mode-bg-white border border-zinc-900 light-mode-border-zinc-200 rounded-[2.5rem] p-8 md:p-14 flex flex-col items-center text-center shadow-3xl transition-colors duration-300">
-                                    <!-- Logo Square -->
-                                    <div
-                                        class="mb-10 w-20 h-20 bg-white light-mode-bg-zinc-50 border light-mode-border-zinc-200 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/10">
-                                        <img src="/static/img/brand/logo_nodes.png" alt="DailyAIWire Logo"
-                                            class="w-12 h-12 object-contain">
-                                    </div>
-
-                                    <!-- Headline -->
-                                    <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-8 leading-[1.1]">
-                                        <span class="text-zinc-800 light-mode-text-zinc-400">The Signal,</span> <span
-                                            class="text-[#3b82f6]">Not</span><br>
-                                        <span class="text-[#3b82f6] relative">the Noise<span
-                                                class="chameleon-cursor">|</span></span>
-                                    </h2>
-
-                                    <!-- Social Proof -->
-                                    <p
-                                        class="text-zinc-500 light-mode-text-zinc-500 text-base md:text-lg max-w-lg mb-10 leading-relaxed font-medium">
-                                        Get the week's top 1% of AI intelligence synthesized into a 5-minute read. Join
-                                        25,000+ AI
-                                        leaders.
-                                    </p>
-
-                                    <!-- Form -->
-                                    <form action="/subscribe" method="POST"
-                                        class="w-full max-w-md flex flex-col md:flex-row gap-4">
-                                        <input type="email" name="email" placeholder="Enter your email..." required
-                                            aria-label="Email address"
-                                            class="flex-grow bg-[#090909] light-mode-bg-zinc-50 border border-zinc-800 light-mode-border-zinc-300 text-white light-mode-text-black px-6 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-zinc-700 text-sm font-bold">
-                                        <button type="submit"
-                                            class="bg-[#3b82f6] hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs px-8 py-4 rounded-xl shadow-xl shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                                            Join the Wire
-                                        </button>
-                                    </form>
-
-                                    <!-- Legal -->
-                                    <p
-                                        class="mt-10 text-[9px] text-zinc-700 light-mode-text-zinc-400 font-bold uppercase tracking-[0.4em]">
-                                        Unsubscribe anytime. No spam, ever.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <style>
-                                .light-mode .light-mode-bg-white {
-                                    background-color: #ededf0 !important;
-                                }
-
-                                .light-mode .light-mode-bg-zinc-50 {
-                                    background-color: #ffffff !important;
-                                }
-
-                                .light-mode .light-mode-border-zinc-200 {
-                                    border-color: #e2e2e8 !important;
-                                }
-
-                                .light-mode .light-mode-border-zinc-300 {
-                                    border-color: #d1d5db !important;
-                                }
-
-                                .light-mode .light-mode-text-zinc-400 {
-                                    color: #52525b !important;
-                                }
-
-                                .light-mode .light-mode-text-zinc-500 {
-                                    color: #6b7280 !important;
-                                }
-
-                                .light-mode .light-mode-text-black {
-                                    color: #000000 !important;
-                                }
-                            </style>
-                </div>
-
-                <!-- Sidebar (4 cols) -->
-                <aside class="lg:col-span-4 space-y-8">
-                    <!-- Ad Space: Vertical -->
-                    <!-- Ad Space: Vertical -->
-                    <div class="lg:sticky lg:top-24 space-y-6">
-                        <!-- Sticky Newsletter Trap -->
-                        <div
-                            class="bg-blue-900/5 border border-blue-800/20 rounded-2xl p-6 relative overflow-hidden group">
-                            <div
-                                class="absolute inset-0 bg-gradient-to-b from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-                            </div>
-
-                            <h3
-                                class="text-blue-500 font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                                Internal Intelligence
-                            </h3>
-
-                            <h4 class="text-xl font-black text-white mb-2 leading-tight">
-                                Don't Miss the Signal<span class="chameleon-cursor">|</span>
-                            </h4>
-                            <p class="text-zinc-500 text-xs mb-6 font-medium leading-relaxed">
-                                Join 25,000+ architects receiving the daily brief.
-                            </p>
-
-                            <form action="/subscribe" method="POST" class="w-full relative z-10">
-                                <div class="flex flex-col gap-3">
-                                    <input type="email" name="email" placeholder="Email address" required
-                                        class="w-full bg-zinc-100 border border-zinc-200 text-zinc-900 px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-bold placeholder:text-zinc-400">
-                                    <button type="submit"
-                                        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">
-                                        Subscribe Free
-                                    </button>
-                                </div>
-                            </form>
-                            <p
-                                class="mt-4 text-[8px] text-zinc-400 uppercase tracking-widest font-bold text-center hover:text-zinc-300 cursor-pointer">
-                                One-Click Unsubscribe</p>
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-4 relative z-10">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2 w-2">
+                                <span
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full {{ 'bg-red-500' if intensity == 'critical' else 'bg-blue-400' }} opacity-75"></span>
+                                <span
+                                    class="relative inline-flex rounded-full h-2 w-2 {{ 'bg-red-500' if intensity == 'critical' else 'bg-blue-500' }}"></span>
+                            </span>
+                            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                                Sonic Intelligence</h3>
                         </div>
+                        <button id="speed-toggle" onclick="toggleSpeed()"
+                            class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">
+                            1.0x
+                        </button>
+                    </div>
 
-                        <!-- Compact Signal Distributor -->
-                        <div class="bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/50 relative z-0">
-                            <h3 class="text-zinc-600 font-black uppercase text-[10px] tracking-widest mb-3">Distribute
-                                Signal
-                            </h3>
-                            <div class="grid grid-cols-4 gap-2">
-                                <!-- Twitter Share -->
-                                <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
-                                    target="_blank" rel="noopener"
-                                    class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-all group"
-                                    aria-label="Share on X">
-                                    <svg class="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors"
-                                        fill="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
-                                        </path>
-                                    </svg>
-                                </a>
-                                <!-- LinkedIn Share -->
-                                <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
-                                    target="_blank" rel="noopener"
-                                    class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] hover:bg-[#0077b5]/10 transition-all group"
-                                    aria-label="Share on LinkedIn">
-                                    <svg class="w-4 h-4 text-zinc-400 group-hover:text-[#0077b5] transition-colors"
-                                        fill="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                                    </svg>
-                                </a>
-                                <!-- Copy Link -->
-                                <button
-                                    onclick="navigator.clipboard.writeText(window.location.href); alert('Signal Link Copied!')"
-                                    class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 hover:bg-blue-600/10 transition-all group"
-                                    aria-label="Copy Link">
-                                    <svg class="w-4 h-4 text-zinc-400 group-hover:text-blue-600 transition-colors"
-                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
-                                        </path>
-                                    </svg>
-                                </button>
-                                <!-- Follow X (Compact) -->
-                                <a href="https://x.com/DailyAIWireNews" target="_blank" rel="noopener"
-                                    class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-white hover:bg-white/5 transition-all group"
-                                    aria-label="Follow on X">
-                                    <svg class="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors"
-                                        fill="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6z">
-                                        </path>
-                                    </svg>
-                                </a>
-                            </div>
+                    <!-- Waveform Visualizer -->
+                    <div id="waveform"
+                        class="w-full h-16 mb-6 relative z-10 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
+                        <!-- Loading State -->
+                        <div id="wave-loading"
+                            class="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 font-mono hidden">
+                            ANALYZING AUDIO DATA...
                         </div>
                     </div>
 
-                    <style>
-                        @keyframes chameleon {
-
-                            0%,
-                            100% {
-                                color: #3b82f6;
-                                opacity: 1;
-                            }
-
-                            /* Blue */
-                            25% {
-                                color: #a855f7;
-                                opacity: 1;
-                            }
-
-                            /* Purple */
-                            50% {
-                                color: #ec4899;
-                                opacity: 1;
-                            }
-
-                            /* Pink */
-                            75% {
-                                color: #22c55e;
-                                opacity: 1;
-                            }
-
-                            /* Green */
-                            90% {
-                                opacity: 0;
-                            }
-
-                            /* Blink off */
-                        }
-
-                        .chameleon-cursor {
-                            animation: chameleon 4s infinite;
-                            font-weight: 900;
-                            margin-left: 2px;
-                        }
-                    </style>
-                </aside>
+                    <!-- Controls -->
+                    <div class="flex items-center justify-between relative z-10">
+                        <div class="flex gap-3">
+                            {% if article.audio_male %}
+                            <button onclick="playAudio('male')"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
+                                id="btn-male" data-src="{{ article.audio_male }}">
+                                <svg class="w-3 h-3 play-icon" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg class="w-3 h-3 pause-icon hidden" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                                Male
+                            </button>
+                            {% endif %}
+                            {% if article.audio_female %}
+                            <button onclick="playAudio('female')"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
+                                id="btn-female" data-src="{{ article.audio_female }}">
+                                <svg class="w-3 h-3 play-icon" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg class="w-3 h-3 pause-icon hidden" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                                Female
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="text-[10px] font-mono text-zinc-500 font-bold" id="time-display">
+                            00:00 / 00:00</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Related Signals (Internal Linking for SEO) -->
-            {% if related_articles %}
-            <div class="mt-20 border-t border-zinc-800 pt-16 mb-24">
-                <h3 class="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-8">Generated Related Signals
+            <script>
+                // --- GenUI Configuration ---
+                // Determinist color mapping based on Jinja variables
+                const THEME_COLORS = {
+                    'critical': '#ef4444', // Red-500
+                    'warning': '#f59e0b',  // Amber-500
+                    'techno-optimist': '#3b82f6', // Blue-500
+                    'standard': '#3b82f6'
+                };
+
+                // Using Jinja to inject the current sentiment color
+                const WAVE_COLOR = "{{ 'critical' if intensity == 'critical' else ('warning' if sentiment == 'warning' else 'techno-optimist') }}";
+                const PRIMARY_COLOR = THEME_COLORS[WAVE_COLOR] || '#3b82f6';
+
+                // --- Global State ---
+                let wavesurfer = null;
+                let currentGender = null;
+                let isSticky = false;
+
+                // --- Initialization ---
+                document.addEventListener('DOMContentLoaded', () => {
+                    initWavesurfer();
+                    initStickyBehavior();
+                });
+
+                function initWavesurfer() {
+                    wavesurfer = WaveSurfer.create({
+                        container: '#waveform',
+                        waveColor: '#52525b', // zinc-600
+                        progressColor: PRIMARY_COLOR,
+                        cursorColor: '#ffffff',
+                        barWidth: 3,
+                        barGap: 2,
+                        barRadius: 3,
+                        height: 64,
+                        normalize: true,
+                        backend: 'MediaElement' // Better for long audio
+                    });
+
+                    // Event Listeners
+                    wavesurfer.on('ready', () => {
+                        document.getElementById('wave-loading').classList.add('hidden');
+                        updateTime();
+                    });
+
+                    wavesurfer.on('audioprocess', updateTime);
+                    wavesurfer.on('finish', resetIcons);
+                }
+
+                function playAudio(gender) {
+                    const btn = document.getElementById(`btn-${gender}`);
+                    const src = btn.getAttribute('data-src');
+                    const loadingMsg = document.getElementById('wave-loading');
+
+                    if (currentGender === gender) {
+                        // Toggle logic
+                        wavesurfer.playPause();
+                        toggleIcons(btn, wavesurfer.isPlaying());
+                    } else {
+                        // Switch track
+                        currentGender = gender;
+                        loadingMsg.classList.remove('hidden');
+
+                        wavesurfer.load(src);
+                        wavesurfer.once('ready', () => {
+                            wavesurfer.play();
+                            loadingMsg.classList.add('hidden');
+                            // Reset all icons then set active
+                            resetIcons();
+                            toggleIcons(btn, true);
+
+                            // Restore speed
+                            const speed = parseFloat(document.getElementById('speed-toggle').innerText);
+                            wavesurfer.setPlaybackRate(speed);
+                        });
+                    }
+                }
+
+                // --- UI Helpers ---
+                function toggleIcons(btn, isPlaying) {
+                    // Reset all others
+                    document.querySelectorAll('.audio-btn').forEach(b => {
+                        if (b !== btn) {
+                            b.classList.remove('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
+                            b.querySelector('.play-icon').classList.remove('hidden');
+                            b.querySelector('.pause-icon').classList.add('hidden');
+                        }
+                    });
+
+                    const playIcon = btn.querySelector('.play-icon');
+                    const pauseIcon = btn.querySelector('.pause-icon');
+
+                    if (isPlaying) {
+                        playIcon.classList.add('hidden');
+                        pauseIcon.classList.remove('hidden');
+                        btn.classList.add('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
+                    } else {
+                        playIcon.classList.remove('hidden');
+                        pauseIcon.classList.add('hidden');
+                        btn.classList.remove('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
+                    }
+                }
+
+                function resetIcons() {
+                    document.querySelectorAll('.audio-btn').forEach(btn => {
+                        toggleIcons(btn, false);
+                    });
+                }
+
+                function toggleSpeed() {
+                    const speeds = [1.0, 1.25, 1.5, 2.0];
+                    const currentRate = wavesurfer.getPlaybackRate();
+                    let idx = speeds.indexOf(currentRate);
+                    // Handle float precision or custom rates
+                    if (idx === -1) idx = 0;
+
+                    const nextSpeed = speeds[(idx + 1) % speeds.length];
+                    wavesurfer.setPlaybackRate(nextSpeed);
+                    document.getElementById('speed-toggle').innerText = nextSpeed + 'x';
+                }
+
+                function updateTime() {
+                    const curr = wavesurfer.getCurrentTime();
+                    const dur = wavesurfer.getDuration();
+                    document.getElementById('time-display').innerText = `${formatTime(curr)} / ${formatTime(dur)}`;
+                }
+
+                function formatTime(seconds) {
+                    if (!seconds || isNaN(seconds)) return "00:00";
+                    const m = Math.floor(seconds / 60);
+                    const s = Math.floor(seconds % 60);
+                    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                }
+
+                // --- Sticky Experience Logic ---
+                function initStickyBehavior() {
+                    const sentinel = document.getElementById('audio-sentinel');
+                    const wrapper = document.getElementById('audio-wrapper');
+
+                    const observer = new IntersectionObserver((entries) => {
+                        // Only dock if audio is playing or has been started (don't annoy user if they haven't interacted)
+                        if (!currentGender) return;
+
+                        entries.forEach(entry => {
+                            if (!entry.isIntersecting) {
+                                // Scrolled past -> Dock it
+                                makeSticky(true);
+                            } else {
+                                // Spying sentinel -> Restore it
+                                makeSticky(false);
+                            }
+                        });
+                    }, { threshold: 0 });
+
+                    observer.observe(sentinel);
+
+                    function makeSticky(active) {
+                        if (isSticky === active) return;
+                        isSticky = active;
+
+                        const innerCard = wrapper.children[0];
+
+                        if (active) {
+                            // Dock to Bottom
+                            wrapper.style.height = wrapper.offsetHeight + 'px'; // Prevent layout shift
+                            innerCard.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-50', 'bg-zinc-900/95', 'backdrop-blur-xl', 'border-t', 'border-zinc-700', 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]');
+                            innerCard.classList.remove('rounded-2xl', 'border');
+                            innerCard.style.borderRadius = "0";
+                            innerCard.style.margin = "0";
+
+                            // Compact mode for sticky
+                            document.getElementById('waveform').style.height = '32px';
+                            wavesurfer.setHeight(32);
+                        } else {
+                            // Restore to top
+                            wrapper.style.height = 'auto'; // Reset
+                            innerCard.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-50', 'bg-zinc-900/95', 'backdrop-blur-xl', 'border-t', 'border-zinc-700', 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]');
+                            innerCard.classList.add('rounded-2xl', 'border');
+                            innerCard.style.borderRadius = ""; // Reset inline
+
+                            // Restore height
+                            document.getElementById('waveform').style.height = '64px';
+                            wavesurfer.setHeight(64);
+                        }
+                    }
+                }
+            </script>
+            {% endif %}
+
+            <!-- The Gist summary box -->
+            <div
+                class="border-l-4 border-blue-600 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
+                <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist
                 </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {% for rel in related_articles %}
-                    <a href="/article/{{ rel.slug }}" class="group block">
-                        <div
-                            class="aspect-video w-full rounded-2xl overflow-hidden mb-4 border border-zinc-800 relative bg-zinc-900">
-                            <img src="{{ rel.image }}" alt="{{ rel.title }}"
-                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                loading="lazy" onerror="this.src='/static/fallbacks/tools_0.jpg'">
-                            <div class="absolute inset-0 bg-transparent group-hover:bg-blue-600/10 transition-colors">
-                            </div>
-                        </div>
-                        <div
-                            class="inline-block px-2 py-1 bg-zinc-800 text-zinc-400 text-[9px] font-black uppercase tracking-widest rounded mb-2">
-                            {{ rel.category }}
-                        </div>
-                        <h4
-                            class="text-white font-bold text-lg leading-tight group-hover:text-blue-500 transition-colors">
-                            {{ rel.title }}
-                        </h4>
-                        <p class="text-zinc-500 text-xs mt-2">{{ rel.published_at | time_ago }}</p>
-                    </a>
-                    {% endfor %}
+                <p class="text-xl font-semibold leading-relaxed text-zinc-100">
+                    {{ article.gist.replace('**', '') }}
+                </p>
+            </div>
+
+
+
+            <!-- ELI5 Section (Now Prominent) -->
+            {% if article.eli5 %}
+            <div
+                class="bg-blue-700/10 border border-blue-700/20 rounded-2xl p-6 mb-12 flex items-start space-x-4 shadow-sm">
+                <div class="bg-blue-700 p-2 rounded-lg text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-blue-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">
+                        Explain Like I'm
+                        Five</h3>
+                    <p class="text-zinc-200 text-lg italic leading-relaxed font-medium">
+                        "{{ article.eli5.replace('**', '') }}"
+                    </p>
                 </div>
             </div>
             {% endif %}
 
+            <!-- Secondary CTA (After ELI5) -->
+            <div class="mb-12 flex justify-center md:justify-start">
+                <a href="{{ article.source_url }}" target="_blank"
+                    class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 hover:bg-blue-700 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all border border-zinc-700 hover:border-blue-600 shadow-lg group">
+                    <span>Read Full Story on {{ article.source }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Deep Analysis Section -->
+            <section class="mb-8">
+                <h3
+                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 border-blue-700 pl-4 py-1">
+                    Deep Intelligence Analysis</h3>
+                <div class="text-zinc-300 text-lg leading-relaxed space-y-4">
+                    {{ article.deep_analysis | replace('\n', '<br>') | safe }}
+                </div>
+            </section>
+            <!-- Why It Matters Section -->
+            <section class="mb-8 mt-10 pt-8 border-t border-zinc-800">
+                <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
+                    Impact
+                    Assessment</h3>
+                <p class="text-zinc-300 text-lg leading-relaxed mb-8">
+                    {{ article.why_it_matters }}
+                </p>
+
+                <!-- Prominent Link to Source -->
+                <a href="{{ article.source_url }}" target="_blank"
+                    class="inline-flex items-center justify-center w-full md:w-auto px-12 py-6 bg-blue-700 hover:bg-blue-600 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all shadow-xl hover:shadow-blue-600/20 group">
+                    <span>Read Full Story on {{ article.source }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </a>
+            </section>
+
+            <!-- Key Details Section -->
+            {% if article.key_details and article.key_details|length > 0 %}
+            <section class="mb-12">
+                <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
+                    Key
+                    Details</h3>
+                <ul class="space-y-4">{%- for detail in article.key_details -%}
+                    <li class="flex items-start">
+                        <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
+                        <span class="text-zinc-300 text-lg">{{ detail }}</span>
+                    </li>{%- endfor -%}
+                </ul>
+            </section>
+            {% endif %}
+
+            <!-- Analysis Grid: Optimistic vs Pessimistic -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
+                <div
+                    class="glass-card p-8 rounded-3xl border-green-500/20 bg-green-500/5 light-mode:bg-green-100 light-mode:border-green-300 transition-colors">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <div class="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
+                        <h4 class="text-green-500 light-mode:text-green-800 font-black uppercase tracking-widest">
+                            Optimistic Outlook</h4>
+                    </div>
+                    <p class="text-zinc-300 light-mode:text-zinc-900 font-medium">{{ article.bull_case
+                        }}</p>
+                </div>
+
+                <div
+                    class="glass-card p-8 rounded-3xl border-red-500/20 bg-red-500/5 light-mode:bg-red-100 light-mode:border-red-300 transition-colors">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <div class="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                    d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
+                            </svg>
+                        </div>
+                        <h4 class="text-red-500 light-mode:text-red-800 font-black uppercase tracking-widest">
+                            Pessimistic Outlook</h4>
+                    </div>
+                    <p class="text-zinc-300 light-mode:text-zinc-900 font-medium">{{ article.bear_case
+                        }}</p>
+                </div>
+            </div>
+
+            <!-- Premium Newsletter CTA: Compact & Theme-Aware -->
+            <div class="mt-16 mb-12 px-4 md:px-0">
+                <div
+                    class="bg-black light-mode-bg-white border border-zinc-900 light-mode-border-zinc-200 rounded-[2.5rem] p-8 md:p-14 flex flex-col items-center text-center shadow-3xl transition-colors duration-300">
+                    <!-- Logo Square -->
+                    <div
+                        class="mb-10 w-20 h-20 bg-white light-mode-bg-zinc-50 border light-mode-border-zinc-200 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/10">
+                        <img src="/static/img/brand/logo_nodes.png" alt="DailyAIWire Logo"
+                            class="w-12 h-12 object-contain">
+                    </div>
+
+                    <!-- Headline -->
+                    <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-8 leading-[1.1]">
+                        <span class="text-zinc-800 light-mode-text-zinc-400">The Signal,</span> <span
+                            class="text-[#3b82f6]">Not</span><br>
+                        <span class="text-[#3b82f6] relative">the Noise<span class="chameleon-cursor">|</span></span>
+                    </h2>
+
+                    <!-- Social Proof -->
+                    <p
+                        class="text-zinc-500 light-mode-text-zinc-500 text-base md:text-lg max-w-lg mb-10 leading-relaxed font-medium">
+                        Get the week's top 1% of AI intelligence synthesized into a 5-minute read. Join
+                        25,000+ AI
+                        leaders.
+                    </p>
+
+                    <!-- Form -->
+                    <form action="/subscribe" method="POST" class="w-full max-w-md flex flex-col md:flex-row gap-4">
+                        <input type="email" name="email" placeholder="Enter your email..." required
+                            aria-label="Email address"
+                            class="flex-grow bg-[#090909] light-mode-bg-zinc-50 border border-zinc-800 light-mode-border-zinc-300 text-white light-mode-text-black px-6 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-zinc-700 text-sm font-bold">
+                        <button type="submit"
+                            class="bg-[#3b82f6] hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs px-8 py-4 rounded-xl shadow-xl shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                            Join the Wire
+                        </button>
+                    </form>
+
+                    <!-- Legal -->
+                    <p
+                        class="mt-10 text-[9px] text-zinc-700 light-mode-text-zinc-400 font-bold uppercase tracking-[0.4em]">
+                        Unsubscribe anytime. No spam, ever.
+                    </p>
+                </div>
+            </div>
+
+            <style>
+                .light-mode .light-mode-bg-white {
+                    background-color: #ededf0 !important;
+                }
+
+                .light-mode .light-mode-bg-zinc-50 {
+                    background-color: #ffffff !important;
+                }
+
+                .light-mode .light-mode-border-zinc-200 {
+                    border-color: #e2e2e8 !important;
+                }
+
+                .light-mode .light-mode-border-zinc-300 {
+                    border-color: #d1d5db !important;
+                }
+
+                .light-mode .light-mode-text-zinc-400 {
+                    color: #52525b !important;
+                }
+
+                .light-mode .light-mode-text-zinc-500 {
+                    color: #6b7280 !important;
+                }
+
+                .light-mode .light-mode-text-black {
+                    color: #000000 !important;
+                }
+            </style>
         </div>
 
-        {% endblock %}
+        <!-- Sidebar (4 cols) -->
+        <aside class="lg:col-span-4 space-y-8">
+            <!-- Ad Space: Vertical -->
+            <!-- Ad Space: Vertical -->
+            <div class="lg:sticky lg:top-24 space-y-6">
+                <!-- Sticky Newsletter Trap -->
+                <div class="bg-blue-900/5 border border-blue-800/20 rounded-2xl p-6 relative overflow-hidden group">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-b from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                    </div>
+
+                    <h3
+                        class="text-blue-500 font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                        Internal Intelligence
+                    </h3>
+
+                    <h4 class="text-xl font-black text-white mb-2 leading-tight">
+                        Don't Miss the Signal<span class="chameleon-cursor">|</span>
+                    </h4>
+                    <p class="text-zinc-500 text-xs mb-6 font-medium leading-relaxed">
+                        Join 25,000+ architects receiving the daily brief.
+                    </p>
+
+                    <form action="/subscribe" method="POST" class="w-full relative z-10">
+                        <div class="flex flex-col gap-3">
+                            <input type="email" name="email" placeholder="Email address" required
+                                class="w-full bg-zinc-100 border border-zinc-200 text-zinc-900 px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-bold placeholder:text-zinc-400">
+                            <button type="submit"
+                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">
+                                Subscribe Free
+                            </button>
+                        </div>
+                    </form>
+                    <p
+                        class="mt-4 text-[8px] text-zinc-400 uppercase tracking-widest font-bold text-center hover:text-zinc-300 cursor-pointer">
+                        One-Click Unsubscribe</p>
+                </div>
+
+                <!-- Compact Signal Distributor -->
+                <div class="bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/50 relative z-0">
+                    <h3 class="text-zinc-600 font-black uppercase text-[10px] tracking-widest mb-3">Distribute
+                        Signal
+                    </h3>
+                    <div class="grid grid-cols-4 gap-2">
+                        <!-- Twitter Share -->
+                        <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
+                            target="_blank" rel="noopener"
+                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-all group"
+                            aria-label="Share on X">
+                            <svg class="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors"
+                                fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+                                </path>
+                            </svg>
+                        </a>
+                        <!-- LinkedIn Share -->
+                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
+                            target="_blank" rel="noopener"
+                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] hover:bg-[#0077b5]/10 transition-all group"
+                            aria-label="Share on LinkedIn">
+                            <svg class="w-4 h-4 text-zinc-400 group-hover:text-[#0077b5] transition-colors"
+                                fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                            </svg>
+                        </a>
+                        <!-- Copy Link -->
+                        <button
+                            onclick="navigator.clipboard.writeText(window.location.href); alert('Signal Link Copied!')"
+                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 hover:bg-blue-600/10 transition-all group"
+                            aria-label="Copy Link">
+                            <svg class="w-4 h-4 text-zinc-400 group-hover:text-blue-600 transition-colors" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                        </button>
+                        <!-- Follow X (Compact) -->
+                        <a href="https://x.com/DailyAIWireNews" target="_blank" rel="noopener"
+                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-white hover:bg-white/5 transition-all group"
+                            aria-label="Follow on X">
+                            <svg class="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors"
+                                fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6z">
+                                </path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                @keyframes chameleon {
+
+                    0%,
+                    100% {
+                        color: #3b82f6;
+                        opacity: 1;
+                    }
+
+                    /* Blue */
+                    25% {
+                        color: #a855f7;
+                        opacity: 1;
+                    }
+
+                    /* Purple */
+                    50% {
+                        color: #ec4899;
+                        opacity: 1;
+                    }
+
+                    /* Pink */
+                    75% {
+                        color: #22c55e;
+                        opacity: 1;
+                    }
+
+                    /* Green */
+                    90% {
+                        opacity: 0;
+                    }
+
+                    /* Blink off */
+                }
+
+                .chameleon-cursor {
+                    animation: chameleon 4s infinite;
+                    font-weight: 900;
+                    margin-left: 2px;
+                }
+            </style>
+        </aside>
+    </div>
+
+    <!-- Related Signals (Internal Linking for SEO) -->
+    {% if related_articles %}
+    <div class="mt-20 border-t border-zinc-800 pt-16 mb-24">
+        <h3 class="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-8">Generated Related Signals
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {% for rel in related_articles %}
+            <a href="/article/{{ rel.slug }}" class="group block">
+                <div
+                    class="aspect-video w-full rounded-2xl overflow-hidden mb-4 border border-zinc-800 relative bg-zinc-900">
+                    <img src="{{ rel.image }}" alt="{{ rel.title }}"
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy" onerror="this.src='/static/fallbacks/tools_0.jpg'">
+                    <div class="absolute inset-0 bg-transparent group-hover:bg-blue-600/10 transition-colors">
+                    </div>
+                </div>
+                <div
+                    class="inline-block px-2 py-1 bg-zinc-800 text-zinc-400 text-[9px] font-black uppercase tracking-widest rounded mb-2">
+                    {{ rel.category }}
+                </div>
+                <h4 class="text-white font-bold text-lg leading-tight group-hover:text-blue-500 transition-colors">
+                    {{ rel.title }}
+                </h4>
+                <p class="text-zinc-500 text-xs mt-2">{{ rel.published_at | time_ago }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}
