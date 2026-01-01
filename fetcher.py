@@ -738,7 +738,7 @@ def process_batch(batch: List[Dict]):
         "[\n"
         "  {\n"
         "    \"status\": \"SUCCESS | INSUFFICIENT_DATA\",\n"
-        "    \"batch_id\": [Integer matching the ARTICLE ID provided below],\n"
+        "    \"batch_id\": 0, // Integer matching the ARTICLE ID provided below\n"
         "    \"headline\": \"Clicky but Factual Title\",\n"
         "    \"seo_slug\": \"url-safe-slug\",\n"
         "    \"image_query\": \"A concise keyword for an Unsplash image\",\n"
@@ -859,7 +859,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         
         # Find original source info (link, published date, scraped image)
         batch_id = art.get('batch_id')
-        if batch_id is not None and 0 <= batch_id < len(original_batch):
+        if isinstance(batch_id, list) and batch_id:
+            batch_id = batch_id[0]
+            
+        if batch_id is not None and isinstance(batch_id, int) and 0 <= batch_id < len(original_batch):
             original = original_batch[batch_id]
         else:
             # Fallback to slug-based find
