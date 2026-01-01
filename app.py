@@ -80,7 +80,8 @@ class MyAdminIndexView(AdminIndexView):
             params.append(date_filter)
             
         if search_query:
-            conditions.append('title LIKE ?')
+            conditions.append('(title LIKE ? OR original_author LIKE ?)')
+            params.append(f'%{search_query}%')
             params.append(f'%{search_query}%')
             
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
