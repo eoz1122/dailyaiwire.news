@@ -1,12 +1,11 @@
-# Version 2.2.1 - Upgraded to google-genai
+# Version 2.2.2 - Fixed SDK for fetcher.py compatibility
 import re
 import sqlite3
 import difflib
 import os
 import json
 import time
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,7 +23,7 @@ def get_jaccard_sim(t1, t2):
     return len(s1 & s2) / len(s1 | s2)
 
 def ai_deduplicate(recent_only=True):
-    """Uses Gemini 2.0 to identify semantically identical topics.
+    """Uses Gemini to identify semantically identical topics.
     
     Args:
         recent_only: If True, only checks articles added in the last hour.
@@ -37,9 +36,9 @@ def ai_deduplicate(recent_only=True):
     print("🤖 AI Deduplication Agent Scanning for Semantic Duplicates...")
     
     try:
-        client = genai.Client(api_key=api_key)
+        genai.configure(api_key=api_key)
     except Exception as e:
-        print(f"❌ Failed to initialize Gemini Client: {e}")
+        print(f"❌ Failed to configure Gemini: {e}")
         return
 
     conn = sqlite3.connect(DB_PATH)
@@ -83,13 +82,12 @@ def ai_deduplicate(recent_only=True):
     """ + "\n".join(titles_list)
 
     try:
-        # Pydantic-based structured output for safety
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json'
-            )
+        # Standard SDK Usage matched to fetcher.py environment
+        model = genai.GenerativeModel('gemini-1.5-flash') 
+        
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "application/json"}
         )
         
         # Parse JSON
