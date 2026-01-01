@@ -590,7 +590,21 @@ def log_processing_attempt(url: str, status="PROCESSING"):
 
 def extract_content(url: str) -> Tuple[str, str]:
     """Extracts text content and social image from a URL with multiple fallbacks."""
+    # Adding headers to avoid bot detection
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
     downloaded = trafilatura.fetch_url(url)
+    # If standard fetch fails, it might default to None internally or we retry with urllib as fallback if trafilatura supported it, 
+    # but trafilatura.fetch_url handles basics. Let's rely on internal config for now but if it fails we might need requests.
+    # Actually trafilatura doesn't accept headers in fetch_url directly in all versions, but let's try configuring it globally or using requests.
+    # Better approach: Use requests to get HTML, then pass to trafilatura.
+    import requests
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        downloaded = response.text
+    except Exception as e:
+        print(f"⚠️ Request failed for {url}: {e}")
+        downloaded = None
     if downloaded:
         content = trafilatura.extract(downloaded)
         
