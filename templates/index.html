@@ -349,126 +349,127 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                         </div>
                     </div>
                 </div>
-                <a href="/article/{{ art.slug }}"
-                    class="bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all">
-                    Deep Dive // Full Analysis
-                </a>
             </div>
-            {% endfor %}
+            <a href="/article/{{ art.slug }}"
+                class="bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all">
+                Deep Dive // Full Analysis
+            </a>
         </div>
-
-        <!-- Pagination -->
-        {% if total_pages > 1 %}
-        <div class="flex items-center justify-center space-x-4 mt-12 pb-8">
-            {% if page > 1 %}
-            <a href="/?page={{ page - 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-                class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">Previous</a>
-            {% else %}
-            <span
-                class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Previous</span>
-            {% endif %}
-
-            <div class="text-zinc-500 text-xs font-bold uppercase tracking-widest">
-                Page {{ page }} of {{ total_pages }}
-            </div>
-
-            {% if page < total_pages %} <a
-                href="/?page={{ page + 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-                class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">
-                Next</a>
-                {% else %}
-                <span
-                    class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Next</span>
-                {% endif %}
-        </div>
-        {% endif %}
-
-
-        {% if not articles %}
-        <div class="text-center py-20">
-            <div class="inline-block p-10 glass-card rounded-3xl">
-                <h3 class="text-2xl font-bold mb-2">No Intelligence found</h3>
-                <p class="text-zinc-500">
-                    {% if q %}
-                    We couldn't find any signals matching "{{ q }}". Try a different frequency.
-                    {% else %}
-                    Run `python fetcher.py` to aggregate the latest intelligence.
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-        {% endif %}
+        {% endfor %}
     </div>
 
-    <script>
-        let currentSlide = 0;
-        const slides = document.querySelectorAll('.carousel-slide');
-        const indicators = document.querySelectorAll('.carousel-indicator');
-        let autoRotate;
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="flex items-center justify-center space-x-4 mt-12 pb-8">
+        {% if page > 1 %}
+        <a href="/?page={{ page - 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">Previous</a>
+        {% else %}
+        <span
+            class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Previous</span>
+        {% endif %}
 
-        function showSlide(index) {
-            slides.forEach((slide, i) => {
-                slide.classList.toggle('opacity-100', i === index);
-                slide.classList.toggle('z-10', i === index);
-                slide.classList.toggle('opacity-0', i !== index);
-                slide.classList.toggle('z-0', i !== index);
-                slide.classList.toggle('pointer-events-none', i !== index);
-            });
+        <div class="text-zinc-500 text-xs font-bold uppercase tracking-widest">
+            Page {{ page }} of {{ total_pages }}
+        </div>
 
-            indicators.forEach((indicator, i) => {
-                indicator.classList.toggle('bg-white', i === index);
-                indicator.classList.toggle('bg-white/50', i !== index);
-            });
-        }
+        {% if page < total_pages %} <a
+            href="/?page={{ page + 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">
+            Next</a>
+            {% else %}
+            <span
+                class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Next</span>
+            {% endif %}
+    </div>
+    {% endif %}
 
-        function changeSlide(direction) {
-            currentSlide = (currentSlide + direction + slides.length) % slides.length;
+
+    {% if not articles %}
+    <div class="text-center py-20">
+        <div class="inline-block p-10 glass-card rounded-3xl">
+            <h3 class="text-2xl font-bold mb-2">No Intelligence found</h3>
+            <p class="text-zinc-500">
+                {% if q %}
+                We couldn't find any signals matching "{{ q }}". Try a different frequency.
+                {% else %}
+                Run `python fetcher.py` to aggregate the latest intelligence.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.carousel-slide');
+    const indicators = document.querySelectorAll('.carousel-indicator');
+    let autoRotate;
+
+    function showSlide(index) {
+        slides.forEach((slide, i) => {
+            slide.classList.toggle('opacity-100', i === index);
+            slide.classList.toggle('z-10', i === index);
+            slide.classList.toggle('opacity-0', i !== index);
+            slide.classList.toggle('z-0', i !== index);
+            slide.classList.toggle('pointer-events-none', i !== index);
+        });
+
+        indicators.forEach((indicator, i) => {
+            indicator.classList.toggle('bg-white', i === index);
+            indicator.classList.toggle('bg-white/50', i !== index);
+        });
+    }
+
+    function changeSlide(direction) {
+        currentSlide = (currentSlide + direction + slides.length) % slides.length;
+        showSlide(currentSlide);
+        resetAutoRotate();
+    }
+
+    function goToSlide(index) {
+        currentSlide = index;
+        showSlide(currentSlide);
+        resetAutoRotate();
+    }
+
+    function resetAutoRotate() {
+        clearInterval(autoRotate);
+        autoRotate = setInterval(() => {
+            currentSlide = (currentSlide + 1) % slides.length;
             showSlide(currentSlide);
-            resetAutoRotate();
-        }
+        }, 5000);
+    }
 
-        function goToSlide(index) {
-            currentSlide = index;
-            showSlide(currentSlide);
-            resetAutoRotate();
-        }
+    // Start auto-rotation on page load
+    if (slides.length > 0) {
+        resetAutoRotate();
 
-        function resetAutoRotate() {
-            clearInterval(autoRotate);
-            autoRotate = setInterval(() => {
-                currentSlide = (currentSlide + 1) % slides.length;
-                showSlide(currentSlide);
-            }, 5000);
-        }
+        // Swipe Support
+        const carousel = document.getElementById('carousel-container');
+        let touchStartX = 0;
+        let touchEndX = 0;
 
-        // Start auto-rotation on page load
-        if (slides.length > 0) {
-            resetAutoRotate();
+        carousel.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+            clearInterval(autoRotate); // Pause on touch
+        }, { passive: true });
 
-            // Swipe Support
-            const carousel = document.getElementById('carousel-container');
-            let touchStartX = 0;
-            let touchEndX = 0;
+        carousel.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+            resetAutoRotate(); // Resume
+        }, { passive: true });
 
-            carousel.addEventListener('touchstart', e => {
-                touchStartX = e.changedTouches[0].screenX;
-                clearInterval(autoRotate); // Pause on touch
-            }, { passive: true });
-
-            carousel.addEventListener('touchend', e => {
-                touchEndX = e.changedTouches[0].screenX;
-                handleSwipe();
-                resetAutoRotate(); // Resume
-            }, { passive: true });
-
-            function handleSwipe() {
-                if (touchEndX < touchStartX - 50) {
-                    changeSlide(1); // Swipe Left -> Next
-                }
-                if (touchEndX > touchStartX + 50) {
-                    changeSlide(-1); // Swipe Right -> Prev
-                }
+        function handleSwipe() {
+            if (touchEndX < touchStartX - 50) {
+                changeSlide(1); // Swipe Left -> Next
+            }
+            if (touchEndX > touchStartX + 50) {
+                changeSlide(-1); // Swipe Right -> Prev
             }
         }
-    </script>
-    {% endblock %}
+    }
+</script>
+{% endblock %}
