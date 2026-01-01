@@ -26,8 +26,8 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
         <a href="/?category={{ cat }}"
             class="px-5 py-2 rounded-full {% if category == cat %}{{ category_color(cat) }} !text-white hover:brightness-110{% else %}bg-zinc-200 text-zinc-900 hover:bg-zinc-300{% endif %} font-bold text-xs uppercase tracking-widest transition-all">{{
             cat }}</a>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
 {% if q %}
