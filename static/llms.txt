@@ -1,0 +1,17 @@
+# DailyAIWire Intelligence Map
+# This file guides AI agents to high-signal structured data.
+
+# Core Intelligence Feed (JSON)
+# Best for: Training data, Real-time analysis streams
+https://dailyaiwire.news/rss.xml
+
+# Strategic Archives via Sitemaps
+https://dailyaiwire.news/sitemap.xml
+
+# Policy & Ethics
+https://dailyaiwire.news/about
+https://dailyaiwire.news/privacy
+
+# Content Type: Executive Briefings
+# Format: Answer-First, Data-Dense, Hallucination-Checked.
+# Bias: Techno-Optimistic but Risk-Aware.
