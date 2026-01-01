@@ -46,12 +46,13 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 <!-- Featured Carousel (8 Recent Articles) -->
 {% if carousel_articles %}
 <div class="mb-8 lg:col-span-3 relative overflow-hidden rounded-2xl glass-card" id="carousel-container">
-    <div class="relative h-[28rem] md:h-[32rem] lg:h-[40rem]" id="carousel">
+    <div class="relative h-[500px] md:h-[600px] lg:h-[700px] max-h-[85vh]" id="carousel">
         {% for art in carousel_articles %}
         <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100 z-10{% else %}opacity-0 z-0 pointer-events-none{% endif %}"
             data-index="{{ loop.index0 }}">
             <a href="/article/{{ art.slug }}" class="block h-full relative">
-                <img src="{{ art.image }}" alt="{{ art.title }}" class="w-full h-full object-cover" {% if loop.index0> 0
+                <img src="{{ art.image }}" alt="{{ art.title }}" class="w-full h-full object-cover object-center" {% if
+                    loop.index0> 0
                 %}loading="lazy"{% else %}fetchpriority="high"{% endif %}
                 onerror="this.src='/static/fallbacks/tools_0.jpg'">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"></div>
