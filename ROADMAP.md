@@ -30,6 +30,10 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 **Objective:** Optimizing for AI Search (Perplexity/SearchGPT) over Google.
 
 - [x] **`llms.txt` Standard:** Deployed to guide AI crawlers.
+- [ ] **Tavily RAG Research Layer:** (Priority: High)
+  - **Objective:** Give the AI "eyes" to read primary sources and cross-reference headlines.
+  - **Mechanic:** Trigger deep search for whitepapers/docs when a "High Signal" model release is detected.
+  - **Value:** Reduces hallucination, increases "Deep Intelligence" density, and enables self-healing URL discovery.
 - [ ] **Answer-Engine API:** A dedicated JSON endpoint for other AI agents to consume our news (B2B Intelligence).
 - [ ] **"The Signal" Newsletter:** Automated weekly curation of top 1% stories (Backend ready, frontend pending).
 
