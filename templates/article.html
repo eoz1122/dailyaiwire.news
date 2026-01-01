@@ -113,29 +113,10 @@
                         class="text-blue-600">Gemini</span></span>
             </div>
 
-            <!-- Ad Space: Top Content -->
-            <div
-                class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-8 flex flex-col items-center justify-center min-h-[100px] text-zinc-600 light-mode:bg-zinc-100">
-                <span class="text-[10px] font-bold uppercase tracking-widest mb-1">Advertisement</span>
-                <div
-                    class="w-full h-20 bg-zinc-950/50 border border-zinc-800/50 flex items-center justify-center italic text-xs">
-                    Sponsorship: Secure your place in the AI revolution. Contact DailyAIWire.
-                </div>
-            </div>
-
-            <!-- The Gist summary box -->
-            <div
-                class="border-l-4 border-blue-600 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
-                <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist</h3>
-                <p class="text-xl font-semibold leading-relaxed text-zinc-100">
-                    {{ article.gist.replace('**', '') }}
-                </p>
-            </div>
-
             <!-- Audio Intelligence Section -->
             {% if article.audio_male or article.audio_female %}
             <div
-                class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-12 flex gap-6 shadow-xl relative overflow-hidden group">
+                class="bg-zinc-950/50 border border-zinc-800 p-6 rounded-2xl mb-8 flex gap-6 shadow-xl relative overflow-hidden group">
                 <!-- Big Icon -->
                 <div
                     class="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center shrink-0 border border-zinc-800 shadow-inner">
@@ -289,6 +270,17 @@
                 }
             </script>
             {% endif %}
+
+            <!-- The Gist summary box -->
+            <div
+                class="border-l-4 border-blue-600 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
+                <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist</h3>
+                <p class="text-xl font-semibold leading-relaxed text-zinc-100">
+                    {{ article.gist.replace('**', '') }}
+                </p>
+            </div>
+
+
 
             <!-- ELI5 Section (Now Prominent) -->
             {% if article.eli5 %}
