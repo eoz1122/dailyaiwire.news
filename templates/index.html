@@ -131,7 +131,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
             <!-- INTEGRATED HERO: Newsletter Injection (Position 2) -->
             {% if loop.index == 2 and not q and not category and page == 1 %}
             <div
-                class="glass-card rounded-2xl p-8 flex flex-col items-center text-center justify-center relative overflow-hidden group border border-blue-900/30 bg-blue-950/10">
+                class="glass-card h-full rounded-2xl p-8 flex flex-col items-center text-center justify-center relative overflow-hidden group border border-blue-900/30 bg-blue-950/10">
                 <!-- Animated Background Glow -->
                 <div
                     class="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700">
@@ -349,11 +349,11 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                         </div>
                     </div>
                 </div>
+                <a href="/article/{{ art.slug }}"
+                    class="bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all mt-auto">
+                    Deep Dive // Full Analysis
+                </a>
             </div>
-            <a href="/article/{{ art.slug }}"
-                class="bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all">
-                Deep Dive // Full Analysis
-            </a>
         </div>
         {% endfor %}
     </div>

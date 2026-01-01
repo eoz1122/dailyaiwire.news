@@ -891,7 +891,7 @@ def index():
     cat_arg = request.args.get('category')
     q = request.args.get('q', '')
     
-    ITEMS_PER_PAGE = 9
+    ITEMS_PER_PAGE = 8
 
     if q:
         query = f"%{q}%"
