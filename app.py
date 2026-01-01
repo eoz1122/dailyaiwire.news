@@ -15,6 +15,24 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-dev-secret-key-change-in-prod')
 
+# --- Auto-Migration on Startup ---
+def init_db_migrations():
+    try:
+        conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), "news.db"))
+        # 1. Kill Switch Column
+        try:
+            conn.execute('SELECT is_published FROM articles LIMIT 1')
+        except sqlite3.OperationalError:
+            print("RUNNING DISASTER RECOVERY: Adding 'is_published' column...")
+            conn.execute('ALTER TABLE articles ADD COLUMN is_published INTEGER DEFAULT 1')
+            conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Migration failed: {e}")
+
+# Run immediately
+init_db_migrations()
+
 # --- Authentication Setup ---
 login_manager = LoginManager()
 login_manager.init_app(app)
