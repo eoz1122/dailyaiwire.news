@@ -2,7 +2,8 @@ import sqlite3
 import sys
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "news.db")
+# DB is in the parent directory (project root)
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "news.db")
 
 def block_and_purge(domain_or_slug):
     conn = sqlite3.connect(DB_PATH)
