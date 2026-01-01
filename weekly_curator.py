@@ -1,7 +1,8 @@
 import sqlite3
 import json
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -9,7 +10,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# client = genai.Client(api_key=os.getenv("GEMINI_API_KEY")) 
+# We initialize client inside function or global. Global is fine.
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 DB_PATH = "news.db"
 
@@ -24,7 +27,7 @@ def get_top_articles(days=7, limit=7):
     cursor.execute('''
         SELECT id, title, gist, importance_score 
         FROM articles 
-        WHERE published_at >= ? 
+        WHERE published_at >= ? AND is_published = 1
         ORDER BY importance_score DESC, published_at DESC 
         LIMIT ?
     ''', (threshold_date, limit))
@@ -75,17 +78,21 @@ def generate_newsletter_draft():
         from budget_tracker import BudgetTracker
         budget = BudgetTracker()
         
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(
-            prompt, 
-            generation_config={"response_mime_type": "application/json"}
+        # New Client API Call
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp", # Using latest available or standard
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
         )
         
-        # Log Usage
+        # Log Usage (Estimating token counts if not strictly available in same format, 
+        # but usually response.usage_metadata exists)
         if hasattr(response, 'usage_metadata'):
             budget.log_request(
-                getattr(response.usage_metadata, 'prompt_token_count', 0),
-                getattr(response.usage_metadata, 'candidates_token_count', 0),
+                response.usage_metadata.prompt_token_count or 0,
+                response.usage_metadata.candidates_token_count or 0,
                 category="Weekly Digest"
             )
 
@@ -98,12 +105,7 @@ def generate_newsletter_draft():
         # Serialize article IDs for reference
         article_ids = json.dumps([a['id'] for a in top_articles])
         
-        # Build a raw HTML preview (Optional, can be refined in template)
-        html_content = f"<h1>{data['subject']}</h1><p>{data['intro_text'].replace('\\n', '<br>')}</p>"
-        
         # Default scheduled date: Next Sunday at 18:00
-        # If today is Sunday, we might want to schedule for today or next.
-        # Simple logic: ensure it is in the future.
         scheduled_date = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
         if scheduled_date < datetime.now():
             scheduled_date += timedelta(days=7)
