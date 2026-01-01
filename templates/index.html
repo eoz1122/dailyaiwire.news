@@ -125,6 +125,46 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
     <!-- Bento Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for art in articles %}
+
+        <!-- INTEGRATED HERO: Newsletter Injection (Position 2) -->
+        {% if loop.index == 2 and not q and not category and page == 1 %}
+        <div
+            class="glass-card rounded-2xl p-8 flex flex-col items-center text-center justify-center relative overflow-hidden group border border-blue-900/30 bg-blue-950/10">
+            <!-- Animated Background Glow -->
+            <div
+                class="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700">
+            </div>
+
+            <div class="relative z-10 animate-fade-in-up">
+                <div
+                    class="mb-6 w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-blue-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500 animate-pulse-slow" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+
+                <h3 class="text-2xl font-black text-white mb-2 tracking-tight">The Signal, Not the Noise.</h3>
+                <p class="text-zinc-400 text-sm mb-8 font-medium leading-relaxed max-w-xs mx-auto">
+                    Get the top 1% of AI intelligence in a 5-minute read. Join 25,000+ leaders.
+                </p>
+
+                <form action="/subscribe" method="POST" class="w-full">
+                    <div class="flex flex-col gap-3">
+                        <input type="email" name="email" placeholder="Enter your email" required
+                            class="w-full bg-zinc-950/50 border border-zinc-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 transition-colors text-sm font-bold text-center placeholder:text-zinc-600">
+                        <button type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">
+                            Join the Wire
+                        </button>
+                    </div>
+                </form>
+                <p class="mt-4 text-[9px] text-zinc-600 uppercase tracking-widest font-bold">No-Spam Guarantee</p>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="glass-card article-card rounded-2xl overflow-hidden flex flex-col group h-full relative"
             data-published="{{ art.published_at }}">
             <!-- New Badge (Shown via JS) -->
