@@ -213,12 +213,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
             <div class="glass-card article-card rounded-2xl overflow-hidden flex flex-col group h-full relative"
                 data-published="{{ art.published_at }}">
-                <!-- New Badge (Shown via JS) -->
-                <div class="new-badge hidden absolute top-4 right-4 z-10">
-                    <span
-                        class="px-2 py-1 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded shadow-lg animate-pulse">NEW
-                        Signal</span>
-                </div>
+                <!-- Badge Removed -->
 
                 <!-- Article Image Link -->
                 <a href="/article/{{ art.slug }}" class="relative h-48 overflow-hidden block">
