@@ -319,7 +319,7 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     """
     
     try:
-        model_name = 'gemini-2.5-flash'
+        model_name = 'gemini-1.5-flash'
         print(f"⚡ using AI Model (Filter): {model_name}")
         
         # Budget Check

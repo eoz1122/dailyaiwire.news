@@ -4,7 +4,7 @@ import os
 
 # 1. Model Selection
 # We use Gemini 1.5 Flash for high-speed, cost-effective intelligence synthesis.
-DEFAULT_MODEL = "gemini-1.5-flash"
+DEFAULT_MODEL = "gemini-1.5-flash-001"
 
 # 2. The Master Persona
 # This is the "Soul" of the AI. All agents must inherit this voice.
