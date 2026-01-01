@@ -19,6 +19,7 @@ import requests
 from social_distributor import SocialDistributor
 from audio_generator import AudioGenerator
 from google_indexer import notify_google_index
+from qa_monitor import run_post_publication_audit
 from datetime import datetime, timedelta
 
 # Load environment variables
@@ -972,6 +973,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             # We want Google to index OUR version immediately, even before the tweet.
             local_url = f"https://dailyaiwire.news/article/{final_slug}"
             notify_google_index(local_url)
+            
+            # RUN QA AUDIT (Self-Correction)
+            # Verifies the live page actually renders correctly
+            run_post_publication_audit(local_url)
 
             # STAGGERED SOCIAL QUEUING - DISABLED
             # Consolidating all posting into tweet_scheduler.py for strict 1h gaps.
