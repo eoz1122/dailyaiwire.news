@@ -1,3 +1,4 @@
+# Version 2.2.1 - Upgraded to google-genai
 import re
 import sqlite3
 import difflib
