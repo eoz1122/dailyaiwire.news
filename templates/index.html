@@ -15,7 +15,7 @@ Google Gemini.{% endif %}{% endblock %}
 category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="max-w-6xl mx-auto px-4 py-8">
     <!-- Filter Bar -->
     <!-- Filter Bar -->
     <div class="flex flex-nowrap items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
@@ -45,7 +45,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
     <!-- Featured Carousel (8 Recent Articles) -->
     {% if carousel_articles %}
     <div class="mb-8 lg:col-span-3 relative overflow-hidden rounded-2xl glass-card" id="carousel-container">
-        <div class="relative h-[500px] md:h-[600px] lg:h-[700px] max-h-[85vh]" id="carousel">
+        <div class="relative h-[375px] md:h-[450px] lg:h-[525px] max-h-[85vh]" id="carousel">
             {% for art in carousel_articles %}
             <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100 z-10{% else %}opacity-0 z-0 pointer-events-none{% endif %}"
                 data-index="{{ loop.index0 }}">
@@ -126,10 +126,10 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
     <!-- Bento Grid (CSS Grid) -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for art in articles %}
-        <div class="h-full">
 
-            <!-- INTEGRATED HERO: Newsletter Injection (Position 2) -->
-            {% if loop.index == 2 and not q and not category and page == 1 %}
+        <!-- INTEGRATED HERO: Newsletter Injection (Position 2) -->
+        {% if loop.index == 2 and not q and not category and page == 1 %}
+        <div class="h-full">
             <div
                 class="glass-card h-full rounded-2xl p-8 flex flex-col items-center text-center justify-center relative overflow-hidden group border border-blue-900/30 bg-blue-950/10">
                 <!-- Animated Background Glow -->
@@ -209,8 +209,10 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                     </style>
                 </div>
             </div>
-            {% endif %}
+        </div>
+        {% endif %}
 
+        <div class="h-full">
             <div class="glass-card article-card rounded-2xl overflow-hidden flex flex-col group h-full relative"
                 data-published="{{ art.published_at }}">
                 <!-- Badge Removed -->
