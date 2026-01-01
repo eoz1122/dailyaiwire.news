@@ -509,18 +509,52 @@ def fetch_all_sources() -> List[Dict]:
     attempted_urls = {row[0] for row in cur.fetchall()}
     conn.close()
     
-    # Filter candidates
+    # Filter candidates with Local Fuzzy Deduplication (Cost: $0)
+    import difflib
     candidates = []
+    
+    print(f"🔎 Scanning {len(all_articles)} raw headlines against {len(recent_titles)} recent titles...")
+    
     for art in all_articles:
-        if art['link'] not in attempted_urls:
-            candidates.append(art)
-        else:
-            # print(f"🚫 Skipping recently attempted URL: {art['link']}") 
-            pass
+        # 1. Check if URL attempted
+        if art['link'] in attempted_urls:
+            continue
             
+        # 2. Check content length (cheap check)
+        if len(art.get('title', '')) < 10:
+            continue
+
+        # 3. Fuzzy Title Match (The "Cheap" Dedup)
+        # Verify against recent DB titles to avoid re-processing "OpenAI releases Sora" vs "Sora Released by OpenAI"
+        is_duplicate = False
+        clean_title = art['title'].lower().strip()
+        
+        for recent in recent_titles:
+            # Quick substring check
+            if clean_title in recent.lower() or recent.lower() in clean_title:
+                is_duplicate = True
+                break
+            
+            # Fuzzy Ratio check (slower but accurate)
+            ratio = difflib.SequenceMatcher(None, clean_title, recent.lower()).ratio()
+            if ratio > 0.85: # 85% similarity threshold
+                is_duplicate = True
+                break
+        
+        if is_duplicate:
+            # print(f"♻️  Skipping Duplicate/Similar Story: {art['title']}")
+            continue
+            
+        candidates.append(art)
+        
     if not candidates:
-        print("All candidates have already been attempted recently. Skipping.")
+        print("All candidates have already been attempted or matched recently. Skipping.")
         return []
+
+    # CAP: Limit to top 40 candidates to prevent massive bills on "catch-up" runs
+    if len(candidates) > 40:
+        print(f"⚠️ High Volume Warning: Capping {len(candidates)} candidates to 40 to protect budget.")
+        candidates = candidates[:40]
 
     return filter_high_signal_headlines(candidates, recent_titles)
 
@@ -583,14 +617,14 @@ def extract_content(url: str) -> Tuple[str, str]:
     return "", "", ""
 
 def process_batch(batch: List[Dict]):
-    model_name = "gemini-2.5-flash"
+    model_name = "gemini-1.5-flash"
     print(f"⚡ Analyzing batch with: {model_name}")
     model = genai.GenerativeModel(
         model_name=model_name,
         system_instruction=(
             "Identity: You are the Lead Editor and Chief Content Strategist for DailyAIWire.news. "
             "You are renowned for turning dense technical whitepapers into captivating, high-signal intelligence for industry leaders.\n"
-            "Mandate: Use the optimized capabilities of Gemini 2.5 Flash for high-throughput intelligence analysis.\n"
+            "Mandate: Use the optimized capabilities of Gemini 1.5 Flash for high-throughput intelligence analysis.\n"
             "Editorial Standards:\n"
             "* LANGUAGE: ALL OUTPUT MUST BE IN ENGLISH. If the source content is in German or another language, TRANSLATE it on the fly.\n"
             "* Headlines: Create high-impact, H1-worthy headlines that are factual yet 'click-magnetic'.\n"
