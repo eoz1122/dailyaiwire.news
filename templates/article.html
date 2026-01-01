@@ -483,22 +483,37 @@
         <!-- Sidebar (4 cols) -->
         <aside class="lg:col-span-4 space-y-8">
             <!-- Ad Space: Vertical -->
-            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 lg:sticky lg:top-24">
-                <h3 class="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mb-4">Premium Sponsorship</h3>
-                <div
-                    class="aspect-[4/5] bg-zinc-950 border border-zinc-800 rounded-xl flex flex-col items-center justify-center p-6 text-center">
-                    <div class="w-16 h-16 bg-blue-700/20 rounded-full flex items-center justify-center mb-4">
-                        <svg class="w-8 h-8 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
+            <!-- Ad Space: Vertical -->
+            <div class="lg:sticky lg:top-24 space-y-8">
+                <!-- Sticky Newsletter Trap -->
+                <div class="bg-blue-900/10 border border-blue-800/30 rounded-2xl p-6 relative overflow-hidden group">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700">
                     </div>
-                    <span class="text-white font-bold mb-2">Advertise Here</span>
-                    <p class="text-zinc-500 text-xs mb-4 uppercase tracking-tighter font-medium">Reach 25,000+ AI
-                        Architects and Industry Leaders Daily.</p>
-                    <button
-                        class="w-full py-2 bg-zinc-800 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-colors">Digital
-                        Media Kit</button>
+
+                    <h3
+                        class="text-blue-500 font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        Internal Intelligence
+                    </h3>
+
+                    <h4 class="text-xl font-black text-white mb-2 leading-tight">Don't Miss the Signal.</h4>
+                    <p class="text-zinc-400 text-xs mb-6 font-medium leading-relaxed">
+                        Join 25,000+ architects and leaders receiving the daily brief.
+                    </p>
+
+                    <form action="/subscribe" method="POST" class="w-full relative z-10">
+                        <div class="flex flex-col gap-3">
+                            <input type="email" name="email" placeholder="Email address" required
+                                class="w-full bg-zinc-950/80 border border-zinc-700 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 transition-colors text-xs font-bold placeholder:text-zinc-600">
+                            <button type="submit"
+                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all">
+                                Subscribe Free
+                            </button>
+                        </div>
+                    </form>
+                    <p class="mt-4 text-[8px] text-zinc-600 uppercase tracking-widest font-bold text-center">One-Click
+                        Unsubscribe</p>
                 </div>
 
                 <div class="mt-8 bg-zinc-950/50 p-6 rounded-xl border border-zinc-800 relative z-0">
