@@ -1,27 +1,39 @@
-import sqlite3
-import time
-import os
-import json
 import sys
-import pytz
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
+import os
 
-# Ensure logs appear immediately in Supervisor
+# 1. Force Output Immediately
 sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
+print(f"DEBUG: [1/6] Core imports started (sys, os) - PID: {os.getpid()}")
 
-from social_distributor import SocialDistributor
-from remove_duplicates import remove_duplicates
+import time
+import json
+import sqlite3
+print("DEBUG: [2/6] Standard libraries imported")
 
+from datetime import datetime, timedelta
+import pytz
+print("DEBUG: [3/6] Date/Time libraries imported")
+
+from dotenv import load_dotenv
 load_dotenv()
+print("DEBUG: [4/6] Dotenv loaded")
+
+# Import Local Modules (suspected hang spots)
+print("DEBUG: [5/6] Importing SocialDistributor...")
+from social_distributor import SocialDistributor
+print("DEBUG: [5.5/6] SocialDistributor imported.")
+
+print("DEBUG: [6/6] Importing Remove Duplicates...")
+from remove_duplicates import remove_duplicates
+print("DEBUG: [6.5/6] Remove Duplicates imported.")
 
 DB_PATH = "news.db"
 INTERVAL_SECONDS = 7200  # 2 hours
 QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
-VERSION = "2.2.0-STABLE"
+VERSION = "2.2.1-DEBUG"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
