@@ -40,3 +40,14 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [x] **Author-Aware Search:** Admin panel now searches by Author and Title.
 - [ ] **Manual Override Mode:** "Emergency Button" to kill a story globally (CDN purge) from the Admin UI.
 - [ ] **Source Management UI:** Add/Ban sources directly from the dashboard without SQL scripts.
+
+## ⚖️ Phase 5: The Fair Intelligence Ecosystem (Mid-Future)
+
+**Objective:** Latent Readiness for a post-ad-tech economy ("Value-Capture" Architecture).
+
+- [ ] **Attribution Ledger:** Transition from single-source to multi-source "provenance chains" to track value contribution for future revenue sharing.
+- [ ] **Universal Opt-Out Firewall:** Proactive "Ingestion Firewall" that logs and respects `/.well-known/llms.txt` and TDM reservations to ensure "Clean Feed" status.
+- [ ] **Contextual Value Injection (Sponsorship):**
+  - **Concept:** Replace programmatic ads with a sovereign `sponsorship_injection` engine.
+  - **Mechanic:** Scan text for entities (e.g., "Nvidia") -> Match `sponsor_context` -> Inject "Native Sponsor Card".
+  - **Metric:** Optimize for `impression_quality` and relevance, purely server-side.
