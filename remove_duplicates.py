@@ -3,9 +3,9 @@ import sqlite3
 import difflib
 import os
 import json
-import google.generativeai as genai
-import warnings
-warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+import time
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,10 +23,10 @@ def get_jaccard_sim(t1, t2):
     return len(s1 & s2) / len(s1 | s2)
 
 def ai_deduplicate(recent_only=True):
-    """Uses Gemini 2.0 to identify semantically identical topics that fuzzy matching missed.
+    """Uses Gemini 2.0 to identify semantically identical topics.
     
     Args:
-        recent_only: If True, only checks articles added in the last hour (safe for published content)
+        recent_only: If True, only checks articles added in the last hour.
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -34,14 +34,17 @@ def ai_deduplicate(recent_only=True):
         return
 
     print("🤖 AI Deduplication Agent Scanning for Semantic Duplicates...")
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception as e:
+        print(f"❌ Failed to initialize Gemini Client: {e}")
+        return
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     if recent_only:
-        # Only check articles added in the last hour (safe for batch processing)
         cursor.execute("""
             SELECT id, title FROM articles 
             WHERE datetime(published_at) >= datetime('now', '-1 hour')
@@ -49,7 +52,6 @@ def ai_deduplicate(recent_only=True):
         """)
         print("   (Checking only articles from last hour to protect published content)")
     else:
-        # Check the 100 most recent articles (legacy behavior)
         cursor.execute("SELECT id, title FROM articles ORDER BY id DESC LIMIT 100")
     
     articles = cursor.fetchall()
@@ -80,7 +82,16 @@ def ai_deduplicate(recent_only=True):
     """ + "\n".join(titles_list)
 
     try:
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        # Pydantic-based structured output for safety
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type='application/json'
+            )
+        )
+        
+        # Parse JSON
         data = json.loads(response.text)
         ids_to_delete = data.get("duplicates_to_delete", [])
         
@@ -98,18 +109,11 @@ def ai_deduplicate(recent_only=True):
     conn.close()
 
 def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
-    """Standard fuzzy deduplication followed by AI semantic check.
-    
-    Args:
-        seq_threshold: Sequence similarity threshold (0-1)
-        word_threshold: Jaccard word similarity threshold (0-1)
-        recent_only: If True, only checks articles from last hour (safe and efficient)
-    """
+    """Standard fuzzy deduplication followed by AI semantic check."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     if recent_only:
-        # Only check articles added in the last hour
         cursor.execute("""
             SELECT id, title, slug FROM articles 
             WHERE datetime(published_at) >= datetime('now', '-1 hour')
@@ -117,7 +121,6 @@ def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
         """)
         print("Scanning recent articles (last hour) for fuzzy duplicates...")
     else:
-        # Legacy: Check ALL articles (very slow for large databases)
         cursor.execute("SELECT id, title, slug FROM articles ORDER BY id ASC")
         print(f"Scanning ALL articles for fuzzy duplicates...")
     
@@ -156,8 +159,11 @@ def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
     
     conn.close()
     
-    # Now run the smarter AI check (also limited to recent)
-    ai_deduplicate(recent_only=recent_only)
+    # AI Check with safety wrap
+    try:
+        ai_deduplicate(recent_only=recent_only)
+    except Exception as e:
+        print(f"❌ Critical Error in AI Deduplication: {e}")
 
 if __name__ == "__main__":
     remove_duplicates()

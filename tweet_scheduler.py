@@ -2,35 +2,35 @@ import sqlite3
 import time
 import os
 import json
-from social_distributor import SocialDistributor
-from dotenv import load_dotenv
-
-load_dotenv()
-
+import sys
 import pytz
 from datetime import datetime, timedelta
-import sys
+from dotenv import load_dotenv
 
 # Ensure logs appear immediately in Supervisor
 sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+from social_distributor import SocialDistributor
+from remove_duplicates import remove_duplicates
+
+load_dotenv()
 
 DB_PATH = "news.db"
-INTERVAL_SECONDS = 7200  # 2 hours (12/day = 360/month. Safe for 500/month limit)
+INTERVAL_SECONDS = 7200  # 2 hours
 QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
-VERSION = "2.1.0-POWER-DEDUP"
+VERSION = "2.2.0-STABLE"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_next_article_to_share():
+    conn = get_db_connection()
     # Hybrid Logic: Importance + Freshness
-    # We give a dynamic score boost to recent news so it surfaces faster.
-    # - < 6 hours old: +20 points
-    # - < 12 hours old: +10 points
-    # This allows a fresh 'Normal' story to beat a stale 'Very High' story, but preserves true 'Breaking' news.
     query = '''
         SELECT *, 
         (importance_score + 
@@ -50,11 +50,9 @@ def get_db_connection():
     return dict(article) if article else None
 
 def clear_stale_queue():
-    """Marks all unshared articles older than 48 hours as 'Skipped'.
-    Ensures the queue doesn't get backed up with irrelevant old news."""
+    """Marks all unshared articles older than 48 hours as 'Skipped'."""
     conn = get_db_connection()
-    # UTC-aware comparison: Older than 2 days
-    limit_time = (datetime.utcnow() - timedelta(days=2)).isoformat()
+    limit_time = (datetime.now(datetime.UTC) - timedelta(days=2)).isoformat()
     count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND published_at < ?", (limit_time,)).rowcount
     if count > 0:
         print(f"🧹 Queue Maintenance: Cleared {count} stale articles.")
@@ -77,32 +75,26 @@ def get_last_post_time():
 
 def mark_as_shared(slug):
     conn = get_db_connection()
-    # Use UTC for sharing timestamp
-    now_str = datetime.utcnow().isoformat()
+    now_str = datetime.now(datetime.UTC).isoformat()
     conn.execute('UPDATE articles SET shared_on_x = 1, shared_at = ? WHERE slug = ?', (now_str, slug))
     conn.commit()
     conn.close()
 
-from remove_duplicates import remove_duplicates
-
 def main_loop():
     print(f"🚀 Starting Tweet Scheduler v{VERSION}")
-    print(f"📡 Config: Interval 1h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
+    print(f"📡 Config: Interval 2h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
     distributor = SocialDistributor()
 
     while True:
         try:
+            print(f"💓 [Heartbeat] Scheduler Alive at {datetime.now().strftime('%H:%M:%S')}")
+
             # 0. Daily Reset: Clear anything from previous days
             clear_stale_queue()
 
-            # 1. Quiet Hours: Disabled (24/7 Operation)
-            # now_de = datetime.now(TIMEZONE)
-            # if QUIET_START <= now_de.hour < QUIET_END:
-            #     ...
-
-            # 2. Check 1-hour gap (Verified against Database)
+            # 2. Check 2-hour gap (Verified against Database)
             last_shared_time = get_last_post_time()
-            time_since_last = (datetime.utcnow() - last_shared_time).total_seconds()
+            time_since_last = (datetime.now(datetime.UTC) - last_shared_time).total_seconds()
             
             if time_since_last < INTERVAL_SECONDS:
                 remaining = INTERVAL_SECONDS - time_since_last
@@ -111,7 +103,11 @@ def main_loop():
                 continue
 
             # 3. Final safeguard: Clean up any semantic duplicates
-            remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
+            # WRAPPED IN TRY/EXCEPT TO PREVENT MAIN LOOP CRASH
+            try:
+                remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
+            except Exception as e:
+                print(f"⚠️ [Non-Critical] Deduplication error: {e}")
             
             article = get_next_article_to_share()
             
@@ -140,7 +136,7 @@ def main_loop():
                 time.sleep(600)
                 
         except Exception as e:
-            print(f"⚠️ Scheduler Error: {e}")
+            print(f"⚠️ Scheduler Critical Error: {e}")
             time.sleep(600)
 
 if __name__ == "__main__":
