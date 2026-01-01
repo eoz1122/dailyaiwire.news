@@ -47,11 +47,11 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 
 ## ⚖️ Phase 5: The Fair Intelligence Ecosystem (Mid-Future)
 
-**Objective:** Latent Readiness for a post-ad-tech economy ("Value-Capture" Architecture).
+**Objective:** Latent Readiness for a post-ad-tech economy ("Value-Capture" Architecture), aligned with the **Ad Context Protocol (AdCP)**.
 
 - [ ] **Attribution Ledger:** Transition from single-source to multi-source "provenance chains" to track value contribution for future revenue sharing.
 - [ ] **Universal Opt-Out Firewall:** Proactive "Ingestion Firewall" that logs and respects `/.well-known/llms.txt` and TDM reservations to ensure "Clean Feed" status.
-- [ ] **Contextual Value Injection (Sponsorship):**
+- [ ] **Contextual Value Injection (AdCP Integration):**
   - **Concept:** Replace programmatic ads with a sovereign `sponsorship_injection` engine.
   - **Mechanic:** Scan text for entities (e.g., "Nvidia") -> Match `sponsor_context` -> Inject "Native Sponsor Card".
   - **Metric:** Optimize for `impression_quality` and relevance, purely server-side.
