@@ -87,7 +87,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
         
         # Main Articles Query
-        query = f'SELECT id, title, category, published_at, slug, importance_score FROM articles{where_clause} ORDER BY published_at DESC LIMIT ? OFFSET ?'
+        query = f'SELECT id, title, category, published_at, slug, importance_score, is_published FROM articles{where_clause} ORDER BY published_at DESC LIMIT ? OFFSET ?'
         query_params = params + [per_page, offset]
         
         articles = conn.execute(query, query_params).fetchall()
@@ -144,6 +144,14 @@ def admin_budget():
 def admin_sources():
     conn = get_db_connection()
     
+    # Lazy Migration: Ensure is_published exists
+    try:
+        conn.execute('SELECT is_published FROM articles LIMIT 1')
+    except sqlite3.OperationalError:
+        print("MIGRATION: Adding is_published column...")
+        conn.execute('ALTER TABLE articles ADD COLUMN is_published INTEGER DEFAULT 1')
+        conn.commit()
+
     # 1. Get Top Sources by Volume (excluding blocked ones)
     usage_query = """
         SELECT source, count(*) as count 
@@ -219,6 +227,25 @@ def admin_unblock_source():
         conn.close()
         flash(f"Unblocked source: {domain}")
     return redirect(url_for('admin_sources'))
+
+@app.route('/admin/kill/<int:id>', methods=['POST'])
+@login_required
+def admin_kill_article(id):
+    conn = get_db_connection()
+    # Toggle logic: If published(1) -> 0. If killed(0) -> 1.
+    row = conn.execute('SELECT is_published FROM articles WHERE id = ?', (id,)).fetchone()
+    if row:
+        new_status = 0 if row['is_published'] else 1
+        conn.execute('UPDATE articles SET is_published = ? WHERE id = ?', (new_status, id))
+        conn.commit()
+        if new_status == 0:
+            flash(f"KILL SWITCH ACTIVATED: Article {id} is now offline.")
+        else:
+            flash(f"Article {id} restored to live feed.")
+    conn.close()
+    
+    # Return to where we came from (dashboard or edit page)
+    return redirect(request.referrer or url_for('admin.index'))
 
 @app.route('/admin/social-queue')
 @login_required
@@ -836,26 +863,26 @@ def index():
     if q:
         query = f"%{q}%"
         offset = (page - 1) * ITEMS_PER_PAGE
-        total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?', (query, query, query)).fetchone()[0]
-        grid = conn.execute('SELECT * FROM articles WHERE title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ? ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
+        total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1', (query, query, query)).fetchone()[0]
+        grid = conn.execute('SELECT * FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
     elif cat_arg:
         offset = (page - 1) * ITEMS_PER_PAGE
-        total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ?', (cat_arg,)).fetchone()[0]
+        total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ? AND is_published = 1', (cat_arg,)).fetchone()[0]
         total_arts = total_arts_count
-        grid = conn.execute('SELECT * FROM articles WHERE category = ? ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
+        grid = conn.execute('SELECT * FROM articles WHERE category = ? AND is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
     else:
         if page == 1:
-            carousel = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT 10').fetchall()
-            grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
-            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+            carousel = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY published_at DESC, id DESC LIMIT 10').fetchall()
+            grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
+            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
         else:
             db_offset = 10 + ((page - 1) * ITEMS_PER_PAGE)
-            grid = conn.execute('SELECT * FROM articles ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
+            grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
             carousel = []
-            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
 
     conn.close()
