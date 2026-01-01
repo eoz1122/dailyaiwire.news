@@ -11,7 +11,7 @@ import json
 import sqlite3
 print("DEBUG: [2/6] Standard libraries imported")
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pytz
 print("DEBUG: [3/6] Date/Time libraries imported")
 
@@ -64,7 +64,7 @@ def get_next_article_to_share():
 def clear_stale_queue():
     """Marks all unshared articles older than 48 hours as 'Skipped'."""
     conn = get_db_connection()
-    limit_time = (datetime.now(datetime.UTC) - timedelta(days=2)).isoformat()
+    limit_time = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
     count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND published_at < ?", (limit_time,)).rowcount
     if count > 0:
         print(f"🧹 Queue Maintenance: Cleared {count} stale articles.")
@@ -87,7 +87,7 @@ def get_last_post_time():
 
 def mark_as_shared(slug):
     conn = get_db_connection()
-    now_str = datetime.now(datetime.UTC).isoformat()
+    now_str = datetime.now(timezone.utc).isoformat()
     conn.execute('UPDATE articles SET shared_on_x = 1, shared_at = ? WHERE slug = ?', (now_str, slug))
     conn.commit()
     conn.close()
@@ -106,7 +106,7 @@ def main_loop():
 
             # 2. Check 2-hour gap (Verified against Database)
             last_shared_time = get_last_post_time()
-            time_since_last = (datetime.now(datetime.UTC) - last_shared_time).total_seconds()
+            time_since_last = (datetime.now(timezone.utc) - last_shared_time).total_seconds()
             
             if time_since_last < INTERVAL_SECONDS:
                 remaining = INTERVAL_SECONDS - time_since_last
