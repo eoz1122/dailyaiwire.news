@@ -766,8 +766,6 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             analysis = art['deep_analysis'].lower() # Update for blacklist check
 
         blacklist = [
-
-        blacklist = [
             "source content missing",
             "javascript is disabled",
             "enable javascript",
