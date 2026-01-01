@@ -249,7 +249,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                     {% endif %}
                 </a>
 
-                <div class="p-4 flex flex-col h-full">
+                <div class="p-4 flex flex-col flex-grow">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center space-x-2">
                             <!-- Source Logo/Icon -->
@@ -350,7 +350,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                     </div>
                 </div>
                 <a href="/article/{{ art.slug }}"
-                    class="bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all mt-auto">
+                    class="relative z-20 bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all mt-auto">
                     Deep Dive // Full Analysis
                 </a>
             </div>
