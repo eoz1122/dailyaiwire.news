@@ -144,11 +144,12 @@ def admin_budget():
 def admin_sources():
     conn = get_db_connection()
     
-    # 1. Get Top Sources by Volume
+    # 1. Get Top Sources by Volume (excluding blocked ones)
     usage_query = """
         SELECT source, count(*) as count 
         FROM articles 
         WHERE source IS NOT NULL AND source != '' 
+        AND source NOT IN (SELECT domain FROM blocked_sources)
         GROUP BY source 
         ORDER BY count DESC 
         LIMIT 50
