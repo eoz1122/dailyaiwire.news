@@ -13,3 +13,6 @@ pytz
 moviepy
 flask-admin
 flask-login
+google-auth
+google-auth-httplib2
+httplib2

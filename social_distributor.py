@@ -11,6 +11,7 @@ if sys.version_info >= (3, 13):
 import tweepy
 import requests
 from dotenv import load_dotenv
+from google_indexer import notify_google_index
 
 load_dotenv()
 
@@ -84,6 +85,10 @@ class SocialDistributor:
             # Send the tweet
             response = client.create_tweet(text=tweet_text)
             print(f"✅ Posted to X! ID: {response.data['id']}")
+            
+            # TRIGGER GOOGLE INDEXING (Instant Crawl)
+            notify_google_index(link)
+            
             return True
         except Exception as e:
             # CRITICAL LOOP FIX: Re-raise "Too Many Requests" so the scheduler knows to sleep
