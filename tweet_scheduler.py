@@ -79,11 +79,17 @@ def get_last_post_time():
         try:
             ts = row['shared_at']
             if 'T' in ts:
-                return datetime.fromisoformat(ts)
-            return datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                dt = datetime.fromisoformat(ts)
+            else:
+                dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+            
+            # Force UTC if naive
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
         except:
-            return datetime.min
-    return datetime.min
+            return datetime.min.replace(tzinfo=timezone.utc)
+    return datetime.min.replace(tzinfo=timezone.utc)
 
 def mark_as_shared(slug):
     conn = get_db_connection()
