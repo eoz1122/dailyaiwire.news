@@ -871,6 +871,11 @@ def article(slug):
     d = dict(art)
     try: d['key_details'] = json.loads(art['key_details'])
     except: d['key_details'] = []
+    
+    # GenUI Token Parsing
+    try: d['design_tokens'] = json.loads(art['design_tokens'])
+    except: d['design_tokens'] = {}
+    
     return render_template('article.html', article=d)
 
 @app.route('/about')
