@@ -311,18 +311,32 @@
             </div>
             {% endif %}
 
+            <!-- Secondary CTA (After ELI5) -->
+            <div class="mb-12 flex justify-center md:justify-start">
+                <a href="{{ article.source_url }}" target="_blank"
+                    class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 hover:bg-blue-700 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all border border-zinc-700 hover:border-blue-600 shadow-lg group">
+                    <span>Read Full Story on {{ article.source }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                        class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </a>
+            </div>
+
             <!-- Deep Analysis Section -->
-            <section class="mb-12">
+            <section class="mb-8">
                 <h3
-                    class="text-white font-black uppercase text-xs tracking-widest mb-6 border-l-4 border-blue-700 pl-4 py-1">
+                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 border-blue-700 pl-4 py-1">
                     Deep Intelligence Analysis</h3>
                 <div class="text-zinc-300 text-lg leading-relaxed space-y-4">
                     {{ article.deep_analysis | replace('\n', '<br>') | safe }}
                 </div>
             </section>
             <!-- Why It Matters Section -->
-            <section class="mb-12 mt-16 pt-12 border-t border-zinc-800">
-                <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
+            <section class="mb-8 mt-10 pt-8 border-t border-zinc-800">
+                <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
                     Impact
                     Assessment</h3>
                 <p class="text-zinc-300 text-lg leading-relaxed mb-8">
@@ -331,10 +345,10 @@
 
                 <!-- Prominent Link to Source -->
                 <a href="{{ article.source_url }}" target="_blank"
-                    class="inline-flex items-center justify-center w-full md:w-auto px-8 py-4 bg-blue-700 hover:bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 group">
+                    class="inline-flex items-center justify-center w-full md:w-auto px-12 py-6 bg-blue-700 hover:bg-blue-600 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all shadow-xl hover:shadow-blue-600/20 group">
                     <span>Read Full Story on {{ article.source }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
+                        class="h-6 w-6 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                             d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -345,7 +359,7 @@
             <!-- Key Details Section -->
             {% if article.key_details and article.key_details|length > 0 %}
             <section class="mb-12">
-                <h3 class="text-white font-black uppercase text-xs tracking-widest mb-6 border-b border-zinc-800 pb-2">
+                <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
                     Key
                     Details</h3>
                 <ul class="space-y-4">
