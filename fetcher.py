@@ -19,7 +19,7 @@ import requests
 from social_distributor import SocialDistributor
 from audio_generator import AudioGenerator
 from google_indexer import notify_google_index
-from qa_monitor import run_post_publication_audit
+from maintenance.qa_monitor import run_post_publication_audit
 from datetime import datetime, timedelta
 
 # Load environment variables
