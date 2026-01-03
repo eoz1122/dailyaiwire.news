@@ -1,11 +1,12 @@
 {
   "current_month": "2026-01",
-  "total_spent": 0.00013597499999999998,
-  "requests": 1,
-  "tokens_used": 1738,
+  "total_spent": 0.0026501999999999997,
+  "requests": 4,
+  "tokens_used": 15290,
   "breakdown": {
-    "Headline Filter": 0.00013597499999999998
+    "Headline Filter": 0.00013597499999999998,
+    "Article Analysis": 0.0025142249999999997
   },
   "current_day": "2026-01-01",
-  "daily_spent": 0.00013597499999999998
+  "daily_spent": 0.0026501999999999997
 }

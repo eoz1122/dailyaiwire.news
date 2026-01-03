@@ -13,10 +13,15 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
+
 print("Listing available models...")
-try:
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            print(f"- {m.name}")
-except Exception as e:
-    print(f"Error listing models: {e}")
+with open("models_output.txt", "w") as f:
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                print(f"- {m.name}")
+                f.write(f"{m.name}\n")
+    except Exception as e:
+        print(f"Error listing models: {e}")
+        f.write(f"Error: {e}\n")
+
