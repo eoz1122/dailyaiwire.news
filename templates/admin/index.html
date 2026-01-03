@@ -75,11 +75,19 @@
                                 RESTORE
                             </button>
                             {% else %}
-                            <button type="submit"
-                                class="text-[10px] font-black uppercase text-red-500 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 hover:bg-red-600 hover:text-white transition-colors"
-                                title="Unpublish Immediately">
-                                KILL
-                            </button>
+                            <div class="flex gap-1">
+                                <button type="submit"
+                                    class="text-[10px] font-black uppercase text-red-500 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 hover:bg-red-600 hover:text-white transition-colors"
+                                    title="Unpublish Immediately">
+                                    KILL
+                                </button>
+                                <button type="submit"
+                                    formaction="{{ url_for('admin_kill_article', id=article.id, block_source='true') }}"
+                                    class="text-[10px] font-black uppercase text-zinc-400 bg-zinc-900 px-2 py-1 rounded border border-zinc-700 hover:bg-red-900 hover:text-red-200 transition-colors"
+                                    title="Kill & Block Source Domain">
+                                    🚫
+                                </button>
+                            </div>
                             {% endif %}
                         </form>
                     </td>

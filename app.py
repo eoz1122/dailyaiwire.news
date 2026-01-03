@@ -266,15 +266,30 @@ def admin_unblock_source():
 def admin_kill_article(id):
     conn = get_db_connection()
     # Toggle logic: If published(1) -> 0. If killed(0) -> 1.
-    row = conn.execute('SELECT is_published FROM articles WHERE id = ?', (id,)).fetchone()
+    row = conn.execute('SELECT is_published, source FROM articles WHERE id = ?', (id,)).fetchone()
+    
     if row:
-        new_status = 0 if row['is_published'] else 1
+        current_status = row['is_published']
+        # If currently published, we are KILLING it (0). If killed, restoring (1).
+        new_status = 0 if current_status else 1
+        
         conn.execute('UPDATE articles SET is_published = ? WHERE id = ?', (new_status, id))
-        conn.commit()
-        if new_status == 0:
-            flash(f"KILL SWITCH ACTIVATED: Article {id} is now offline.")
+        
+        status_msg = "LIVE" if new_status else "OFFLINE"
+        flash_color = "success" if new_status else "warning"
+
+        # Check for "Nuclear Option" (Block Source)
+        if new_status == 0 and request.args.get('block_source') == 'true':
+            source_to_block = row['source']
+            if source_to_block:
+                conn.execute('INSERT OR IGNORE INTO blocked_sources (domain) VALUES (?)', (source_to_block,))
+                flash(f"☢️ NUCLEAR LAUNCH DETECTED: Source '{source_to_block}' has been blacklisted.", "error")
+            else:
+                flash(f"Article {id} is {status_msg}, but Source was missing/empty.", flash_color)
         else:
-            flash(f"Article {id} restored to live feed.")
+            flash(f"Article {id} Status: {status_msg}", flash_color)
+
+        conn.commit()
     conn.close()
     
     # Return to where we came from (dashboard or edit page)
