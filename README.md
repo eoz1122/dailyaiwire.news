@@ -73,6 +73,9 @@ dailyaiwire/
 │   ├── og-image.jpg
 │   ├── logo.png
 │   └── robots.txt
+├── maintenance/          # Utility scripts (QA, Deduplication, Debugging)
+│   ├── qa_monitor.py
+│   └── check_unsplash_urls.py
 ├── news.db              # SQLite database
 └── requirements.txt
 ```
@@ -82,6 +85,7 @@ dailyaiwire/
 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete VPS deployment instructions.
 
 **Quick Deploy:**
+
 1. Setup Ubuntu VPS
 2. Install Nginx + Supervisor
 3. Configure SSL with Let's Encrypt
@@ -100,6 +104,7 @@ FLASK_ENV=production
 ### Fetcher Schedule
 
 Edit crontab to run fetcher:
+
 ```bash
 0 * * * * cd /path/to/dailyaiwire && /path/to/venv/bin/python fetcher.py
 ```
@@ -107,6 +112,7 @@ Edit crontab to run fetcher:
 ## 📊 Database Schema
 
 ### Articles Table
+
 - `slug` - URL-safe identifier
 - `title` - Article headline
 - `gist` - 1-2 sentence summary
@@ -120,6 +126,7 @@ Edit crontab to run fetcher:
 - `published_at` - ISO timestamp
 
 ### Blog Posts Table
+
 - `slug`, `title`, `subtitle`, `content`, `image`, `published_at`
 
 ## 🎨 UI Features
