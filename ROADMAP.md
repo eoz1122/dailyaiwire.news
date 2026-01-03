@@ -13,6 +13,7 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [x] **Adversarial Spam Filter:** 3-Layer defense (DB Blacklist, Heuristics, AI Sentiment) to filter affiliate microsites.
 - [x] **EU AI Act Compliance:** Automated transparency labeling ("Art. 50 Verified") on all AI-synthesized content.
 - [x] **Instant Indexing:** Google Indexing API integration for <10min crawl times.
+- [x] **Web Indexing:** Sitemap and indexing infrastructure optimized for fast discovery.
 - [x] **Resilient Scheduler:** Self-healing social distribution pipeline.
 
 ## 🚧 Phase 2: Generative UI (High Priority - Q2 '26)
@@ -45,7 +46,17 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [ ] **Manual Override Mode:** "Emergency Button" to kill a story globally (CDN purge) from the Admin UI.
 - [ ] **Source Management UI:** Add/Ban sources directly from the dashboard without SQL scripts.
 
-## ⚖️ Phase 5: The Fair Intelligence Ecosystem (Mid-Future)
+## 🔮 Phase 6: Future Architecture & AdCP
+
+**Objective:** Scaling the ecosystem using Agentic standards.
+
+- [ ] **Infrastructure Upgrade (vibe-to-prod):**
+  - **Goal:** Investigate migrating the stack to a production-ready template (Go/Echo + Next.js + Cloud Run).
+  - **Why:** To support high-concurrency AdCP agents and robust CI/CD pipelines.
+- [ ] **Ad Context Protocol (AdCP) Prototype:**
+  - **Status:** *In Planning*.
+  - **Goal:** Build the first reference implementation of an AdCP-compliant agent ("AdAgent Alpha").
+  - **Tech:** FastMCP + Gemini.
 
 **Objective:** Latent Readiness for a post-ad-tech economy ("Value-Capture" Architecture), aligned with the **Ad Context Protocol (AdCP)**.
 
