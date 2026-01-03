@@ -1,7 +1,7 @@
 import os, sqlite3, json, math, re, shutil, time
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from flask import Flask, render_template, abort, request, Response, redirect, url_for, flash
+from flask import Flask, render_template, abort, request, Response, redirect, url_for, flash, make_response
 from email.utils import formatdate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_admin import Admin, AdminIndexView, expose
@@ -1291,6 +1291,51 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+@app.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    """Generates a dynamic XML sitemap for Google Indexing."""
+    base_url = "https://dailyaiwire.news"
+    pages = []
+
+    # Static Pages
+    pages.append([base_url + "/", 1.0, "daily"])
+    pages.append([base_url + "/about", 0.5, "monthly"])
+    pages.append([base_url + "/contact", 0.5, "monthly"])
+    pages.append([base_url + "/privacy", 0.5, "yearly"])
+    pages.append([base_url + "/lab", 0.8, "weekly"])
+
+    # Dynamic Articles
+    conn = get_db_connection()
+    articles = conn.execute("SELECT slug, published_at FROM articles WHERE is_published = 1 ORDER BY published_at DESC LIMIT 1000").fetchall()
+    for art in articles:
+        url = f"{base_url}/article/{art['slug']}"
+        # Parse date for lastmod (Assuming ISO format from DB)
+        try:
+            pub_date = art['published_at'].split(' ')[0] # YYYY-MM-DD
+        except:
+            pub_date = datetime.now().strftime('%Y-%m-%d')
+        pages.append([url, 0.8, "daily", pub_date])
+    
+    conn.close()
+
+    sitemap_xml = render_template('sitemap_template.xml', pages=pages)
+    response = make_response(sitemap_xml)
+    response.headers["Content-Type"] = "application/xml"
+    return response
+
+@app.route('/robots.txt')
+def robots():
+    """Serves the standard robots.txt file."""
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin/",
+        "Disallow: /login",
+        "",
+        "Sitemap: https://dailyaiwire.news/sitemap.xml"
+    ]
+    return Response("\n".join(lines), mimetype="text/plain")
 
 if __name__ == '__main__':
     app.run(debug=False, port=8000)
