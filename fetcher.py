@@ -391,7 +391,7 @@ def fetch_all_sources() -> List[Dict]:
         ("Hacker News (AI)", "https://hnrss.org/newest?q=AI+OR+LLM"),
 
         # // AGGREGATOR
-        ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
+        ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+-tool+-launch+-product+when:1d&hl=en-US&gl=US&ceid=US:en")
     ]
     
     unique_articles = {}
