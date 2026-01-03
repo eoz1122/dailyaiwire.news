@@ -283,93 +283,37 @@
                         document.getElementById('wave-loading').classList.add('hidden');
                         const staticWave = document.getElementById('static-waveform');
                         if (staticWave) staticWave.classList.add('hidden');
+                        
+                        // Initial update
                         updateTime();
+                        
+                        // Force a re-check for duration (MediaElement quirk)
+                        setTimeout(updateTime, 200);
+                        setTimeout(updateTime, 1000);
                     });
 
                     wavesurfer.on('audioprocess', updateTime);
+                    wavesurfer.on('interaction', updateTime);
                     wavesurfer.on('finish', resetIcons);
                 }
 
-                function playAudio(gender) {
-                    const btn = document.getElementById(`btn-${gender}`);
-                    const src = btn.getAttribute('data-src');
-                    const loadingMsg = document.getElementById('wave-loading');
-
-                    if (currentGender === gender) {
-                        // Toggle logic
-                        wavesurfer.playPause();
-                        toggleIcons(btn, wavesurfer.isPlaying());
-                    } else {
-                        // Switch track
-                        currentGender = gender;
-                        loadingMsg.classList.remove('hidden');
-
-                        wavesurfer.load(src);
-                        wavesurfer.once('ready', () => {
-                            wavesurfer.play();
-                            loadingMsg.classList.add('hidden');
-                            // Reset all icons then set active
-                            resetIcons();
-                            toggleIcons(btn, true);
-
-                            // Restore speed
-                            const speed = parseFloat(document.getElementById('speed-toggle').innerText);
-                            wavesurfer.setPlaybackRate(speed);
-                        });
-                    }
-                }
-
-                // --- UI Helpers ---
-                function toggleIcons(btn, isPlaying) {
-                    // Reset all others
-                    document.querySelectorAll('.audio-btn').forEach(b => {
-                        if (b !== btn) {
-                            b.classList.remove('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
-                            b.querySelector('.play-icon').classList.remove('hidden');
-                            b.querySelector('.pause-icon').classList.add('hidden');
-                        }
-                    });
-
-                    const playIcon = btn.querySelector('.play-icon');
-                    const pauseIcon = btn.querySelector('.pause-icon');
-
-                    if (isPlaying) {
-                        playIcon.classList.add('hidden');
-                        pauseIcon.classList.remove('hidden');
-                        btn.classList.add('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
-                    } else {
-                        playIcon.classList.remove('hidden');
-                        pauseIcon.classList.add('hidden');
-                        btn.classList.remove('border-blue-500', 'text-white', 'ring-1', 'ring-blue-500/50');
-                    }
-                }
-
-                function resetIcons() {
-                    document.querySelectorAll('.audio-btn').forEach(btn => {
-                        toggleIcons(btn, false);
-                    });
-                }
-
-                function toggleSpeed() {
-                    const speeds = [1.0, 1.25, 1.5, 2.0];
-                    const currentRate = wavesurfer.getPlaybackRate();
-                    let idx = speeds.indexOf(currentRate);
-                    // Handle float precision or custom rates
-                    if (idx === -1) idx = 0;
-
-                    const nextSpeed = speeds[(idx + 1) % speeds.length];
-                    wavesurfer.setPlaybackRate(nextSpeed);
-                    document.getElementById('speed-toggle').innerText = nextSpeed + 'x';
-                }
+                // ... [keep other functions] ...
 
                 function updateTime() {
                     const curr = wavesurfer.getCurrentTime();
-                    const dur = wavesurfer.getDuration();
+                    let dur = wavesurfer.getDuration();
+                    
+                    // Robust check for MediaElement duration
+                    const media = wavesurfer.__media || (wavesurfer.getMediaElement ? wavesurfer.getMediaElement() : null);
+                    if ((!dur || !isFinite(dur)) && media && isFinite(media.duration)) {
+                        dur = media.duration;
+                    }
+
                     document.getElementById('time-display').innerText = `${formatTime(curr)} / ${formatTime(dur)}`;
                 }
 
                 function formatTime(seconds) {
-                    if (!seconds || isNaN(seconds)) return "00:00";
+                    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "00:00";
                     const m = Math.floor(seconds / 60);
                     const s = Math.floor(seconds % 60);
                     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
