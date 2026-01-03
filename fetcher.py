@@ -301,8 +301,9 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     
     CRITICAL INSTRUCTIONS:
     1. EXCLUDE any article that is the same story as one in the RECENTLY PUBLISHED list, even if the wording is different.
-    2. PRIORITIZE major breakthroughs, strategic corporate shifts, and research milestones.
-    3. EXCLUDE minor updates, generic tech news, and sponsored content.
+    2. EXCLUDE all "Sponsored", "Advertisement", "Promoted", "Affiliate", or "Partner Content".
+    3. PRIORITIZE major breakthroughs, strategic corporate shifts, and research milestones.
+    4. EXCLUDE minor updates, generic tech news, and listicles like "Top 10 AI Tools".
     
     Return EXACTLY 8 indices of the most important, non-duplicate articles as a comma-separated list.
     If there are fewer than 8 worthy articles, return only those indices.
@@ -311,15 +312,17 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     - OpenAI releases Sora API
     - Local coffee shop uses AI for menu
     - DeepMind breakthrough in protein folding
+    - [Sponsored] Best AI SEO Tools 2026
     - Google announces Gemini 2.5
-    Example Output: 0, 2, 3
+    Example Output: 0, 2, 4
     
     HEADLINES:
     {headline_list}
     """
     
     try:
-        model_name = 'gemini-2.0-flash'
+        from ai_config import DEFAULT_MODEL
+        model_name = DEFAULT_MODEL
         print(f"⚡ using AI Model (Filter): {model_name}")
         
         # Budget Check
