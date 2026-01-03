@@ -300,21 +300,24 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     {headline_list}
     
     CRITICAL INSTRUCTIONS:
-    1. EXCLUDE any article that is the same story as one in the RECENTLY PUBLISHED list, even if the wording is different.
-    2. EXCLUDE all "Sponsored", "Advertisement", "Promoted", "Affiliate", or "Partner Content".
+    1. EXCLUDE any article that is the same story as one in the RECENTLY PUBLISHED list.
+    2. EXCLUDE "Sponsored", "Advertisement", "Promoted", "Affiliate", or "Partner Content".
     3. PRIORITIZE major breakthroughs, strategic corporate shifts, and research milestones.
-    4. EXCLUDE minor updates, generic tech news, and listicles like "Top 10 AI Tools".
+    4. ALLOW "Product Launches" ONLY IF they are:
+       - Open Source / MIT Licensed / Hugging Face releases.
+       - A major infrastructure update (e.g. AWS, NVIDIA, OpenAI).
+    5. BLOCK generic B2B SaaS launches, "All-in-one" marketing tools, and paid wrapper apps.
     
-    Return EXACTLY 8 indices of the most important, non-duplicate articles as a comma-separated list.
-    If there are fewer than 8 worthy articles, return only those indices.
+    Return EXACTLY 8 indices of the most important articles.
     
     Example Input:
-    - OpenAI releases Sora API
-    - Local coffee shop uses AI for menu
-    - DeepMind breakthrough in protein folding
-    - [Sponsored] Best AI SEO Tools 2026
-    - Google announces Gemini 2.5
-    Example Output: 0, 2, 4
+    - OpenAI releases Sora API [Keep]
+    - Local coffee shop uses AI for menu [Block]
+    - Invoce: AI Invoicing for Freelancers [Block - SaaS]
+    - Llama-3-70b release on Hugging Face [Keep - Open Source]
+    - Google announces Gemini 2.5 [Keep]
+    - [Sponsored] Best AI SEO Tools 2026 [Block]
+    Example Output: 0, 3, 4
     
     HEADLINES:
     {headline_list}
@@ -391,7 +394,7 @@ def fetch_all_sources() -> List[Dict]:
         ("Hacker News (AI)", "https://hnrss.org/newest?q=AI+OR+LLM"),
 
         # // AGGREGATOR
-        ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+-tool+-launch+-product+when:1d&hl=en-US&gl=US&ceid=US:en")
+        ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
     ]
     
     unique_articles = {}
