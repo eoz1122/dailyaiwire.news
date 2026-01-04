@@ -13,19 +13,41 @@ from budget_tracker import BudgetTracker
 
 load_dotenv()
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-dev-secret-key-change-in-prod')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'simple-key-placeholder')
+
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # --- Auto-Migration on Startup ---
 def init_db_migrations():
     try:
         conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), "news.db"))
+        
         # 1. Kill Switch Column
         try:
             conn.execute('SELECT is_published FROM articles LIMIT 1')
         except sqlite3.OperationalError:
             print("RUNNING DISASTER RECOVERY: Adding 'is_published' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN is_published INTEGER DEFAULT 1')
-            conn.commit()
+        
+        # 2. Admins Table
+        try:
+            conn.execute('CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, created_at TEXT)')
+            
+            # Check if default admin exists; if not, migrate from ENV
+            if not conn.execute('SELECT id FROM admins LIMIT 1').fetchone():
+                print("MIGRATION: Moving ENV Admin to Database...")
+                env_user = os.getenv('ADMIN_USERNAME', 'admin')
+                env_pass = os.getenv('ADMIN_PASSWORD', 'admin')
+                p_hash = generate_password_hash(env_pass)
+                conn.execute('INSERT INTO admins (username, password_hash, created_at) VALUES (?, ?, ?)', 
+                             (env_user, p_hash, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                conn.commit()
+                print("MIGRATION: Admin migrated successfully!")
+            
+        except sqlite3.Error as e:
+            print(f"Admin migration error: {e}")
+
+        conn.commit()
         conn.close()
     except Exception as e:
         print(f"Migration failed: {e}")
@@ -54,13 +76,18 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 class User(UserMixin):
-    def __init__(self, id):
+    def __init__(self, id, username=None):
         self.id = id
+        self.username = username
 
 @login_manager.user_loader
 def load_user(user_id):
-    if user_id == os.getenv('ADMIN_USERNAME', 'admin'):
-        return User(user_id)
+    conn = get_db_connection()
+    user_row = conn.execute('SELECT id, username FROM admins WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    
+    if user_row:
+        return User(id=user_row['id'], username=user_row['username'])
     return None
 
 # --- Admin Views ---
@@ -293,6 +320,24 @@ def admin_kill_article(id):
     conn.close()
     
     # Return to where we came from (dashboard or edit page)
+    return redirect(request.referrer or url_for('admin.index'))
+
+@app.route('/admin/generate-video/<int:id>', methods=['POST'])
+@login_required
+def admin_generate_video(id):
+    """Spawns a background thread to generate a LinkedIn Audiogram."""
+    import threading
+    from maintenance.linkedin_audiogram import generate_audiogram
+    
+    def run_gen(aid):
+        print(f"🧵 Thread started for Video {aid}")
+        generate_audiogram(aid)
+        print(f"🏁 Thread finished for Video {aid}")
+
+    thread = threading.Thread(target=run_gen, args=(id,))
+    thread.start()
+    
+    flash(f"🎬 Video generation started for Article {id}. Check /static/videos/ shortly!", "success")
     return redirect(request.referrer or url_for('admin.index'))
 
 @app.route('/admin/social-queue')
@@ -1276,16 +1321,67 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        env_user = os.getenv('ADMIN_USERNAME', 'admin')
-        env_pass = os.getenv('ADMIN_PASSWORD', 'admin')
+        conn = get_db_connection()
+        user_row = conn.execute('SELECT * FROM admins WHERE username = ?', (username,)).fetchone()
+        conn.close()
         
-        if username == env_user and password == env_pass:
-            user = User(username)
+        if user_row and check_password_hash(user_row['password_hash'], password):
+            user = User(id=user_row['id'], username=user_row['username'])
             login_user(user)
             return redirect(url_for('admin.index'))
         else:
-            flash('Invalid credentials')
+            flash('Invalid credentials', 'error')
     return render_template('login.html')
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    """List all admin users."""
+    conn = get_db_connection()
+    admins = conn.execute('SELECT * FROM admins').fetchall()
+    conn.close()
+    return render_template('admin/users.html', admins=admins)
+
+@app.route('/admin/users/add', methods=['POST'])
+@login_required
+def admin_add_user():
+    """Add a new admin user."""
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    if not username or not password:
+        flash('Username and password are required!', 'error')
+        return redirect(url_for('admin_users'))
+        
+    try:
+        conn = get_db_connection()
+        p_hash = generate_password_hash(password)
+        conn.execute('INSERT INTO admins (username, password_hash, created_at) VALUES (?, ?, ?)', 
+                     (username, p_hash, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        conn.commit()
+        conn.close()
+        flash(f'Admin {username} created successfully!', 'success')
+    except sqlite3.IntegrityError:
+        flash('Username already exists!', 'error')
+    except Exception as e:
+        flash(f'Error creating user: {e}', 'error')
+        
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/users/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_user(id):
+    """Delete an admin user."""
+    if id == current_user.id:
+        flash('You cannot delete yourself!', 'error')
+        return redirect(url_for('admin_users'))
+        
+    conn = get_db_connection()
+    conn.execute('DELETE FROM admins WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    flash('Admin deleted successfully.', 'success')
+    return redirect(url_for('admin_users'))
 
 @app.route('/logout')
 def logout():
@@ -1293,7 +1389,7 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/sitemap.xml', methods=['GET'])
-def sitemap():
+def seo_sitemap():
     """Generates a dynamic XML sitemap for Google Indexing."""
     base_url = "https://dailyaiwire.news"
     pages = []
@@ -1325,7 +1421,7 @@ def sitemap():
     return response
 
 @app.route('/robots.txt')
-def robots():
+def seo_robots():
     """Serves the standard robots.txt file."""
     lines = [
         "User-agent: *",
@@ -1336,6 +1432,38 @@ def robots():
         "Sitemap: https://dailyaiwire.news/sitemap.xml"
     ]
     return Response("\n".join(lines), mimetype="text/plain")
+
+@app.route('/subscribe', methods=['GET', 'POST'])
+def subscribe():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        if email:
+            conn = get_db_connection()
+            # Ensure table exists (Lazy Migration)
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS subscribers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email TEXT UNIQUE,
+                    status TEXT DEFAULT 'ACTIVE',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            try:
+                conn.execute('INSERT INTO subscribers (email) VALUES (?)', (email,))
+                conn.commit()
+                # Use the thank_you template for success
+                return render_template('thank_you.html')
+            except sqlite3.IntegrityError:
+                flash('You are already subscribed to the intelligence feed.')
+                return redirect(url_for('subscribe'))
+            except Exception as e:
+                flash(f'Error: {e}')
+                return redirect(url_for('subscribe'))
+            finally:
+                conn.close()
+        
+    return render_template('subscribe.html')
 
 if __name__ == '__main__':
     app.run(debug=False, port=8000)
