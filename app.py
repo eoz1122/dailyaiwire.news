@@ -1117,30 +1117,6 @@ def impressum(): return render_template('impressum.html')
 def thank_you_page():
     return render_template('thank_you.html')
 
-@app.route('/subscribe', methods=['POST'])
-def subscribe():
-    email = request.form.get('email', '').strip()
-    if not email:
-        flash("Please provide a valid email address.")
-        return redirect(request.referrer or '/')
-    
-    conn = get_db_connection()
-    try:
-        conn.execute('INSERT INTO subscribers (email) VALUES (?)', (email,))
-        conn.commit()
-        # Success: Redirect to dedicated Thank You page
-        conn.close()
-        return redirect(url_for('thank_you_page'))
-        
-    except sqlite3.IntegrityError:
-        # Already subscribed: Still redirect to Thank You page for good UX (treat as success)
-        conn.close()
-        return redirect(url_for('thank_you_page'))
-        
-    except Exception as e:
-        conn.close()
-        flash("Neural link failed. Please try again later.")
-        return redirect(request.referrer or '/')
 
 
 # Lab routes defined below using file-based storage

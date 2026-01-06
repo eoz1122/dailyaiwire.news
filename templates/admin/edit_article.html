@@ -1,195 +1,192 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 
-{% block title %}Edit Article | DailyAIWire Admin{% endblock %}
+{% block title %}Edit Signal | DailyAIWire{% endblock %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-12 max-w-4xl">
-    <div class="flex items-center gap-4 mb-8">
-        <a href="{{ url_for('admin.index') }}" class="text-zinc-500 hover:text-white transition-colors">
-            &larr; Back to Dashboard
-        </a>
+{% block admin_content %}
+<form method="POST" enctype="multipart/form-data" class="flex flex-col h-full">
+
+    <!-- Sticky Header Actions -->
+    <div
+        class="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur border-b border-zinc-800 px-8 py-4 flex justify-between items-center mb-8 -mx-8">
+        <div class="flex items-center gap-4 px-8">
+            <a href="{{ url_for('admin.index') }}"
+                class="text-zinc-500 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-lg">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-lg font-bold text-white">Edit Intelligence Signal</h1>
+                <div class="text-xs text-zinc-500 font-mono">{{ article.slug }}</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 px-8">
+            <button type="submit" formaction="{{ url_for('admin_delete_article', id=article.id) }}" formmethod="POST"
+                onclick="return confirm('Nuke this signal? This cannot be undone.');"
+                class="text-xs font-bold text-red-500 hover:text-red-400 px-4 py-2 opacity-60 hover:opacity-100 transition-opacity">
+                Delete Signal
+            </button>
+            <a href="{{ url_for('admin.index') }}"
+                class="px-4 py-2 text-sm font-bold text-zinc-400 hover:text-white transition-colors">Cancel</a>
+            <button type="submit"
+                class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-lg shadow-blue-500/20 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4">
+                    </path>
+                </svg>
+                Save Changes
+            </button>
+        </div>
     </div>
 
-    <div class="glass-card rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8">
-        <div class="flex justify-between items-start mb-6">
-            <h1 class="text-2xl font-bold text-white">Edit Article</h1>
-            <form action="{{ url_for('admin_delete_article', id=article.id) }}" method="POST"
-                onsubmit="return confirm('Are you sure? This cannot be undone.');">
-                <button type="submit"
-                    class="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-red-600/50 text-sm font-bold">
-                    Delete Article
-                </button>
-            </form>
-        </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
+        <!-- Left Column: Core Content (2/3) -->
+        <div class="lg:col-span-2 space-y-8">
 
-        <form method="POST" enctype="multipart/form-data" class="space-y-6">
-            <!-- Row 1: Title & Slug -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-zinc-300 mb-2">Headline</label>
-                    <input type="text" name="title" value="{{ article.title }}" required aria-label="Headline"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-zinc-300 mb-2">Slug (URL)</label>
-                    <input type="text" name="slug" value="{{ article.slug }}" required aria-label="Slug URL"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
+            <!-- Headline Card -->
+            <div class="glass-card bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl">
+                <div class="space-y-4">
+                    <div>
+                        <label
+                            class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Headline</label>
+                        <input type="text" name="title" value="{{ article.title }}" required
+                            class="w-full bg-zinc-950 border-0 border-b-2 border-zinc-800 focus:border-blue-500 text-xl font-bold text-white px-0 py-2 focus:ring-0 transition-colors placeholder-zinc-700"
+                            placeholder="Enter a punchy headline...">
+                    </div>
+                    <div>
+                        <!-- Slug Helper -->
+                        <div class="flex items-center gap-2 text-xs text-zinc-600 font-mono">
+                            <span>https://dailyaiwire.news/article/</span>
+                            <input type="text" name="slug" value="{{ article.slug }}"
+                                class="bg-transparent border-b border-zinc-800 focus:border-zinc-500 text-zinc-400 focus:outline-none w-full">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Row 2: Category, Date, Source -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Analysis Editor -->
+            <div class="glass-card bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl">
+                <label
+                    class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 flex justify-between">
+                    Deep Analysis
+                    <span class="text-[10px] text-zinc-600 font-normal">Markdown Supported</span>
+                </label>
+                <textarea name="deep_analysis" rows="20"
+                    class="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg p-4 text-sm font-mono text-zinc-300 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 leading-relaxed custom-scrollbar">{{ article.deep_analysis }}</textarea>
+            </div>
+
+            <!-- Summary Blocks -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card bg-zinc-900/50 border border-zinc-800 p-5 rounded-xl">
+                    <label class="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2">Optimistic
+                        Outlook</label>
+                    <textarea name="bull_case" rows="4"
+                        class="w-full bg-zinc-950/30 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50">{{ article.bull_case }}</textarea>
+                </div>
+                <div class="glass-card bg-zinc-900/50 border border-zinc-800 p-5 rounded-xl">
+                    <label class="block text-xs font-bold text-red-400 uppercase tracking-widest mb-2">Risk
+                        Analysis</label>
+                    <textarea name="bear_case" rows="4"
+                        class="w-full bg-zinc-950/30 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 focus:ring-1 focus:ring-red-500/50 focus:border-red-500/50">{{ article.bear_case }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Metadata & Media (1/3) -->
+        <div class="space-y-6">
+
+            <!-- Publishing Meta -->
+            <div class="glass-card bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-6 sticky top-24">
+                <h3 class="text-sm font-bold text-white border-b border-zinc-800 pb-2">Publishing Meta</h3>
+
                 <div>
-                    <label class="block text-sm font-medium text-zinc-300 mb-2">Category</label>
-                    <select name="category" aria-label="Category Selection"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">Category</label>
+                    <select name="category"
+                        class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:border-blue-500">
                         {% for cat in ['Business', 'Technology', 'Policy', 'Science', 'Tools', 'Security', 'Finance',
                         'Health', 'Energy', 'LLMs', 'Robotics', 'Society'] %}
                         <option value="{{ cat }}" {% if article.category==cat %}selected{% endif %}>{{ cat }}</option>
                         {% endfor %}
                     </select>
                 </div>
+
                 <div>
-                    <!-- Fallback to text input for date to avoid format issues, or use type="datetime-local" if format matches -->
-                    <label class="block text-sm font-medium text-zinc-300 mb-2">Published At</label>
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">Published Date</label>
                     <input type="text" name="published_at" value="{{ article.published_at }}"
-                        placeholder="YYYY-MM-DD HH:MM:SS" aria-label="Published Date"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-sm text-white font-mono">
                 </div>
+
                 <div>
-                    <label class="block text-sm font-medium text-zinc-300 mb-2">Source Name</label>
-                    <input type="text" name="source" value="{{ article.source }}" aria-label="Source Name"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-xs font-bold text-zinc-500 mb-1">Source Attribution</label>
+                    <input type="text" name="source" value="{{ article.source }}"
+                        class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-sm text-white mb-2"
+                        placeholder="Source Name">
+                    <input type="text" name="source_url" value="{{ article.source_url }}"
+                        class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-400"
+                        placeholder="https://original-source.com">
                 </div>
             </div>
 
-            <!-- Row 3: Source URL -->
-            <div>
-                <label class="block text-sm font-medium text-zinc-300 mb-2">Source URL</label>
-                <input type="text" name="source_url" value="{{ article.source_url }}" aria-label="Source URL"
-                    class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-zinc-400">
-            </div>
+            <!-- Media Manager -->
+            <div class="glass-card bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-6">
+                <h3 class="text-sm font-bold text-white border-b border-zinc-800 pb-2">Media Assets</h3>
 
-            <!-- Media Section -->
-            <div class="p-6 bg-zinc-900 rounded-xl border border-zinc-800 space-y-6">
-                <h3 class="text-lg font-bold text-white border-b border-zinc-800 pb-2">Media Assets</h3>
-
-                <!-- Main Image -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                    <div class="col-span-1">
-                        <label class="block text-sm font-medium text-blue-400 mb-2">Main Image</label>
-                        {% if article.image %}
-                        <img src="{{ article.image }}" alt="Article Main Image"
-                            class="w-full h-32 object-cover rounded-lg mb-2 opacity-75">
-                        <p class="text-xs text-zinc-500 break-all">{{ article.image }}</p>
-                        <label class="flex items-center space-x-2 mt-2">
-                            <input type="checkbox" name="delete_image" aria-label="Delete Image"
-                                class="rounded bg-zinc-700 border-zinc-600">
-                            <span class="text-xs text-red-400">Delete/Reset Image</span>
-                        </label>
-                        {% else %}
+                <!-- Image Preview -->
+                <div>
+                    <label class="block text-xs font-bold text-zinc-500 mb-2">Main Graphic</label>
+                    {% if article.image %}
+                    <div class="relative group rounded-lg overflow-hidden border border-zinc-700 mb-3">
+                        <img src="{{ article.image }}" class="w-full h-32 object-cover">
                         <div
-                            class="w-full h-32 bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-600 text-xs">
-                            No Image</div>
-                        {% endif %}
-                    </div>
-                    <div class="col-span-2">
-                        <input type="file" name="image_file" accept="image/*" aria-label="Upload New Image"
-                            class="block w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700">
-                        <p class="text-xs text-zinc-500 mt-1">Upload to replace. Accepts PNG, JPG, JPEG, WEBP.</p>
-                        <div class="mt-2">
-                            <label class="text-xs text-zinc-400">Or use External URL:</label>
-                            <input type="text" name="image_url"
-                                value="{{ article.image if article.image and article.image.startswith('http') else '' }}"
-                                placeholder="https://..." aria-label="External Image URL"
-                                class="w-full mt-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-xs text-white">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Audio Files -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-zinc-800">
-                    <!-- Male Audio -->
-                    <div>
-                        <label class="block text-sm font-medium text-purple-400 mb-2">Audio (Male)</label>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs text-zinc-500 truncate max-w-[200px]">{{ article.audio_male or 'None'
-                                }}</span>
-                            {% if article.audio_male %}
-                            <label class="flex items-center space-x-1">
-                                <input type="checkbox" name="delete_audio_male" aria-label="Delete Male Audio"
-                                    class="rounded bg-zinc-700 border-zinc-600">
-                                <span class="text-xs text-red-400">Delete</span>
+                            class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <label
+                                class="cursor-pointer text-xs text-red-300 flex items-center gap-1 hover:text-red-200">
+                                <input type="checkbox" name="delete_image" class="hidden">
+                                <span>🗑️ Remove</span>
                             </label>
-                            {% endif %}
                         </div>
-                        <input type="file" name="audio_male_file" accept=".mp3,.wav" aria-label="Upload Male Audio"
-                            class="block w-full text-xs text-zinc-400 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600">
                     </div>
-                    <!-- Female Audio -->
-                    <div>
-                        <label class="block text-sm font-medium text-pink-400 mb-2">Audio (Female)</label>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs text-zinc-500 truncate max-w-[200px]">{{ article.audio_female or 'None'
-                                }}</span>
-                            {% if article.audio_female %}
-                            <label class="flex items-center space-x-1">
-                                <input type="checkbox" name="delete_audio_female" aria-label="Delete Female Audio"
-                                    class="rounded bg-zinc-700 border-zinc-600">
-                                <span class="text-xs text-red-400">Delete</span>
-                            </label>
-                            {% endif %}
+                    {% else %}
+                    <div
+                        class="w-full h-32 bg-zinc-950 border border-zinc-800 rounded-lg flex items-center justify-center text-zinc-700 text-xs mb-3">
+                        No Signal Graphic
+                    </div>
+                    {% endif %}
+
+                    <input type="file" name="image_file"
+                        class="block w-full text-xs text-zinc-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 mb-2">
+                    <input type="text" name="image_url" placeholder="Or URL..."
+                        class="w-full bg-zinc-950 border-none text-[10px] text-zinc-500 px-2 rounded focus:ring-0">
+                </div>
+
+                <!-- Audio -->
+                <div class="pt-4 border-t border-zinc-800">
+                    <label class="block text-xs font-bold text-zinc-500 mb-2">Audio Synthesis</label>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-purple-400 w-8">MALE</span>
+                            <input type="file" name="audio_male_file" class="w-full text-[10px] text-zinc-500">
                         </div>
-                        <input type="file" name="audio_female_file" accept=".mp3,.wav" aria-label="Upload Female Audio"
-                            class="block w-full text-xs text-zinc-400 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-pink-400 w-8">FEM</span>
+                            <input type="file" name="audio_female_file" class="w-full text-[10px] text-zinc-500">
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Gist -->
-            <div>
-                <label class="block text-sm font-medium text-zinc-300 mb-2">The Gist (Summary)</label>
-                <textarea name="gist" rows="3" aria-label="Gist Summary"
-                    class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">{{ article.gist }}</textarea>
+            <!-- The Gist (Short) -->
+            <div class="glass-card bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
+                <label class="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">The Gist
+                    (TL;DR)</label>
+                <textarea name="gist" rows="4"
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-300 focus:border-blue-500">{{ article.gist }}</textarea>
             </div>
 
-            <!-- Why It Matters -->
-            <div>
-                <label class="block text-sm font-medium text-zinc-300 mb-2">Why It Matters</label>
-                <textarea name="why_it_matters" rows="3" aria-label="Why It Matters"
-                    class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">{{ article.why_it_matters }}</textarea>
-            </div>
-
-            <!-- Optimistic / Pessimistic -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-green-400 mb-2">Optimistic Outlook</label>
-                    <textarea name="bull_case" rows="4" aria-label="Optimistic Outlook"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500">{{ article.bull_case }}</textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-red-400 mb-2">Risk Analysis</label>
-                    <textarea name="bear_case" rows="4" aria-label="Risk Analysis"
-                        class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500">{{ article.bear_case }}</textarea>
-                </div>
-            </div>
-
-            <!-- Deep Analysis -->
-            <div>
-                <label class="block text-sm font-medium text-zinc-300 mb-2">Deep Analysis (Full Text)</label>
-                <textarea name="deep_analysis" rows="10" aria-label="Deep Analysis"
-                    class="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm leading-relaxed">{{ article.deep_analysis }}</textarea>
-            </div>
-
-            <div class="border-t border-zinc-800 pt-6 flex justify-end gap-4">
-                <a href="{{ url_for('admin.index') }}"
-                    class="px-6 py-3 rounded-xl border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">Cancel</a>
-                <button type="submit"
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-900/20">
-                    Save Changes
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+
+</form>
 {% endblock %}
