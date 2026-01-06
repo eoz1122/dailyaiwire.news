@@ -19,7 +19,7 @@ import requests
 from social_distributor import SocialDistributor
 from audio_generator import AudioGenerator
 from google_indexer import notify_google_index
-from maintenance.qa_monitor import run_post_publication_audit
+from qa_monitor import run_post_publication_audit
 from datetime import datetime, timedelta
 
 # Load environment variables
@@ -362,42 +362,26 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
 
 def fetch_all_sources() -> List[Dict]:
     """Fetches news from multiple specific AI feeds and Google News."""
-    sources = [
-        # // PRIMARY WIRE
-        ("The Verge", "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
-        ("TechCrunch", "https://techcrunch.com/category/artificial-intelligence/feed/"),
-        ("Wired", "https://www.wired.com/feed/tag/ai/latest/rss"),
-        # ("The Batch", "https://read.deeplearning.ai/the-batch/feed"), # 404 - No public RSS found
-        ("Import AI", "https://importai.substack.com/feed"),
-        # ("Ben's Bites", "https://bensbites.beehiiv.com/feed"), # 404 - Requires specific Beehiiv ID
-        ("MIT Technology Review", "https://www.technologyreview.com/topic/artificial-intelligence/feed"), # Verified Feed
-        # ("DFKI (Germany)", "https://robotik.dfki-bremen.de/de/startseite/news-rss-feed"),
-        # ("BracAI (EU)", "https://www.bracai.eu/blog-feed.xml"),
-        # ("Zukunftszentrum KI NRW", "https://www.zukunftszentrum-ki.nrw/feed/"),
-        
-        # // RESEARCH LABS
-        ("OpenAI", "https://openai.com/news/rss.xml"),
-        ("DeepMind", "https://deepmind.com/blog/feed/basic/"),
-        ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml"),
-        # ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"), # 400 - Feed broken/unreliable
-        ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"),
-        ("Anthropic", "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml"),
-        ("Cambridge University AI", "https://www.cam.ac.uk/taxonomy/term/51032/feed"),
-        
-        # // ENTERPRISE & MARKETS
-        ("VentureBeat", "https://venturebeat.com/category/ai/feed/"),
-        # ("AI Business", "https://aibusiness.com/rss.xml"),
-        
-        # // DEV TERMINAL & COMMUNITIES
-        ("NVIDIA Dev", "https://developer.nvidia.com/blog/feed/"),
-        # ("ML Mastery", "https://machinelearningmastery.com/blog/feed/"),
-        ("Hugging Face", "https://huggingface.co/blog/feed.xml"),
-        ("Papers with Code", "https://paperswithcode.com/rss/latest"),
-        ("Hacker News (AI)", "https://hnrss.org/newest?q=AI+OR+LLM"),
-
-        # // AGGREGATOR
-        # ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
-    ]
+    # sources = [ ... ] (Removed hardcoded list)
+    
+    # 1. Fetch Active Sources from DB
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT name, url FROM sources WHERE is_active = 1")
+        sources = cursor.fetchall() # Returns list of tuples: [('The Verge', 'url'), ...]
+    except sqlite3.OperationalError:
+        print("⚠️ 'sources' table not found. Using fallback list.")
+        sources = [
+            ("The Verge", "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
+            ("OpenAI", "https://openai.com/news/rss.xml")
+        ]
+    finally:
+        conn.close()
+    
+    if not sources:
+        print("⚠️ No active sources found in DB.")
+        return []
     
     unique_articles = {}
     
@@ -724,13 +708,26 @@ def process_batch(batch: List[Dict]):
         generation_config=ai_config.GENERATION_CONFIG
     )
 
+    # Initialize Lead Extractor (The "Iron Judo" Pipeline)
+    from services.lead_extractor import LeadExtractor
+    lead_extractor = LeadExtractor()
+
     batch_input = []
     skipped_low_quality = 0
     
     for idx, item in enumerate(batch):
-        # PRE-FILTER: SPAM CHECK
+        # PRE-FILTER: SPAM CHECK aka "THE JUDO MOVE"
         if is_spam_source(item['link'], item['title']):
-            log_processing_attempt(item['link'], status="BLOCKED_SPAM")
+            log_processing_attempt(item['link'], status="REDIRECT_TO_LEAD_GEN")
+            
+            # --- IRON JUDO LOGIC ---
+            print(f"🥋 Iron Judo: Redirecting potential spam to Lead Extractor: {item['title']}")
+            try:
+                lead_extractor.extract_and_log(item['link'], item['title'])
+            except Exception as e:
+                print(f"   ⚠️ Lead Extraction Failed: {e}")
+            # -----------------------
+            
             continue
 
         content, og_image, author = extract_content(item['link'])

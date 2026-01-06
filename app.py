@@ -210,48 +210,102 @@ def admin_budget():
     
     return render_template('admin/budget.html', budget=budget_view)
 
-@app.route('/admin/sources')
+@app.route('/admin/sources', methods=['GET', 'POST'])
 @login_required
 def admin_sources():
     conn = get_db_connection()
-    
-    # Lazy Migration: Ensure is_published exists
-    try:
-        conn.execute('SELECT is_published FROM articles LIMIT 1')
-    except sqlite3.OperationalError:
-        print("MIGRATION: Adding is_published column...")
-        conn.execute('ALTER TABLE articles ADD COLUMN is_published INTEGER DEFAULT 1')
-        conn.commit()
 
-    # 1. Get Top Sources by Volume (excluding blocked ones)
-    usage_query = """
-        SELECT source, count(*) as count 
-        FROM articles 
-        WHERE source IS NOT NULL AND source != '' 
-        AND source NOT IN (SELECT domain FROM blocked_sources)
-        GROUP BY source 
-        ORDER BY count DESC 
-        LIMIT 50
-    """
-    sources_raw = conn.execute(usage_query).fetchall()
-    
-    # 2. Get Blocked Sources
+    # Handle Add Source
+    if request.method == 'POST':
+        name = request.form.get('name')
+        url = request.form.get('url')
+        if name and url:
+            try:
+                conn.execute('INSERT INTO sources (name, url, is_active) VALUES (?, ?, 1)', (name, url))
+                conn.commit()
+                flash(f"Source added: {name}", "success")
+            except sqlite3.IntegrityError:
+                flash("Source URL already exists.", "error")
+        elif request.form.get('toggle_id'):
+            # Handle Toggle Active/Inactive
+            sid = request.form.get('toggle_id')
+            conn.execute('UPDATE sources SET is_active = NOT is_active WHERE id = ?', (sid,))
+            conn.commit()
+            flash("Source status updated.", "success")
+        elif request.form.get('delete_id'):
+            # Handle Delete
+            sid = request.form.get('delete_id')
+            conn.execute('DELETE FROM sources WHERE id = ?', (sid,))
+            conn.commit()
+            flash("Source deleted.", "warning")
+
+    # 1. Get Managed Sources (The Governance List)
     try:
-        blocked_raw = conn.execute('SELECT * FROM blocked_sources ORDER BY added_at DESC').fetchall()
+        sources_managed = conn.execute('SELECT * FROM sources ORDER BY is_active DESC, name ASC').fetchall()
     except sqlite3.OperationalError:
-        # Create table if not exists (Lazy Migration for safety)
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS blocked_sources (
-                domain TEXT PRIMARY KEY,
-                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        conn.commit()
-        blocked_raw = []
+        flash("Sources table missing. Please run migration.", "error")
+        sources_managed = []
+
+    # 2. Get Blocked Sources (The Blacklist)
+    blocked_raw = conn.execute('SELECT * FROM blocked_sources ORDER BY added_at DESC').fetchall()
+    
+    conn.close()
+    return render_template('admin/sources.html', sources=sources_managed, blocked=blocked_raw)
+
+@app.route('/admin/leads')
+@login_required
+def admin_leads():
+    conn = get_db_connection()
+    # Fetch identified leads (Iron Judo Pipeline)
+    try:
+        leads = conn.execute('''
+            SELECT * FROM leads 
+            ORDER BY 
+            CASE status 
+                WHEN 'NEW' THEN 1 
+                WHEN 'PROPOSAL_SENT' THEN 2 
+                ELSE 3 
+            END, 
+            confidence_score DESC
+        ''').fetchall()
+    except sqlite3.OperationalError:
+        leads = []
+        flash("Leads table missing.", "error")
 
     conn.close()
+    return render_template('admin/leads.html', leads=leads)
+
+@app.route('/admin/leads/generate/<int:id>', methods=['POST'])
+@login_required
+def admin_generate_lead_draft(id):
+    from services.proposal_agent import ProposalAgent
+    agent = ProposalAgent()
     
-    return render_template('admin/sources.html', sources=sources_raw, blocked=blocked_raw)
+    draft_json = agent.generate_pitch(id)
+    if draft_json:
+        # Save happens inside generate_pitch? No, save_draft is separate or needed.
+        # Let's save it.
+        agent.save_draft(id, draft_json)
+        flash("Draft Proposal Generated", "success")
+    else:
+        flash("Failed to generate draft (Budget or Error)", "error")
+        
+    return redirect(url_for('admin_leads'))
+
+
+@app.route('/admin/leads/send/<int:id>', methods=['POST'])
+@login_required
+def admin_send_lead_proposal(id):
+    from services.proposal_agent import ProposalAgent
+    agent = ProposalAgent()
+    
+    success, msg = agent.send_active_proposal(id)
+    if success:
+        flash(f"🚀 Proposal sent via Resend! (Ref: {msg})", "success")
+    else:
+        flash(f"Failed to send: {msg}", "error")
+        
+    return redirect(url_for('admin_leads'))
 
 @app.route('/admin/block-source', methods=['POST'])
 @login_required
