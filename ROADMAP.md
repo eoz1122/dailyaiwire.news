@@ -15,6 +15,7 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [x] **Instant Indexing:** Google Indexing API integration for <10min crawl times.
 - [x] **Web Indexing:** Sitemap and indexing infrastructure optimized for fast discovery.
 - [x] **Resilient Scheduler:** Self-healing social distribution pipeline.
+- [x] **Editorial Guidelines (Q1 '26):** Implemented automated "Safety Filters" (Suicide/Murder blocks) and "Quality Thresholds" (Min Score 50).
 
 ## 🚧 Phase 2: Generative UI (High Priority - Q2 '26)
 
@@ -25,6 +26,7 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [ ] **Dynamic Components:** AI decides *layout*.
   - *Example:* If an article contains stock data, the AI injects a "Ticker Widget" instead of text.
 - [ ] **Audio-First Experience:** Auto-mix background ambience based on article sentiment (e.g., subtle tense drone for cybersecurity news).
+- [ ] **Automated Article Visuals (DeepDiagram):** Investigate integrating `DeepDiagram` (AGPL-3.0) to auto-generate editable charts/mermaid diagrams for technical articles.
 
 ## 🔮 Phase 3: Agentic Optimization (GEO)
 

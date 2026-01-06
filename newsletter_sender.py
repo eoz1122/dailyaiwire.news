@@ -8,6 +8,51 @@ load_dotenv()
 
 DB_PATH = "news.db"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+SENDER_EMAIL = "briefing@dailyaiwire.news"  # Verified Domain Sender
+
+def send_welcome_email(recipient_email):
+    """Sends a transactional welcome email to a new subscriber."""
+    if not RESEND_API_KEY:
+        print("❌ ERROR: RESEND_API_KEY missing.")
+        return False
+        
+    print(f"🚀 Sending welcome email to {recipient_email}...")
+    
+    # Simple HTML for the welcome email (inline for reliability if file read fails, or read from file)
+    # Ideally reuse template logic, but keep it robust here.
+    try:
+        from flask import render_template
+        from app import app
+        with app.app_context():
+            html_content = render_template('email/welcome.html')
+    except Exception as e:
+        print(f"⚠️ Template render failed ({e}), using fallback HTML.")
+        html_content = "<h1>Welcome to the Wire.</h1><p>You are subscribed.</p>"
+
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "from": f"DailyAIWire <{SENDER_EMAIL}>",
+        "to": [recipient_email],
+        "subject": "Connection Established // DailyAIWire",
+        "html": html_content
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code in [200, 201]:
+            print("✅ Welcome email sent successfully.")
+            return True
+        else:
+            print(f"❌ Welcome email failed: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Network error sending email: {e}")
+        return False
 
 def get_active_subscribers():
     conn = sqlite3.connect(DB_PATH)

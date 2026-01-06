@@ -1,0 +1,64 @@
+
+import os
+
+TEMPLATE_PATH = "templates/subscribe.html"
+CONTENT = """{% extends "base.html" %}
+{% block title %}Subscribe // DailyAIWire{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-12 md:py-20 flex flex-col items-center justify-center min-h-[70vh] relative overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div class="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-purple-600/10 rounded-full blur-[80px]"></div>
+    </div>
+    <div class="glass-card p-8 md:p-12 rounded-3xl relative z-10 max-w-3xl w-full border border-white/10 shadow-2xl">
+        <div class="text-center mb-10">
+            <span class="inline-block py-1 px-3 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-[0.2em] uppercase mb-6">Official Intelligence Feed</span>
+            <h1 class="text-4xl md:text-6xl font-black mb-6 uppercase tracking-tighter text-white leading-none">Join the <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Wire</span></h1>
+            <p class="text-xl md:text-2xl text-zinc-300 font-light leading-relaxed max-w-2xl mx-auto">High-signal AI analysis, delivered weekly. No noise. Just signal.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <div class="bg-zinc-900/50 p-6 rounded-2xl border border-white/5 hover:border-blue-500/30 transition-colors group">
+                <div class="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center mb-4 text-blue-400 group-hover:scale-110 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                </div>
+                <h3 class="text-white font-bold uppercase tracking-wider text-sm mb-2">Autonomous Refinery</h3>
+                <p class="text-zinc-400 text-sm leading-relaxed">We don't just aggregate news. We are building an <strong>Autonomous Intelligence Refinery</strong> to filter the noise of the dead internet and synthesize pure signal.</p>
+            </div>
+            <div class="bg-zinc-900/50 p-6 rounded-2xl border border-white/5 hover:border-purple-500/30 transition-colors group">
+                <div class="w-12 h-12 bg-purple-600/20 rounded-xl flex items-center justify-center mb-4 text-purple-400 group-hover:scale-110 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                </div>
+                <h3 class="text-white font-bold uppercase tracking-wider text-sm mb-2">Audio-First Experience</h3>
+                <p class="text-zinc-400 text-sm leading-relaxed">Listen to the news. Our <strong>Soundbites</strong> allow you to consume complex intelligence while on the move. Experience the future of reporting.</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12 max-w-2xl mx-auto">
+             <div class="flex items-center gap-3 bg-zinc-900/30 p-4 rounded-xl border border-white/5">
+                <div class="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 text-green-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                <div><h4 class="text-white font-bold text-xs uppercase tracking-wider">Zero Ads</h4><p class="text-zinc-500 text-[10px]">No clutter. Just sustainable partnerships.</p></div>
+             </div>
+             <div class="flex items-center gap-3 bg-zinc-900/30 p-4 rounded-xl border border-white/5">
+                <div class="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+                <div><h4 class="text-white font-bold text-xs uppercase tracking-wider">Creator Respect</h4><p class="text-zinc-500 text-[10px]">We analyze, we don't steal. Supporting the ecosystem.</p></div>
+             </div>
+        </div>
+        <form action="/subscribe" method="POST" class="max-w-md mx-auto relative">
+            <div class="relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                <div class="relative flex bg-black rounded-lg p-1 border border-zinc-800"> <!-- Force BLACK background -->
+                    <input type="email" name="email" required placeholder="ENTER YOUR EMAIL PROTOCOL..." class="w-full bg-black text-white px-4 py-3 outline-none placeholder:text-zinc-400 font-mono text-sm uppercase tracking-wider border-none focus:ring-0"> <!-- Force WHITE text and ZINC-400 placeholder -->
+                    <button type="submit" class="bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest text-xs px-6 rounded-md transition-colors whitespace-nowrap">Initialize</button>
+                </div>
+            </div>
+            <p class="text-zinc-400 text-xs mt-6 text-center uppercase tracking-widest font-medium"><span class="text-green-500 animate-pulse">●</span> Secure Connection <span class="mx-2 opacity-50">|</span> One-Click Unsubscribe</p>
+        </form>
+    </div>
+    <div class="absolute inset-0 bg-[url('/static/grid.svg')] opacity-[0.05] pointer-events-none"></div>
+</div>
+{% endblock %}
+"""
+
+with open(TEMPLATE_PATH, "w") as f:
+    f.write(CONTENT)
+
+print("Template updated successfully!")

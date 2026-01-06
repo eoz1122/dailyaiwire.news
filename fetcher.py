@@ -307,6 +307,7 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
        - Open Source / MIT Licensed / Hugging Face releases.
        - A major infrastructure update (e.g. AWS, NVIDIA, OpenAI).
     5. BLOCK generic B2B SaaS launches, "All-in-one" marketing tools, and paid wrapper apps.
+    6. BLOCK stories about SUICIDE, MURDER, or VIOLENCE unless they are critical geopolitical events (e.g. involving a head of state).
     
     Return EXACTLY 8 indices of the most important articles.
     
@@ -369,9 +370,10 @@ def fetch_all_sources() -> List[Dict]:
         # ("The Batch", "https://read.deeplearning.ai/the-batch/feed"), # 404 - No public RSS found
         ("Import AI", "https://importai.substack.com/feed"),
         # ("Ben's Bites", "https://bensbites.beehiiv.com/feed"), # 404 - Requires specific Beehiiv ID
-        ("DFKI (Germany)", "https://robotik.dfki-bremen.de/de/startseite/news-rss-feed"),
-        ("BracAI (EU)", "https://www.bracai.eu/blog-feed.xml"),
-        ("Zukunftszentrum KI NRW", "https://www.zukunftszentrum-ki.nrw/feed/"),
+        ("MIT Technology Review", "https://www.technologyreview.com/topic/artificial-intelligence/feed"), # Verified Feed
+        # ("DFKI (Germany)", "https://robotik.dfki-bremen.de/de/startseite/news-rss-feed"),
+        # ("BracAI (EU)", "https://www.bracai.eu/blog-feed.xml"),
+        # ("Zukunftszentrum KI NRW", "https://www.zukunftszentrum-ki.nrw/feed/"),
         
         # // RESEARCH LABS
         ("OpenAI", "https://openai.com/news/rss.xml"),
@@ -384,17 +386,17 @@ def fetch_all_sources() -> List[Dict]:
         
         # // ENTERPRISE & MARKETS
         ("VentureBeat", "https://venturebeat.com/category/ai/feed/"),
-        ("AI Business", "https://aibusiness.com/rss.xml"),
+        # ("AI Business", "https://aibusiness.com/rss.xml"),
         
         # // DEV TERMINAL & COMMUNITIES
         ("NVIDIA Dev", "https://developer.nvidia.com/blog/feed/"),
-        ("ML Mastery", "https://machinelearningmastery.com/blog/feed/"),
+        # ("ML Mastery", "https://machinelearningmastery.com/blog/feed/"),
         ("Hugging Face", "https://huggingface.co/blog/feed.xml"),
         ("Papers with Code", "https://paperswithcode.com/rss/latest"),
         ("Hacker News (AI)", "https://hnrss.org/newest?q=AI+OR+LLM"),
 
         # // AGGREGATOR
-        ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
+        # ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en")
     ]
     
     unique_articles = {}
@@ -771,7 +773,7 @@ def process_batch(batch: List[Dict]):
         "    \"hashtags\": [\"3-5 relevant hashtags\"],\n"
         "    \"thought_provoking_question\": \"A short, engaging question to spark discussion.\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
-        "    \"importance_score\": \"40-100 reflecting strategic value.\",\n"
+        "    \"importance_score\": \"50-100 reflecting strategic value. If topic involves SUICIDE/MURDER, score MUST be < 20 unless global crisis.\",\n"
         "    \"deep_analysis\": \"300+ words. Comprehensive summary using multiple paragraphs.\",\n"
         "    \"narration_script\": \"1-minute radio script starting with 'Intelligence from DailyAIWire dot news...'.\",\n"
         "    \"metadata\": { \"ai_detected\": true, \"model\": \"Gemini 2.5 Flash\", \"label\": \"EU AI Act Art. 50 Compliant\" },\n"
@@ -842,6 +844,12 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         # 1. Status Check (New 2026 Guardrail)
         if art.get('status') == "INSUFFICIENT_DATA":
             print(f"Skipping '{art.get('headline')}' - AI flagged as Insufficient Data.")
+            continue
+
+        # 1.5 Score Filter (New 2026 Guardrail)
+        imp_score = int(art.get('importance_score', 0) or 0)
+        if imp_score < 50:
+            print(f"Skipping '{art.get('headline')}' - Score {imp_score} < 50.")
             continue
 
         # Skip articles where AI failed to find content or hit a paywall/blocker

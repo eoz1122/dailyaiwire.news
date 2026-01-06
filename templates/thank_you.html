@@ -1,68 +1,67 @@
 {% extends "base.html" %}
-
-{% block title %}Subscription Confirmed // DailyAIWire{% endblock %}
-
+{% block title %}Connection Established // The Signal{% endblock %}
 {% block content %}
-<div
-    class="container mx-auto px-4 py-20 flex flex-col items-center justify-center min-h-[60vh] text-center relative overflow-hidden">
+<div class="min-h-[85vh] flex items-center justify-center p-4 relative py-20">
+    <!-- Light Background Overlay -->
+    <div class="absolute inset-0 bg-[#F8FAFC] z-0"></div>
 
-    <!-- Background Decor -->
-    <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]">
-        </div>
-    </div>
+    <div
+        class="relative z-10 max-w-2xl w-full bg-white rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] p-8 md:p-16 text-center border border-gray-100">
 
-    <div class="glass-card p-12 rounded-3xl relative z-10 max-w-2xl w-full border border-white/10 shadow-2xl">
-        <div
-            class="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
-            <svg class="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        <!-- Success Icon -->
+        <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-sm">
+            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
             </svg>
         </div>
 
-        <h1 class="text-3xl md:text-5xl font-black mb-4 uppercase tracking-tighter text-white">
-            Connection <span class="text-green-400">Established</span>
+        <h1
+            class="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight leading-none font-['Outfit'] uppercase">
+            Connection<br>
+            <span class="text-green-500">Established</span>
         </h1>
 
-        <div class="w-24 h-1 bg-gradient-to-r from-blue-600 to-green-400 mx-auto mb-8 rounded-full"></div>
+        <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-green-400 mx-auto mb-8 rounded-full"></div>
 
-        <p class="text-xl text-zinc-300 mb-8 leading-relaxed">
+        <p class="text-xl text-gray-600 mb-10 leading-relaxed font-medium">
             Welcome to the inner circle. Your intelligence feed has been successfully activated.
         </p>
 
-        <div class="bg-zinc-900/50 rounded-xl p-6 mb-8 text-left border border-white/5">
-            <h3 class="text-zinc-200 font-bold uppercase tracking-widest text-xs mb-3 flex items-center gap-2">
-                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Briefing Protocol Box -->
+        <div class="bg-gray-50 rounded-2xl p-8 mb-10 text-left border border-gray-100">
+            <h3 class="text-gray-900 font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 Briefing Protocol
             </h3>
-            <ul class="space-y-3 text-zinc-400 text-sm">
+            <ul class="space-y-4 text-gray-600 text-sm font-medium">
                 <li class="flex items-start gap-3">
-                    <span class="text-green-500 mt-1">✓</span>
-                    <span><strong>Check your inbox:</strong> A confirmation signal is pending.</span>
+                    <span class="text-green-500 mt-0.5 font-bold">✓</span>
+                    <span><strong class="text-gray-900">Check your inbox:</strong> A confirmation signal is
+                        pending.</span>
                 </li>
                 <li class="flex items-start gap-3">
-                    <span class="text-green-500 mt-1">✓</span>
-                    <span><strong>Mark as Safe:</strong> Ensure <em>briefing@dailyaiwire.news</em> is not filtered to
-                        spam.</span>
+                    <span class="text-green-500 mt-0.5 font-bold">✓</span>
+                    <span><strong class="text-gray-900">Mark as Safe:</strong> Ensure <em>briefing@dailyaiwire.news</em>
+                        is not filtered to spam.</span>
                 </li>
                 <li class="flex items-start gap-3">
-                    <span class="text-green-500 mt-1">✓</span>
-                    <span><strong>Frequency:</strong> Expect high-signal updates every Sunday.</span>
+                    <span class="text-green-500 mt-0.5 font-bold">✓</span>
+                    <span><strong class="text-gray-900">Frequency:</strong> Expect high-signal updates every
+                        Sunday.</span>
                 </li>
             </ul>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <a href="/"
-                class="px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-sm rounded-full hover:bg-zinc-200 transition-all transform hover:scale-105 shadow-lg shadow-white/10">
+                class="text-gray-900 font-black uppercase tracking-widest text-xs hover:text-blue-600 transition-colors px-6 py-3">
                 Return to Wire
             </a>
             <a href="/lab"
-                class="px-8 py-4 bg-zinc-800 text-white font-black uppercase tracking-widest text-sm rounded-full hover:bg-zinc-700 transition-all border border-zinc-700">
+                class="px-8 py-4 bg-transparent border-2 border-gray-900 text-gray-900 font-black uppercase tracking-widest text-xs rounded-full hover:bg-gray-900 hover:text-white transition-all">
                 Enter the Lab
             </a>
         </div>

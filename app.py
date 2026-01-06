@@ -176,6 +176,17 @@ def admin_subscribers():
     conn.close()
     return render_template('admin/subscribers.html', subscribers=subscribers)
 
+@app.route('/admin/subscribers/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_subscriber(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM subscribers WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    flash('Subscriber deleted successfully.')
+    return redirect(url_for('admin_subscribers'))
+
+
 @app.route('/admin/budget')
 @login_required
 def admin_budget():
@@ -1435,6 +1446,9 @@ def seo_robots():
 
 @app.route('/subscribe', methods=['GET', 'POST'])
 def subscribe():
+    import sqlite3
+    from newsletter_sender import send_welcome_email  # Import function
+    
     if request.method == 'POST':
         email = request.form.get('email')
         if email:
@@ -1452,17 +1466,20 @@ def subscribe():
             try:
                 conn.execute('INSERT INTO subscribers (email) VALUES (?)', (email,))
                 conn.commit()
-                # Use the thank_you template for success
-                return render_template('thank_you.html')
+                
+                # --- Send Welcome Email ---
+                try:
+                    send_welcome_email(email)
+                except Exception as e:
+                    print(f"Failed to send welcome email: {e}")
+                # --------------------------
+
+                return redirect(url_for('thank_you_page'))
             except sqlite3.IntegrityError:
-                flash('You are already subscribed to the intelligence feed.')
-                return redirect(url_for('subscribe'))
-            except Exception as e:
-                flash(f'Error: {e}')
-                return redirect(url_for('subscribe'))
+                flash('You are already subscribed.')
+                return redirect(url_for('thank_you_page'))
             finally:
                 conn.close()
-        
     return render_template('subscribe.html')
 
 if __name__ == '__main__':

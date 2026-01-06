@@ -17,9 +17,13 @@
                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold">
                 Search
             </button>
+            <a href="{{ url_for('admin_users') }}"
+                class="ml-2 bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+                Manage Admins
+            </a>
             {% if date_filter or q %}
             <a href="{{ url_for('admin.index') }}"
-                class="text-sm text-red-400 hover:text-white flex items-center">Clear</a>
+                class="text-sm text-red-400 hover:text-white flex items-center ml-2">Clear</a>
             {% endif %}
         </form>
     </div>
@@ -85,7 +89,7 @@
                                     formaction="{{ url_for('admin_kill_article', id=article.id, block_source='true') }}"
                                     class="text-[10px] font-black uppercase text-zinc-400 bg-zinc-900 px-2 py-1 rounded border border-zinc-700 hover:bg-red-900 hover:text-red-200 transition-colors"
                                     title="Kill & Block Source Domain">
-                                    ☢️
+                                    BLOCK SRC
                                 </button>
                             </div>
                             {% endif %}

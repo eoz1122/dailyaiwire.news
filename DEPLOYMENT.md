@@ -6,7 +6,7 @@
 
 ```bash
 # SSH into your VPS
-ssh root@your-server-ip
+ssh dailyai@72.62.95.46
 
 # Update system
 apt update && apt upgrade -y
@@ -204,6 +204,16 @@ sudo ufw allow 22/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw enable
+```
+
+### 10. Direct Deployment (Quick Patch)
+
+```bash
+# Push changes to GitHub
+git push origin main
+
+# SSH and Pull
+ssh dailyai@72.62.95.46 "cd /home/dailyai/dailyaiwire.news && git pull && sudo supervisorctl restart dailyaiwire"
 ```
 
 ---

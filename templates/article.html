@@ -283,10 +283,10 @@
                         document.getElementById('wave-loading').classList.add('hidden');
                         const staticWave = document.getElementById('static-waveform');
                         if (staticWave) staticWave.classList.add('hidden');
-                        
+
                         // Initial update
                         updateTime();
-                        
+
                         // Force a re-check for duration (MediaElement quirk)
                         setTimeout(updateTime, 200);
                         setTimeout(updateTime, 1000);
@@ -302,7 +302,7 @@
                 function updateTime() {
                     const curr = wavesurfer.getCurrentTime();
                     let dur = wavesurfer.getDuration();
-                    
+
                     // Robust check for MediaElement duration
                     const media = wavesurfer.__media || (wavesurfer.getMediaElement ? wavesurfer.getMediaElement() : null);
                     if ((!dur || !isFinite(dur)) && media && isFinite(media.duration)) {
@@ -459,11 +459,14 @@
                 <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
                     Key
                     Details</h3>
-                <ul class="space-y-4">{%- for detail in article.key_details -%}
+                <ul class="space-y-4"><!--
+                    -->{%- for detail in article.key_details -%}
                     <li class="flex items-start">
                         <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
                         <span class="text-zinc-300 text-lg">{{ detail }}</span>
-                    </li>{%- endfor -%}
+                    </li>
+                    {%- endfor -%}<!--
+                -->
                 </ul>
             </section>
             {% endif %}
