@@ -1,51 +1,268 @@
 {% extends "base.html" %}
 
-{% block title %}Admin | DailyAIWire{% endblock %}
+{% block title %}Command Center | DailyAIWire{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-12 max-w-7xl">
-    <div class="flex justify-between items-center mb-10">
-        <h1 class="text-3xl font-bold text-white">Admin Dashboard</h1>
-        <div class="flex items-center gap-4">
-            <a href="{{ url_for('admin_subscribers') }}"
-                class="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-blue-600/20 text-sm font-bold">
-                👥 Subscribers
-            </a>
-            <a href="{{ url_for('admin_newsletters') }}"
-                class="bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-blue-600/20 text-sm font-bold">
-                📩 Newsletters
-            </a>
-            <a href="{{ url_for('admin_editorials') }}"
-                class="bg-purple-600/10 hover:bg-purple-600 text-purple-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-purple-600/20 text-sm font-bold">
-                📝 Reports & Editorials
-            </a>
-            <a href="{{ url_for('admin_create_article') }}"
-                class="bg-green-600/20 hover:bg-green-600 text-green-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-green-600/50 text-sm font-bold">
-                + New Article
-            </a>
-            <a href="{{ url_for('admin_budget') }}"
-                class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-indigo-600/50 text-sm font-bold">
-                💰 Cost
-            </a>
-            <a href="{{ url_for('admin_sources') }}"
-                class="bg-amber-600/20 hover:bg-amber-600 text-amber-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-amber-600/50 text-sm font-bold">
-                📡 Sources
-            </a>
-            <a href="{{ url_for('admin_social_queue') }}"
-                class="bg-sky-600/20 hover:bg-sky-600 text-sky-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-sky-600/50 text-sm font-bold">
-                🐦 Social Queue
-            </a>
-            <a href="{{ url_for('admin_leads') }}"
-                class="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-emerald-600/50 text-sm font-bold">
-                💸 Leads
-            </a>
-            <a href="{{ url_for('logout') }}"
-                class="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg transition-colors border border-red-600/50 text-sm font-bold">
-                Logout
-            </a>
+<div class="flex h-screen bg-zinc-900 overflow-hidden relative">
+
+    <!-- Mobile Header (Visible only on small screens) -->
+    <div
+        class="lg:hidden absolute top-0 left-0 right-0 h-16 bg-zinc-900/90 backdrop-blur border-b border-zinc-800 z-30 flex items-center justify-between px-4">
+        <div class="flex items-center gap-3">
+            <button id="sidebar-toggle"
+                class="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-zinc-800 transition-colors">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                    </path>
+                </svg>
+            </button>
+            <span class="font-bold text-white tracking-tight">DailyAI<span class="text-blue-500">Wire</span></span>
         </div>
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-zinc-700"></div>
     </div>
 
-    {% block admin_content %}{% endblock %}
+    <!-- Mobile Backdrop -->
+    <div id="sidebar-backdrop"
+        class="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity duration-300 lg:hidden"
+        onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="admin-sidebar"
+        class="fixed lg:relative inset-y-0 left-0 z-50 w-72 bg-zinc-900 border-r border-zinc-900 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none h-full">
+        <!-- Brand (Desktop) -->
+        <div class="p-6 border-b border-zinc-900 hidden lg:flex items-center justify-between h-20">
+            <h1
+                class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400 tracking-tighter">
+                DailyAIWire
+            </h1>
+            <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-900 text-zinc-500 border border-zinc-800">ADMIN</span>
+        </div>
+
+        <!-- Mobile Brand (In Slide-out) -->
+        <div class="p-6 border-b border-zinc-900 lg:hidden flex items-center justify-between">
+            <span class="text-zinc-500 text-xs font-mono uppercase">System Navigation</span>
+            <button onclick="toggleSidebar()" class="text-zinc-500 hover:text-white">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+            <p class="px-3 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 mt-2">Intelligence Core
+            </p>
+
+            <!-- Dashboard (Blue) -->
+            <a href="{{ url_for('admin.index') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin.index' %}
+                    bg-blue-600 text-white border border-blue-500/50 shadow-blue-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-blue-600/20 hover:text-blue-400 hover:border-blue-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg>
+                Dashboard
+            </a>
+
+            <!-- New Signal (Green) -->
+            <a href="{{ url_for('admin_create_article') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_create_article' %}
+                    bg-green-600 text-white border border-green-500/50 shadow-green-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-green-600/20 hover:text-green-400 hover:border-green-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                New Signal
+            </a>
+
+            <!-- Source Grid (Amber) -->
+            <a href="{{ url_for('admin_sources') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_sources' %}
+                    bg-amber-600 text-white border border-amber-500/50 shadow-amber-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-amber-600/20 hover:text-amber-400 hover:border-amber-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Source Grid
+            </a>
+
+            <p class="px-3 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 mt-6">Growth Engine</p>
+
+            <!-- Iron Judo (Leads) (Emerald) -->
+            <a href="{{ url_for('admin_leads') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_leads' %}
+                    bg-emerald-600 text-white border border-emerald-500/50 shadow-emerald-500/20
+                {% else %}
+                    bg-emerald-600/10 text-emerald-400 hover:bg-emerald-600 hover:text-white border border-emerald-600/20 hover:border-emerald-500/50
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                    </path>
+                </svg>
+                Target Acquisition
+            </a>
+
+            <!-- Audience (Purple) -->
+            <a href="{{ url_for('admin_subscribers') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_subscribers' %}
+                    bg-purple-600 text-white border border-purple-500/50 shadow-purple-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-purple-600/20 hover:text-purple-400 hover:border-purple-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                    </path>
+                </svg>
+                Audience
+            </a>
+
+            <!-- Newsletters (Pink) -->
+            <a href="{{ url_for('admin_newsletters') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_newsletters' %}
+                    bg-pink-600 text-white border border-pink-500/50 shadow-pink-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-pink-600/20 hover:text-pink-400 hover:border-pink-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                    </path>
+                </svg>
+                Newsletters
+            </a>
+
+            <p class="px-3 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-3 mt-6">System Ops</p>
+
+            <!-- Social Queue (Sky) -->
+            <a href="{{ url_for('admin_social_queue') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_social_queue' %}
+                    bg-sky-600 text-white border border-sky-500/50 shadow-sky-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-sky-600/20 hover:text-sky-400 hover:border-sky-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                </svg>
+                Social Queue
+            </a>
+
+            <!-- Budget (Indigo) -->
+            <a href="{{ url_for('admin_budget') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_budget' %}
+                    bg-indigo-600 text-white border border-indigo-500/50 shadow-indigo-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-indigo-600/20 hover:text-indigo-400 hover:border-indigo-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                    </path>
+                </svg>
+                Budget & Costs
+            </a>
+
+            <!-- Editorials (Teal) -->
+            <a href="{{ url_for('admin_editorials') }}" class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_editorials' %}
+                    bg-teal-600 text-white border border-teal-500/50 shadow-teal-500/20
+                {% else %}
+                    bg-zinc-900/50 text-zinc-400 hover:bg-teal-600/20 hover:text-teal-400 hover:border-teal-600/30 border border-zinc-900
+                {% endif %}">
+                <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                Editorials
+            </a>
+        </nav>
+
+        <!-- Use/Logout -->
+        <div class="p-4 border-t border-zinc-900 bg-zinc-900">
+            <div class="flex items-center gap-3 mb-4">
+                <div
+                    class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-zinc-800 shadow-md">
+                </div>
+                <div>
+                    <div class="text-sm font-bold text-white">{{ current_user.username }}</div>
+                    <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Administrator</div>
+                </div>
+            </div>
+            <a href="{{ url_for('logout') }}"
+                class="block w-full text-center px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-lg border border-red-500/10 hover:border-red-500/30 transition-all">
+                End Session
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto bg-zinc-900 p-4 lg:p-8 scroll-smooth pt-20 lg:pt-8" id="admin-main">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for category, message in messages %}
+            <div class="p-4 rounded-lg border flex items-center gap-3 shadow-lg 
+                            {% if category == 'success' %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20
+                            {% elif category == 'error' %}bg-red-500/10 text-red-400 border-red-500/20
+                            {% elif category == 'warning' %}bg-amber-500/10 text-amber-400 border-amber-500/20
+                            {% else %}bg-zinc-800 text-zinc-300 border-zinc-700{% endif %}">
+                {% if category == 'success' %}✨{% elif category == 'error' %}🚨{% endif %}
+                <span class="font-bold text-sm">{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block admin_content %}{% endblock %}
+    </main>
 </div>
+
+<script>
+    const sidebar = document.getElementById('admin-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    let isSidebarOpen = false;
+
+    function toggleSidebar() {
+        isSidebarOpen = !isSidebarOpen;
+        if (isSidebarOpen) {
+            sidebar.classList.remove('-translate-x-full');
+            backdrop.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.add('opacity-0');
+            setTimeout(() => backdrop.classList.add('hidden'), 300);
+        }
+    }
+
+    toggleBtn.addEventListener('click', toggleSidebar);
+</script>
 {% endblock %}

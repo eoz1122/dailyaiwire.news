@@ -273,7 +273,18 @@ def admin_leads():
         flash("Leads table missing.", "error")
 
     conn.close()
+    conn.close()
     return render_template('admin/leads.html', leads=leads)
+
+@app.route('/admin/leads/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_lead(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM leads WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    flash('Lead deleted successfully.', 'success')
+    return redirect(url_for('admin_leads'))
 
 @app.route('/admin/leads/generate/<int:id>', methods=['POST'])
 @login_required
@@ -404,6 +415,75 @@ def admin_generate_video(id):
     
     flash(f"🎬 Video generation started for Article {id}. Check /static/videos/ shortly!", "success")
     return redirect(request.referrer or url_for('admin.index'))
+
+@app.route('/admin/generate-audio/<int:id>', methods=['POST'])
+@login_required
+def admin_generate_audio(id):
+    """Generate audio narration for a specific article."""
+    import threading
+    from audio_generator import AudioGenerator
+    import json
+    
+    def run_audio_gen(article_id):
+        print(f"🎙️ Thread started for Audio {article_id}")
+        try:
+            conn = get_db_connection()
+            article = conn.execute('''
+                SELECT slug, title, gist, why_it_matters, bull_case, bear_case, 
+                       key_details, narration_script
+                FROM articles WHERE id = ?
+            ''', (article_id,)).fetchone()
+            
+            if not article:
+                print(f"❌ Article {article_id} not found")
+                return
+            
+            slug, title, gist, matters, bull, bear, details_json, script = article
+            
+            # Build audio script
+            if script and len(script) > 50:
+                text_to_read = script
+            else:
+                try:
+                    key_details = json.loads(details_json) if details_json else []
+                except:
+                    key_details = []
+                key_details_text = ". ".join(key_details)
+                text_to_read = (
+                    f"Intelligence from DailyAIWire dot news. "
+                    f"Headline: {title}. "
+                    f"The Gist: {gist}. "
+                    f"Why It Matters: {matters}. "
+                    f"Optimistic Outlook: {bull}. "
+                    f"Risk Factors: {bear}. "
+                    f"Key Details: {key_details_text}. "
+                )
+            
+            audio_gen = AudioGenerator()
+            male, female = audio_gen.generate_audio_reads(slug, text_to_read)
+            
+            if male and female:
+                conn.execute(
+                    'UPDATE articles SET audio_male = ?, audio_female = ? WHERE id = ?',
+                    (male, female, article_id)
+                )
+                conn.commit()
+                print(f"✅ Audio generated for article {article_id}")
+            else:
+                print(f"❌ Audio generation failed for article {article_id}")
+            
+            conn.close()
+        except Exception as e:
+            print(f"❌ Error generating audio: {e}")
+        
+        print(f"🏁 Thread finished for Audio {article_id}")
+    
+    thread = threading.Thread(target=run_audio_gen, args=(id,))
+    thread.start()
+    
+    flash(f"🎙️ Audio generation started for Article {id}. Refresh in 30 seconds!", "success")
+    return redirect(request.referrer or url_for('admin.index'))
+
 
 @app.route('/admin/social-queue')
 @login_required

@@ -3,38 +3,38 @@
 {% block admin_content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-xl">
+    <div class="bg-zinc-800 rounded-xl p-6 border border-zinc-700 shadow-xl">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h2
                     class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
                     Target Acquisition ("Iron Judo")
                 </h2>
-                <p class="text-gray-400 mt-1">Convert incoming spam signal into qualified sales opportunities.</p>
+                <p class="text-zinc-400 mt-1">Convert incoming spam signal into qualified sales opportunities.</p>
             </div>
             <div class="text-right">
                 <div class="text-3xl font-bold text-white">{{ leads|length }}</div>
-                <div class="text-sm text-gray-500 uppercase tracking-widest font-semibold">Total Targets</div>
+                <div class="text-sm text-zinc-500 uppercase tracking-widest font-semibold">Total Targets</div>
             </div>
         </div>
     </div>
 
     <!-- Leads Table -->
-    <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden">
+    <div class="bg-zinc-800 rounded-xl border border-zinc-700 shadow-xl overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-900/50 text-gray-400 text-sm uppercase tracking-wider">
-                        <th class="p-4 font-semibold border-b border-gray-700">Valuation</th>
-                        <th class="p-4 font-semibold border-b border-gray-700">Target Entity</th>
-                        <th class="p-4 font-semibold border-b border-gray-700">Confidence</th>
-                        <th class="p-4 font-semibold border-b border-gray-700">Status</th>
-                        <th class="p-4 font-semibold border-b border-gray-700 text-right">Action</th>
+                    <tr class="bg-zinc-900/50 text-zinc-400 text-sm uppercase tracking-wider">
+                        <th class="p-4 font-semibold border-b border-zinc-700">Valuation</th>
+                        <th class="p-4 font-semibold border-b border-zinc-700">Target Entity</th>
+                        <th class="p-4 font-semibold border-b border-zinc-700">Confidence</th>
+                        <th class="p-4 font-semibold border-b border-zinc-700">Status</th>
+                        <th class="p-4 font-semibold border-b border-zinc-700 text-right">Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-700">
+                <tbody class="divide-y divide-zinc-700">
                     {% for lead in leads %}
-                    <tr class="hover:bg-gray-700/50 transition-colors group">
+                    <tr class="hover:bg-zinc-700/50 transition-colors group">
                         <!-- Valuation Badge -->
                         <td class="p-4 align-top">
                             {% if lead['product_value'] == 'HIGH_VALUE' %}
@@ -49,13 +49,13 @@
                             </span>
                             {% else %}
                             <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold bg-gray-600/20 text-gray-400 border border-gray-600/30">
+                                class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold bg-zinc-600/20 text-zinc-400 border border-zinc-600/30">
                                 📉 LOW VALUE
                             </span>
                             {% endif %}
 
                             {% if lead['opportunity_reason'] %}
-                            <div class="text-xs text-gray-500 mt-1 max-w-[150px] leading-tight">{{
+                            <div class="text-xs text-zinc-500 mt-1 max-w-[150px] leading-tight">{{
                                 lead['opportunity_reason'] }}</div>
                             {% endif %}
                         </td>
@@ -64,20 +64,20 @@
                         <td class="p-4 align-top">
                             <div class="font-bold text-white mb-0.5">{{ lead['title'] }}</div>
                             <div class="text-sm text-cyan-400 font-mono">{{ lead['detected_email'] }}</div>
-                            <div class="text-xs text-gray-500 mt-1">
+                            <div class="text-xs text-zinc-500 mt-1">
                                 via <a href="{{ lead['source_url'] }}" target="_blank"
-                                    class="hover:text-gray-300 underline decoration-gray-600">{{ lead['domain'] }}</a>
+                                    class="hover:text-zinc-300 underline decoration-zinc-600">{{ lead['domain'] }}</a>
                             </div>
                         </td>
 
                         <!-- Confidence -->
                         <td class="p-4 align-top">
                             <div class="flex items-center gap-2">
-                                <div class="w-16 bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                                <div class="w-16 bg-zinc-700 rounded-full h-1.5 overflow-hidden">
                                     <div class="bg-blue-500 h-full rounded-full"
                                         style="width: {{ lead['confidence_score'] }}%"></div>
                                 </div>
-                                <span class="text-xs font-bold text-gray-300">{{ lead['confidence_score'] }}%</span>
+                                <span class="text-xs font-bold text-zinc-300">{{ lead['confidence_score'] }}%</span>
                             </div>
                         </td>
 
@@ -86,7 +86,7 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold 
                                 {% if lead['status'] == 'NEW' %} bg-blue-500/10 text-blue-400 border border-blue-500/20
                                 {% elif lead['status'] == 'PROPOSAL_SENT' %} bg-purple-500/10 text-purple-400 border border-purple-500/20
-                                {% else %} bg-gray-500/10 text-gray-400 border border-gray-500/20 {% endif %}">
+                                {% else %} bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 {% endif %}">
                                 {{ lead['status'] }}
                             </span>
                         </td>
@@ -104,8 +104,23 @@
                             <form action="{{ url_for('admin_generate_lead_draft', id=lead['id']) }}" method="POST"
                                 class="inline">
                                 <button type="submit"
-                                    class="inline-flex items-center gap-1 bg-white text-gray-900 border border-white hover:bg-gray-200 px-3 py-1.5 rounded text-xs font-bold transition-all shadow-sm">
+                                    class="inline-flex items-center gap-1 bg-white text-zinc-900 border border-white hover:bg-zinc-200 px-3 py-1.5 rounded text-xs font-bold transition-all shadow-sm group-hover:shadow-md"
+                                    onclick="this.disabled=true; this.innerHTML='✨ Generating...'; this.classList.add('opacity-50', 'cursor-not-allowed'); this.form.submit();">
                                     ✨ Generate
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <!-- Delete Action -->
+                            <form action="{{ url_for('admin_delete_lead', id=lead['id']) }}" method="POST"
+                                class="inline ml-2"
+                                onsubmit="return confirm('Are you sure you want to delete this lead?');">
+                                <button type="submit" class="text-zinc-500 hover:text-red-400 transition-colors p-1"
+                                    title="Delete Lead">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
                                 </button>
                             </form>
                             {% endif %}
@@ -119,8 +134,8 @@
                         <div
                             class="bg-white rounded-xl w-full max-w-2xl m-4 overflow-hidden shadow-2xl transform transition-all scale-100">
                             <div
-                                class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                class="bg-zinc-50 px-6 py-4 border-b border-zinc-100 flex justify-between items-center">
+                                <h3 class="font-bold text-zinc-800 flex items-center gap-2">
                                     <span>Proposal for {{ lead['title'] }}</span>
                                     {% if lead['status'] == 'PROPOSAL_SENT' %}
                                     <span
@@ -129,29 +144,29 @@
                                 </h3>
                                 <button
                                     onclick="document.getElementById('modal-{{ lead['id'] }}').classList.add('hidden')"
-                                    class="text-gray-400 hover:text-gray-600 transition-colors">✕</button>
+                                    class="text-zinc-400 hover:text-zinc-600 transition-colors">✕</button>
                             </div>
                             <div class="p-6">
                                 <div
-                                    class="bg-gray-50 border border-gray-200 rounded p-4 mb-4 font-mono text-sm text-gray-600 shadow-inner">
-                                    <div id="json-subject-{{ lead['id'] }}" class="font-semibold text-gray-800">...
+                                    class="bg-zinc-50 border border-zinc-200 rounded p-4 mb-4 font-mono text-sm text-zinc-600 shadow-inner">
+                                    <div id="json-subject-{{ lead['id'] }}" class="font-semibold text-zinc-800">...
                                     </div>
                                 </div>
-                                <div class="prose prose-sm max-w-none text-gray-600 bg-white p-4 border border-gray-100 rounded shadow-sm min-h-[150px]"
+                                <div class="prose prose-sm max-w-none text-zinc-600 bg-white p-4 border border-zinc-100 rounded shadow-sm min-h-[150px]"
                                     id="json-body-{{ lead['id'] }}">
                                     <!-- Content Injected via JS -->
                                 </div>
                                 <textarea id="raw-json-{{ lead['id'] }}"
                                     class="hidden">{{ lead['draft_proposal'] }}</textarea>
                             </div>
-                            <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                            <div class="bg-zinc-50 px-6 py-4 border-t border-zinc-100 flex justify-end gap-3">
                                 <button
                                     onclick="document.getElementById('modal-{{ lead['id'] }}').classList.add('hidden')"
-                                    class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                                    class="px-4 py-2 text-sm font-bold text-zinc-500 hover:text-zinc-700">Cancel</button>
 
                                 <!-- Manual Fallback -->
                                 <a href="mailto:{{ lead['detected_email'] }}?subject=..." id="send-btn-{{ lead['id'] }}"
-                                    class="px-4 py-2 text-sm font-bold bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors">
+                                    class="px-4 py-2 text-sm font-bold bg-white border border-zinc-300 text-zinc-700 rounded hover:bg-zinc-50 transition-colors">
                                     📩 Local App
                                 </a>
 
@@ -171,7 +186,7 @@
                     {% endif %}
                     {% else %}
                     <tr>
-                        <td colspan="5" class="p-8 text-center text-gray-500">
+                        <td colspan="5" class="p-8 text-center text-zinc-500">
                             No active targets identified yet. The trap is set. 🕸️
                         </td>
                     </tr>

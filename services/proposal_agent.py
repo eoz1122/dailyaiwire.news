@@ -34,11 +34,11 @@ class ProposalAgent:
         # 2. Determine Pricing Tier
         val = lead['product_value']
         if val == 'HIGH_VALUE':
-            price_context = "Offer the 'Enterprise Sponsorship' at $2,900/month."
+            price_context = "Offer the 'Enterprise Sponsorship' pilot at $900/month."
         elif val == 'MID_VALUE':
-            price_context = "Offer a 'Feature Spotlight' for $750 (one-time)."
+            price_context = "Offer a 'Feature Spotlight' for $500 (one-time)."
         else:
-            price_context = "Offer a 'Verified Link' slot for $250."
+            price_context = "Offer a 'Verified Link' slot for $150."
 
         # 3. Construct Prompt (The "Witty Judo" Structure)
         prompt = f"""
@@ -130,6 +130,7 @@ class ProposalAgent:
         }
         payload = {
             "from": "DailyAIWire Partnerships <partners@dailyaiwire.news>",
+            "reply_to": "admin@dailyaiwire.news",
             "to": [recipient],
             "bcc": ["admin@dailyaiwire.news"], # Safety copy
             "subject": subject,

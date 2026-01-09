@@ -163,7 +163,30 @@
 
                 <!-- Audio -->
                 <div class="pt-4 border-t border-zinc-800">
-                    <label class="block text-xs font-bold text-zinc-500 mb-2">Audio Synthesis</label>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-bold text-zinc-500">Audio Synthesis</label>
+                        <form action="{{ url_for('admin_generate_audio', id=article.id) }}" method="POST"
+                            class="inline">
+                            <button type="submit"
+                                class="text-[10px] font-bold px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors flex items-center gap-1">
+                                <span>🎙️</span> Generate
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Current Audio Status -->
+                    <div class="mb-3 text-[10px] text-zinc-600">
+                        {% if article.audio_male or article.audio_female %}
+                        <div class="flex items-center gap-2 text-emerald-400">
+                            <span>✓</span> Audio Available
+                        </div>
+                        {% else %}
+                        <div class="flex items-center gap-2 text-amber-400">
+                            <span>⚠</span> No Audio
+                        </div>
+                        {% endif %}
+                    </div>
+
                     <div class="space-y-3">
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-bold text-purple-400 w-8">MALE</span>

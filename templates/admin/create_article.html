@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "admin/base_admin.html" %}
 
 {% block title %}Create Article | DailyAIWire Admin{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="container mx-auto px-4 py-12 max-w-4xl">
     <div class="flex items-center gap-4 mb-8">
         <a href="{{ url_for('admin.index') }}" class="text-zinc-500 hover:text-white transition-colors">
