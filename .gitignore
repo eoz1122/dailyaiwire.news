@@ -65,3 +65,6 @@ htmlcov/
 !static/favicon.png
 gen-lang-client-*.json
 budget_tracker.json
+
+# Secrets
+gen-lang-client-*.json
