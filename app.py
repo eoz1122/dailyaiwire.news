@@ -13,7 +13,12 @@ from budget_tracker import BudgetTracker
 
 load_dotenv()
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'simple-key-placeholder')
+# SECURITY: Force secure secret key
+secret = os.getenv('SECRET_KEY')
+if not secret:
+    print("WARNING: SECRET_KEY not set in environment. Generating temporary secure key.")
+    secret = os.urandom(24).hex()
+app.config['SECRET_KEY'] = secret
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -147,7 +152,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
         
         # Main Articles Query
-        query = f'SELECT id, title, category, published_at, slug, importance_score, is_published FROM articles{where_clause} ORDER BY published_at DESC LIMIT ? OFFSET ?'
+        query = "SELECT id, title, category, published_at, slug, importance_score, is_published FROM articles" + where_clause + " ORDER BY published_at DESC LIMIT ? OFFSET ?"
         query_params = params + [per_page, offset]
         
         articles = conn.execute(query, query_params).fetchall()
@@ -625,8 +630,19 @@ def admin_edit_newsletter(id):
         intro_text = request.form.get('intro_text')
         status = request.form.get('status')
         
-        conn.execute('UPDATE newsletters SET subject=?, intro_text=?, status=? WHERE id=?', 
-                     (subject, intro_text, status, id))
+        # Collect Metadata from form (dynamic fields)
+        # Fields are named "metadata_{article_id}"
+        metadata = {}
+        for key, value in request.form.items():
+            if key.startswith("metadata_"):
+                # extract id
+                art_id = key.replace("metadata_", "")
+                metadata[art_id] = value
+        
+        article_metadata_json = json.dumps(metadata)
+        
+        conn.execute('UPDATE newsletters SET subject=?, intro_text=?, status=?, article_metadata=? WHERE id=?', 
+                     (subject, intro_text, status, article_metadata_json, id))
         conn.commit()
         flash("Newsletter updated.")
         return redirect(url_for('admin_newsletters'))
@@ -636,14 +652,27 @@ def admin_edit_newsletter(id):
         abort(404)
     
     # Get associated articles
-    article_ids = json.loads(newsletter['article_ids'])
+    try:
+        article_ids = json.loads(newsletter['article_ids'])
+    except:
+        article_ids = []
+        
     articles = []
     if article_ids:
         placeholders = ', '.join(['?'] * len(article_ids))
-        articles = conn.execute(f'SELECT title, gist FROM articles WHERE id IN ({placeholders})', article_ids).fetchall()
+        # Ensure we fetch ID so we can map it
+        articles_raw = conn.execute(f'SELECT id, title, gist FROM articles WHERE id IN ({placeholders})', article_ids).fetchall()
+        # Convert to dict to be safe
+        articles = [dict(a) for a in articles_raw]
+        
+    # Get Metadata
+    try:
+        article_metadata = json.loads(newsletter['article_metadata']) if newsletter['article_metadata'] else {}
+    except:
+        article_metadata = {}
         
     conn.close()
-    return render_template('admin/edit_newsletter.html', newsletter=newsletter, articles=articles)
+    return render_template('admin/edit_newsletter.html', newsletter=newsletter, articles=articles, article_metadata=article_metadata)
 
 @app.route('/admin/newsletter/delete/<int:id>')
 @login_required
@@ -1211,62 +1240,7 @@ def add_header(r):
 def favicon():
     return app.send_static_file('favicon.png')
 
-@app.route('/sitemap.xml')
-def sitemap():
-    """Generate XML sitemap for search engines"""
-    conn = get_db_connection()
-    # Get articles
-    articles = conn.execute('SELECT slug, published_at FROM articles ORDER BY published_at DESC').fetchall()
-    # Get blog posts
-    blog_posts = get_combined_lab_posts()
-    # Get categories for indexing
-    categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
-    conn.close()
-    
-    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
-    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
-    
-    # Homepage
-    xml.append('<url>')
-    xml.append('<loc>https://dailyaiwire.news/</loc>')
-    xml.append(f'<lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>')
-    xml.append('<changefreq>hourly</changefreq><priority>1.0</priority></url>')
-    
-    # Lab index
-    xml.append('<url><loc>https://dailyaiwire.news/lab</loc>')
-    xml.append(f'<lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>')
-    xml.append('<changefreq>weekly</changefreq><priority>0.8</priority></url>')
 
-    # Categories
-    for cat in categories:
-        xml.append('<url>')
-        xml.append(f'<loc>https://dailyaiwire.news/?category={cat["category"]}</loc>')
-        xml.append(f'<lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>')
-        xml.append('<changefreq>daily</changefreq><priority>0.8</priority></url>')
-    
-    # Articles
-    now = datetime.now()
-    for art in articles:
-        pub_date = art['published_at'][:10] if art['published_at'] else now.strftime("%Y-%m-%d")
-        xml.append(f'<url><loc>https://dailyaiwire.news/article/{art["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>')
-    
-    # Blog posts
-    for post in blog_posts:
-        pub_date = post['published_at'][:10] if post.get('published_at') else now.strftime("%Y-%m-%d")
-        xml.append(f'<url><loc>https://dailyaiwire.news/lab/{post["slug"]}</loc><lastmod>{pub_date}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>')
-    
-    xml.append('</urlset>')
-    return Response('\n'.join(xml), mimetype='application/xml')
-
-@app.route('/robots.txt')
-def robots():
-    """Serve robots.txt"""
-    try:
-        with open(os.path.join(app.static_folder, 'robots.txt'), 'r') as f:
-            content = f.read()
-        return Response(content, mimetype='text/plain')
-    except:
-        return Response("User-agent: *\nAllow: /", mimetype='text/plain')
 
 @app.template_filter('remove_emojis')
 def remove_emojis(text):
@@ -1510,31 +1484,66 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/sitemap.xml', methods=['GET'])
-def seo_sitemap():
+def sitemap():
     """Generates a dynamic XML sitemap for Google Indexing."""
     base_url = "https://dailyaiwire.news"
     pages = []
+    now_str = datetime.now().strftime('%Y-%m-%d')
 
     # Static Pages
-    pages.append([base_url + "/", 1.0, "daily"])
-    pages.append([base_url + "/about", 0.5, "monthly"])
-    pages.append([base_url + "/contact", 0.5, "monthly"])
-    pages.append([base_url + "/privacy", 0.5, "yearly"])
-    pages.append([base_url + "/lab", 0.8, "weekly"])
+    # Format: [Url, Priority, ChangeFreq, LastMod]
+    pages.append([base_url + "/", 1.0, "daily", now_str])
+    pages.append([base_url + "/about", 0.5, "monthly", now_str])
+    pages.append([base_url + "/contact", 0.5, "monthly", now_str])
+    pages.append([base_url + "/privacy", 0.5, "yearly", now_str])
+    pages.append([base_url + "/lab", 0.8, "weekly", now_str])
 
-    # Dynamic Articles
     conn = get_db_connection()
-    articles = conn.execute("SELECT slug, published_at FROM articles WHERE is_published = 1 ORDER BY published_at DESC LIMIT 1000").fetchall()
-    for art in articles:
-        url = f"{base_url}/article/{art['slug']}"
-        # Parse date for lastmod (Assuming ISO format from DB)
-        try:
-            pub_date = art['published_at'].split(' ')[0] # YYYY-MM-DD
-        except:
-            pub_date = datetime.now().strftime('%Y-%m-%d')
-        pages.append([url, 0.8, "daily", pub_date])
+
+    # 1. Categories
+    try:
+        categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
+        for cat in categories:
+            url = f"{base_url}/?category={cat['category']}"
+            pages.append([url, 0.8, "daily", now_str])
+    except Exception as e:
+        print(f"Sitemap Error (Categories): {e}")
+
+    # 2. Dynamic Articles (CRAWL BUDGET OPTIMIZED)
+    # Only show LAST 100 Published Articles to focus Googlebot on fresh content
+    try:
+        articles = conn.execute("SELECT slug, published_at FROM articles WHERE is_published = 1 ORDER BY published_at DESC LIMIT 100").fetchall()
+        for art in articles:
+            url = f"{base_url}/article/{art['slug']}"
+            # Parse date for lastmod
+            try:
+                if 'T' in art['published_at']:
+                    pub_date = art['published_at'].split('T')[0]
+                else:
+                    pub_date = art['published_at'].split(' ')[0]
+            except:
+                pub_date = now_str
+            pages.append([url, 0.8, "daily", pub_date])
+    except Exception as e:
+        print(f"Sitemap Error (Articles): {e}")
     
     conn.close()
+
+    # 3. Lab Posts (Editorials)
+    try:
+        lab_posts = get_combined_lab_posts()
+        for post in lab_posts:
+            url = f"{base_url}/lab/{post['slug']}"
+            try:
+                if 'T' in post['published_at']:
+                     pub_date = post['published_at'].split('T')[0]
+                else:
+                     pub_date = post['published_at'].split(' ')[0]
+            except:
+                pub_date = now_str
+            pages.append([url, 0.8, "weekly", pub_date])
+    except Exception as e:
+        print(f"Sitemap Error (Lab): {e}")
 
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     response = make_response(sitemap_xml)
@@ -1542,7 +1551,7 @@ def seo_sitemap():
     return response
 
 @app.route('/robots.txt')
-def seo_robots():
+def robots():
     """Serves the standard robots.txt file."""
     lines = [
         "User-agent: *",

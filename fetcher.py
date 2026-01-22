@@ -584,19 +584,58 @@ def extract_content(url: str) -> Tuple[str, str]:
     """Extracts text content and social image from a URL with multiple fallbacks."""
     # Adding headers to avoid bot detection
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+    
+    # --- SSRF Protection ---
+    import socket
+    from urllib.parse import urlparse
+    import ipaddress
+
+    def is_safe_url(target_url):
+        try:
+            parsed = urlparse(target_url)
+            if parsed.scheme not in ('http', 'https'):
+                return False
+            
+            hostname = parsed.hostname
+            if not hostname:
+                return False
+                
+            # Resolve IP
+            addr_info = socket.getaddrinfo(hostname, None)
+            for family, socktype, proto, canonname, sockaddr in addr_info:
+                ip = sockaddr[0]
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                    print(f"🚫 Blocked SSRF Attempt: {target_url} resolves to {ip}")
+                    return False
+            return True
+        except Exception:
+            return False
+
+    if not is_safe_url(url):
+        print(f"⚠️ Unsafe URL blocked: {url}")
+        return None, None
+
     downloaded = trafilatura.fetch_url(url)
     # If standard fetch fails, it might default to None internally or we retry with urllib as fallback if trafilatura supported it, 
     # but trafilatura.fetch_url handles basics. Let's rely on internal config for now but if it fails we might need requests.
     # Actually trafilatura doesn't accept headers in fetch_url directly in all versions, but let's try configuring it globally or using requests.
     # Better approach: Use requests to get HTML, then pass to trafilatura.
-    import requests
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        downloaded = response.text
-    except Exception as e:
-        print(f"⚠️ Request failed for {url}: {e}")
-        downloaded = None
+    
+    if downloaded:
+        # If trafilatura succeeded
+        pass
+    else:
+        # Fallback to Requests
+        import requests
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            downloaded = response.text
+        except Exception as e:
+            print(f"⚠️ Request failed for {url}: {e}")
+            downloaded = None
+
     if downloaded:
         content = trafilatura.extract(downloaded)
         

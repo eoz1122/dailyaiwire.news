@@ -16,3 +16,7 @@ flask-login
 google-auth
 google-auth-httplib2
 httplib2
+trafilatura
+google-cloud-texttospeech
+python-dotenv
+moviepy
