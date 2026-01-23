@@ -116,7 +116,8 @@
 
             <!-- Audio Intelligence Section -->
             {% if article.audio_male or article.audio_female %}
-            <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+            <script
+                src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js?v={{ range(1,9999999)|random }}"></script>
 
             <!-- Sentinel for Intersection Observer to know when to dock -->
             <div id="audio-sentinel"></div>
