@@ -437,6 +437,10 @@
                             wavesurfer.setHeight(64);
                         }
                     }
+                    // --- Expose to Window for HTML onClick handlers ---
+                    window.resetIcons = resetIcons;
+                    window.playAudio = playAudio;
+                    window.toggleAudio = toggleAudio;
                 }
             </script>
             {% endif %}
