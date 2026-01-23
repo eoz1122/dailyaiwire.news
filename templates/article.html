@@ -258,12 +258,92 @@
                 let currentGender = null;
                 let isSticky = false;
 
-                // --- Initialization ---
-                document.addEventListener('DOMContentLoaded', () => {
-                    initWavesurfer();
-                    initStickyBehavior();
-                });
+                // --- Audio Logic (Defined First to Fix Scope/Hoisting Issues) ---
+                function resetIcons() {
+                    const el = (id) => document.getElementById(id);
+                    if (!el('icon-play-male')) return;
 
+                    el('icon-play-male').classList.remove('hidden');
+                    el('icon-pause-male').classList.add('hidden');
+                    el('icon-play-female').classList.remove('hidden');
+                    el('icon-pause-female').classList.add('hidden');
+                    el('btn-play-male').classList.remove('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500/50');
+                    el('btn-play-male').classList.add('bg-zinc-800', 'text-zinc-400');
+                    el('btn-play-female').classList.remove('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
+                    el('btn-play-female').classList.add('bg-zinc-800', 'text-zinc-400');
+                }
+                window.resetIcons = resetIcons; // Explicit Global Exposure
+
+                function playAudio(gender) {
+                    // Reset if switching gender
+                    if (currentGender && currentGender !== gender) {
+                        if (wavesurfer && wavesurfer.isPlaying()) wavesurfer.pause();
+                        resetIcons();
+                    }
+
+                    resetIcons(); // Ensure clean state
+                    currentGender = gender;
+
+                    const url = gender === 'male' ? "{{ article.audio_male }}" : "{{ article.audio_female }}";
+
+                    // Visual updates
+                    const el = (id) => document.getElementById(id);
+
+                    if (gender === 'male') {
+                        el('icon-play-male').classList.add('hidden');
+                        el('icon-pause-male').classList.remove('hidden');
+                        el('btn-play-male').classList.remove('bg-zinc-800', 'text-zinc-400');
+                        el('btn-play-male').classList.add('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500/50');
+                    } else {
+                        el('icon-play-female').classList.add('hidden');
+                        el('icon-pause-female').classList.remove('hidden');
+                        el('btn-play-female').classList.remove('bg-zinc-800', 'text-zinc-400');
+                        el('btn-play-female').classList.add('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
+                    }
+
+                    if (wavesurfer) {
+                        wavesurfer.load(url);
+                        wavesurfer.once('ready', () => {
+                            wavesurfer.play();
+                        });
+                    }
+                }
+                window.playAudio = playAudio; // Explicit Global Exposure
+
+                function toggleAudio(gender) {
+                    if (currentGender === gender && wavesurfer && wavesurfer.isPlaying()) {
+                        wavesurfer.pause();
+                        resetIcons();
+                    } else {
+                        playAudio(gender);
+                    }
+                }
+                window.toggleAudio = toggleAudio; // Explicit Global Exposure
+
+                // --- Helper Functions ---
+                function formatTime(seconds) {
+                    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "00:00";
+                    const m = Math.floor(seconds / 60);
+                    const s = Math.floor(seconds % 60);
+                    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                }
+
+                function updateTime() {
+                    if (!wavesurfer) return;
+                    const curr = wavesurfer.getCurrentTime();
+                    let dur = wavesurfer.getDuration();
+
+                    // Robust check for MediaElement duration
+                    const media = wavesurfer.__media || (wavesurfer.getMediaElement ? wavesurfer.getMediaElement() : null);
+                    if ((!dur || !isFinite(dur)) && media && isFinite(media.duration)) {
+                        dur = media.duration;
+                    }
+
+                    const display = document.getElementById('time-display');
+                    if (display) display.innerText = `${formatTime(curr)} / ${formatTime(dur)}`;
+                }
+
+                // --- Initialization Logic ---
                 function initWavesurfer() {
                     wavesurfer = WaveSurfer.create({
                         container: '#waveform',
@@ -280,14 +360,16 @@
 
                     // Event Listeners
                     wavesurfer.on('ready', () => {
-                        document.getElementById('wave-loading').classList.add('hidden');
+                        const loading = document.getElementById('wave-loading');
+                        if (loading) loading.classList.add('hidden');
+
                         const staticWave = document.getElementById('static-waveform');
                         if (staticWave) staticWave.classList.add('hidden');
 
                         // Initial update
                         updateTime();
 
-                        // Force a re-check for duration (MediaElement quirk)
+                        // Force a re-check for duration
                         setTimeout(updateTime, 200);
                         setTimeout(updateTime, 1000);
                     });
@@ -297,99 +379,11 @@
                     wavesurfer.on('finish', resetIcons);
                 }
 
-                // --- Audio State Management ---
-                function resetIcons() {
-                    document.getElementById('icon-play-male').classList.remove('hidden');
-                    document.getElementById('icon-pause-male').classList.add('hidden');
-                    document.getElementById('icon-play-female').classList.remove('hidden');
-                    document.getElementById('icon-pause-female').classList.add('hidden');
-                    document.getElementById('btn-play-male').classList.remove('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500/50');
-                    document.getElementById('btn-play-male').classList.add('bg-zinc-800', 'text-zinc-400');
-                    document.getElementById('btn-play-female').classList.remove('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
-                    document.getElementById('btn-play-female').classList.add('bg-zinc-800', 'text-zinc-400');
-                }
-
-                function playAudio(gender) {
-                    // Reset if switching gender
-                    if (currentGender && currentGender !== gender) {
-                        wavesurfer.pause();
-                        resetIcons();
-                    }
-
-                    resetIcons(); // Ensure clean state
-                    currentGender = gender;
-
-                    const url = gender === 'male' ? "{{ article.audio_male }}" : "{{ article.audio_female }}";
-
-                    // Visual updates
-                    if (gender === 'male') {
-                        document.getElementById('icon-play-male').classList.add('hidden');
-                        document.getElementById('icon-pause-male').classList.remove('hidden');
-                        document.getElementById('btn-play-male').classList.remove('bg-zinc-800', 'text-zinc-400');
-                        document.getElementById('btn-play-male').classList.add('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500/50');
-                    } else {
-                        document.getElementById('icon-play-female').classList.add('hidden');
-                        document.getElementById('icon-pause-female').classList.remove('hidden');
-                        document.getElementById('btn-play-female').classList.remove('bg-zinc-800', 'text-zinc-400');
-                        document.getElementById('btn-play-female').classList.add('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
-                    }
-
-                    // Audio Logic
-                    // Check if already loaded to avoid re-fetch? Wavesurfer handles load efficiently, but basic check:
-                    // Only load if new URL.
-                    // Note: In this simple version, we just load and play.
-                    wavesurfer.load(url);
-
-                    // Show waveform container if hidden (optional, depending on design)
-                    // document.getElementById('waveform').classList.remove('opacity-50');
-
-                    wavesurfer.once('ready', () => {
-                        wavesurfer.play();
-                    });
-                }
-
-                // Helper to pause from UI (if needed, though toggle logic handled in HTML onClick?)
-                // The HTML likely calls playAudio directly. If we need toggle, logic needs to be inside playAudio or separate toggle function.
-                // Based on standard implementation, let's assume specific buttons call specific actions or we need a toggle.
-                // Re-reading error: "playAudio not defined".
-                // I'll stick to basic playAudio. If the UI needs pause, it might call wavesurfer.playPause() directly or a wrapper.
-                // Let's add a toggle wrapper just in case.
-
-                function toggleAudio(gender) {
-                    if (currentGender === gender && wavesurfer.isPlaying()) {
-                        wavesurfer.pause();
-                        resetIcons();
-                    } else {
-                        playAudio(gender);
-                    }
-                }
-
-
-
-                function updateTime() {
-                    const curr = wavesurfer.getCurrentTime();
-                    let dur = wavesurfer.getDuration();
-
-                    // Robust check for MediaElement duration
-                    const media = wavesurfer.__media || (wavesurfer.getMediaElement ? wavesurfer.getMediaElement() : null);
-                    if ((!dur || !isFinite(dur)) && media && isFinite(media.duration)) {
-                        dur = media.duration;
-                    }
-
-                    document.getElementById('time-display').innerText = `${formatTime(curr)} / ${formatTime(dur)}`;
-                }
-
-                function formatTime(seconds) {
-                    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "00:00";
-                    const m = Math.floor(seconds / 60);
-                    const s = Math.floor(seconds % 60);
-                    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                }
-
-                // --- Sticky Experience Logic ---
                 function initStickyBehavior() {
                     const sentinel = document.getElementById('audio-sentinel');
                     const wrapper = document.getElementById('audio-wrapper');
+
+                    if (!sentinel || !wrapper) return;
 
                     const observer = new IntersectionObserver((entries) => {
                         // Only dock if audio is playing or has been started (don't annoy user if they haven't interacted)
@@ -424,7 +418,7 @@
 
                             // Compact mode for sticky
                             document.getElementById('waveform').style.height = '32px';
-                            wavesurfer.setHeight(32);
+                            if (wavesurfer && wavesurfer.setHeight) wavesurfer.setHeight(32);
                         } else {
                             // Restore to top
                             wrapper.style.height = 'auto'; // Reset
@@ -434,14 +428,16 @@
 
                             // Restore height
                             document.getElementById('waveform').style.height = '64px';
-                            wavesurfer.setHeight(64);
+                            if (wavesurfer && wavesurfer.setHeight) wavesurfer.setHeight(64);
                         }
                     }
-                    // --- Expose to Window for HTML onClick handlers ---
-                    window.resetIcons = resetIcons;
-                    window.playAudio = playAudio;
-                    window.toggleAudio = toggleAudio;
                 }
+
+                // --- Boot ---
+                document.addEventListener('DOMContentLoaded', () => {
+                    initWavesurfer();
+                    initStickyBehavior();
+                });
             </script>
             {% endif %}
 
@@ -797,27 +793,16 @@
     <!-- Related Signals (Internal Linking for SEO) -->
     {% if related_articles %}
     <div class="mt-20 border-t border-zinc-800 pt-16 mb-24">
-        <h3 class="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-8">Generated Related Signals
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {% for rel in related_articles %}
-            <a href="/article/{{ rel.slug }}" class="group block">
-                <div
-                    class="aspect-video w-full rounded-2xl overflow-hidden mb-4 border border-zinc-800 relative bg-zinc-900">
-                    <img src="{{ rel.image }}" alt="{{ rel.title }}"
-                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy" onerror="this.src='/static/fallbacks/tools_0.jpg'">
-                    <div class="absolute inset-0 bg-transparent group-hover:bg-blue-600/10 transition-colors">
-                    </div>
-                </div>
-                <div
-                    class="inline-block px-2 py-1 bg-zinc-800 text-zinc-400 text-[9px] font-black uppercase tracking-widest rounded mb-2">
-                    {{ rel.category }}
-                </div>
-                <h4 class="text-white font-bold text-lg leading-tight group-hover:text-blue-500 transition-colors">
-                    {{ rel.title }}
-                </h4>
-                <p class="text-zinc-500 text-xs mt-2">{{ rel.published_at | time_ago }}</p>
+        <h3 class="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-8">Generated Related Signals</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for related in related_articles %}
+            <a href="/article/{{ related.slug }}"
+                class="group flex flex-col p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-blue-700 hover:bg-zinc-800 transition-all">
+                <span class="text-xs text-blue-600 font-black uppercase tracking-widest mb-3">{{ related.category
+                    }}</span>
+                <h4 class="text-white font-bold text-lg mb-2 leading-tight group-hover:text-blue-400 transition-colors">
+                    {{ related.title }}</h4>
+                <p class="text-zinc-500 text-sm line-clamp-2">{{ related.gist }}</p>
             </a>
             {% endfor %}
         </div>
@@ -825,5 +810,4 @@
     {% endif %}
 
 </div>
-
 {% endblock %}
