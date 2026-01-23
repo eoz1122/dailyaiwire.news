@@ -297,7 +297,74 @@
                     wavesurfer.on('finish', resetIcons);
                 }
 
-                // ... [keep other functions] ...
+                // --- Audio State Management ---
+                function resetIcons() {
+                    document.getElementById('icon-play-male').classList.remove('hidden');
+                    document.getElementById('icon-pause-male').classList.add('hidden');
+                    document.getElementById('icon-play-female').classList.remove('hidden');
+                    document.getElementById('icon-pause-female').classList.add('hidden');
+                    document.getElementById('btn-play-male').classList.remove('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500/50');
+                    document.getElementById('btn-play-male').classList.add('bg-zinc-800', 'text-zinc-400');
+                    document.getElementById('btn-play-female').classList.remove('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
+                    document.getElementById('btn-play-female').classList.add('bg-zinc-800', 'text-zinc-400');
+                }
+
+                function playAudio(gender) {
+                    // Reset if switching gender
+                    if (currentGender && currentGender !== gender) {
+                        wavesurfer.pause();
+                        resetIcons();
+                    }
+
+                    resetIcons(); // Ensure clean state
+                    currentGender = gender;
+
+                    const url = gender === 'male' ? "{{ article.audio_male }}" : "{{ article.audio_female }}";
+
+                    // Visual updates
+                    if (gender === 'male') {
+                        document.getElementById('icon-play-male').classList.add('hidden');
+                        document.getElementById('icon-pause-male').classList.remove('hidden');
+                        document.getElementById('btn-play-male').classList.remove('bg-zinc-800', 'text-zinc-400');
+                        document.getElementById('btn-play-male').classList.add('bg-blue-600', 'text-white', 'ring-2', 'ring-blue-500/50');
+                    } else {
+                        document.getElementById('icon-play-female').classList.add('hidden');
+                        document.getElementById('icon-pause-female').classList.remove('hidden');
+                        document.getElementById('btn-play-female').classList.remove('bg-zinc-800', 'text-zinc-400');
+                        document.getElementById('btn-play-female').classList.add('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
+                    }
+
+                    // Audio Logic
+                    // Check if already loaded to avoid re-fetch? Wavesurfer handles load efficiently, but basic check:
+                    // Only load if new URL.
+                    // Note: In this simple version, we just load and play.
+                    wavesurfer.load(url);
+
+                    // Show waveform container if hidden (optional, depending on design)
+                    // document.getElementById('waveform').classList.remove('opacity-50');
+
+                    wavesurfer.once('ready', () => {
+                        wavesurfer.play();
+                    });
+                }
+
+                // Helper to pause from UI (if needed, though toggle logic handled in HTML onClick?)
+                // The HTML likely calls playAudio directly. If we need toggle, logic needs to be inside playAudio or separate toggle function.
+                // Based on standard implementation, let's assume specific buttons call specific actions or we need a toggle.
+                // Re-reading error: "playAudio not defined".
+                // I'll stick to basic playAudio. If the UI needs pause, it might call wavesurfer.playPause() directly or a wrapper.
+                // Let's add a toggle wrapper just in case.
+
+                function toggleAudio(gender) {
+                    if (currentGender === gender && wavesurfer.isPlaying()) {
+                        wavesurfer.pause();
+                        resetIcons();
+                    } else {
+                        playAudio(gender);
+                    }
+                }
+
+
 
                 function updateTime() {
                     const curr = wavesurfer.getCurrentTime();
