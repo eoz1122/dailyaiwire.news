@@ -53,7 +53,8 @@ def get_next_article_to_share():
             END
         ) as hybrid_rank 
         FROM articles 
-        WHERE shared_on_x = 0 OR shared_on_x IS NULL 
+        WHERE (shared_on_x = 0 OR shared_on_x IS NULL) 
+        AND is_published = 1
         ORDER BY hybrid_rank DESC
         LIMIT 1
     '''
@@ -109,6 +110,26 @@ def main_loop():
 
             # 0. Daily Reset: Clear anything from previous days
             clear_stale_queue()
+            
+            # --- WEEKLY WRAP AUTOMATION ---
+            # Every Sunday at 18:00 (or first check after), generate draft
+            now = datetime.now()
+            if now.weekday() == 6 and now.hour >= 18: 
+                # Check directly in DB if we made one this week
+                conn = get_db_connection()
+                # Look for a newsletter created in the last 24 hours
+                last_24h = (now - timedelta(days=1)).isoformat()
+                row = conn.execute("SELECT id FROM newsletters WHERE created_at > ?", (last_24h,)).fetchone()
+                conn.close()
+                
+                if not row:
+                    print(f"🗞️ It's Sunday Evening! Triggering Weekly Wrap Synthesis...")
+                    try:
+                        import weekly_curator
+                        weekly_curator.generate_newsletter_draft()
+                    except Exception as e:
+                        print(f"❌ Failed to auto-generate weekly wrap: {e}")
+            # -------------------------------
 
             # 2. Check 2-hour gap (Verified against Database)
             last_shared_time = get_last_post_time()

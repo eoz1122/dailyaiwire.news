@@ -395,7 +395,7 @@ def admin_unblock_source():
 def admin_kill_article(id):
     conn = get_db_connection()
     # Toggle logic: If published(1) -> 0. If killed(0) -> 1.
-    row = conn.execute('SELECT is_published, source FROM articles WHERE id = ?', (id,)).fetchone()
+    row = conn.execute('SELECT is_published, source, title, source_url FROM articles WHERE id = ?', (id,)).fetchone()
     
     if row:
         current_status = row['is_published']
@@ -406,6 +406,26 @@ def admin_kill_article(id):
         
         status_msg = "LIVE" if new_status else "OFFLINE"
         flash_color = "success" if new_status else "warning"
+
+        # LOGIC: If Killed (0), move to LEADS
+        if new_status == 0:
+            try:
+                from urllib.parse import urlparse
+                # Attempt to extract domain, fallback to source name
+                domain = row['source']
+                if row['source_url']:
+                    try:
+                        domain = urlparse(row['source_url']).netloc.replace('www.', '')
+                    except:
+                        pass
+                
+                conn.execute('''
+                    INSERT OR IGNORE INTO leads (domain, source_url, title, status, confidence_score, opportunity_reason)
+                    VALUES (?, ?, ?, 'NEW', 85, 'Manually Killed Signal (High Conversion Potential)')
+                ''', (domain, row['source_url'], row['title']))
+                status_msg += " + COPIED TO LEADS"
+            except Exception as e:
+                print(f"Error moving to leads: {e}")
 
         # Check for "Nuclear Option" (Block Source)
         if new_status == 0 and request.args.get('block_source') == 'true':
