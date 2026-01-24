@@ -85,13 +85,13 @@ def add_utm_to_html(html_content):
 def add_security_headers(response):
     csp = (
         "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' https: data: blob:; "
         "media-src 'self' https: data: blob:; "
         "connect-src 'self' https:; "
-        "frame-src 'self' https:;"
+        "frame-src 'self' https: https://*.googlesyndication.com;"
     )
     response.headers['Content-Security-Policy'] = csp
     return response
