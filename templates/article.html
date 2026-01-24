@@ -102,8 +102,9 @@
         <div class="lg:col-span-8">
             <div
                 class="flex flex-wrap items-center gap-4 md:gap-6 mb-8 text-zinc-500 text-sm font-bold uppercase tracking-widest">
-                <span class="whitespace-nowrap">Source: <a href="{{ article.source_url }}" target="_blank"
-                        class="text-blue-600 hover:underline">{{ article.source }}</a></span>
+                <span class="whitespace-nowrap">Source: <a
+                        href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
+                        target="_blank" class="text-blue-600 hover:underline">{{ article.source }}</a></span>
 
                 {% if article.original_author %}
                 <span class="whitespace-nowrap">Original Author: <span class="text-zinc-300">{{ article.original_author
@@ -478,7 +479,8 @@
 
             <!-- Secondary CTA (After ELI5) -->
             <div class="mb-12 flex justify-center md:justify-start">
-                <a href="{{ article.source_url }}" target="_blank"
+                <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
+                    target="_blank"
                     class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 hover:bg-blue-700 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all border border-zinc-700 hover:border-blue-600 shadow-lg group">
                     <span>Read Full Story on {{ article.source }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
@@ -509,7 +511,8 @@
                 </p>
 
                 <!-- Prominent Link to Source -->
-                <a href="{{ article.source_url }}" target="_blank"
+                <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
+                    target="_blank"
                     class="inline-flex items-center justify-center w-full md:w-auto px-12 py-6 bg-blue-700 hover:bg-blue-600 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all shadow-xl hover:shadow-blue-600/20 group">
                     <span>Read Full Story on {{ article.source }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
