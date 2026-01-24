@@ -299,7 +299,6 @@ def admin_leads():
         flash("Leads table missing.", "error")
 
     conn.close()
-    conn.close()
     return render_template('admin/leads.html', leads=leads)
 
 @app.route('/admin/leads/delete/<int:id>', methods=['POST'])
