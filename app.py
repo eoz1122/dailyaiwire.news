@@ -60,6 +60,27 @@ def init_db_migrations():
 # Run immediately
 init_db_migrations()
 
+# --- Template Filters ---
+@app.template_filter('add_utm_to_html')
+def add_utm_to_html(html_content):
+    if not html_content:
+        return ""
+    
+    def replacer(match):
+        url = match.group(1)
+        if 'utm_source=dailyaiwire' in url:
+            return f'href="{url}"'
+            
+        separator = '&' if '?' in url else '?'
+        new_url = f"{url}{separator}utm_source=dailyaiwire&utm_medium=smart_referral"
+        return f'href="{new_url}"'
+
+    # Regex to find href attributes in anchor tags
+    # Matches href="URL" inside <a ...> tags
+    # This is a robust enough approximation for generated content
+    pattern = r'href=["\'](.*?)["\']' 
+    return re.sub(pattern, replacer, html_content)
+
 @app.after_request
 def add_security_headers(response):
     csp = (

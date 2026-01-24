@@ -40,8 +40,8 @@
       "url": "https://dailyaiwire.news/static/logo.png"
     }
   },
-  "description": {{ article.gist | replace('**', '') | tojson | safe }},
-  "articleBody": {{ article.deep_analysis | replace('\n', ' ') | tojson | safe }},
+  "description": {{ article.gist | replace('**', '') | add_utm_to_html | tojson | safe }},
+  "articleBody": {{ article.deep_analysis | replace('\n', ' ') | add_utm_to_html | tojson | safe }},
   "articleSection": {{ article.category | tojson | safe }},
   "url": {{ ("https://dailyaiwire.news/article/" + article.slug) | tojson | safe }},
   "mainEntityOfPage": {
@@ -459,7 +459,7 @@
                 <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist
                 </h3>
                 <p class="text-xl font-semibold leading-relaxed text-zinc-100">
-                    {{ article.gist.replace('**', '') }}
+                    {{ article.gist.replace('**', '') | add_utm_to_html | safe }}
                 </p>
             </div>
 
@@ -481,7 +481,7 @@
                         Explain Like I'm
                         Five</h3>
                     <p class="text-zinc-200 text-lg italic leading-relaxed font-medium">
-                        "{{ article.eli5.replace('**', '') }}"
+                        "{{ article.eli5.replace('**', '') | add_utm_to_html | safe }}"
                     </p>
                 </div>
             </div>
@@ -508,7 +508,7 @@
                     class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 border-blue-700 pl-4 py-1">
                     Deep Intelligence Analysis</h3>
                 <div class="text-zinc-300 text-lg leading-relaxed space-y-4">
-                    {{ article.deep_analysis | replace('\n', '<br>') | safe }}
+                    {{ article.deep_analysis | replace('\n', '<br>') | add_utm_to_html | safe }}
                 </div>
             </section>
             <!-- Why It Matters Section -->
