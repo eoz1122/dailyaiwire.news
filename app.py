@@ -265,11 +265,28 @@ def admin_sources():
             conn.commit()
             flash("Source deleted.", "warning")
 
-    # 1. Get Managed Sources (The Governance List)
+    # 1. Auto-Discover Sources from Articles (Self-Healing)
     try:
-        sources_managed = conn.execute('SELECT * FROM sources ORDER BY is_active DESC, name ASC').fetchall()
+        conn.execute('''
+            INSERT OR IGNORE INTO sources (name, is_active)
+            SELECT DISTINCT source, 1 FROM articles 
+            WHERE source IS NOT NULL AND source != '' 
+        ''')
+        conn.commit()
+    except Exception as e:
+        print(f"Source discovery warning: {e}")
+
+    # 2. Get Managed Sources with Article Counts
+    try:
+        sources_managed = conn.execute('''
+            SELECT s.*, COUNT(a.id) as count 
+            FROM sources s
+            LEFT JOIN articles a ON a.source = s.name
+            GROUP BY s.id
+            ORDER BY s.is_active DESC, count DESC
+        ''').fetchall()
     except sqlite3.OperationalError:
-        flash("Sources table missing. Please run migration.", "error")
+        flash("Sources table missing or query error. Please run migration.", "error")
         sources_managed = []
 
     # 2. Get Blocked Sources (The Blacklist)
