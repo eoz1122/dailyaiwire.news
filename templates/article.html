@@ -306,7 +306,17 @@
                     if (wavesurfer) {
                         wavesurfer.load(url);
                         wavesurfer.once('ready', () => {
-                            wavesurfer.play();
+                            try {
+                                const promise = wavesurfer.play();
+                                if (promise !== undefined) {
+                                    promise.catch(error => {
+                                        console.warn("Autoplay prevented:", error);
+                                        resetIcons();
+                                    });
+                                }
+                            } catch (err) {
+                                console.warn("Audio playback error:", err);
+                            }
                         });
                     }
                 }
