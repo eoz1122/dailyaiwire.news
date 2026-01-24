@@ -186,7 +186,7 @@ class MyAdminIndexView(AdminIndexView):
         
         conn.close()
         
-        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query)
+        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total)
 
 
 
