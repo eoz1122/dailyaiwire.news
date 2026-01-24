@@ -90,7 +90,7 @@ def add_security_headers(response):
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' https: data: blob:; "
         "media-src 'self' https: data: blob:; "
-        "connect-src 'self' https:; "
+        "connect-src 'self' https: https://*.cloudflareinsights.com; "
         "frame-src 'self' https: https://*.googlesyndication.com;"
     )
     response.headers['Content-Security-Policy'] = csp
