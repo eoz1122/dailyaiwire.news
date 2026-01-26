@@ -298,32 +298,25 @@ def admin_sources():
 @app.route('/admin/leads')
 @login_required
 def admin_leads():
+    conn = get_db_connection()
+    # Fetch identified leads (Iron Judo Pipeline)
     try:
-        conn = get_db_connection()
-        # Fetch identified leads (Iron Judo Pipeline)
-        try:
-            leads = conn.execute('''
-                SELECT * FROM leads 
-                ORDER BY 
-                CASE status 
-                    WHEN 'NEW' THEN 1 
-                    WHEN 'PROPOSAL_SENT' THEN 2 
-                    ELSE 3 
-                END, 
-                confidence_score DESC
-            ''').fetchall()
-        except sqlite3.OperationalError as e:
-            # If table doesn't exist, we can't fetch. 
-            # But let's verify if that's the only error.
-            print(f"Operational Error in Leads: {e}")
-            leads = []
-            flash("Leads table missing.", "error")
+        leads = conn.execute('''
+            SELECT * FROM leads 
+            ORDER BY 
+            CASE status 
+                WHEN 'NEW' THEN 1 
+                WHEN 'PROPOSAL_SENT' THEN 2 
+                ELSE 3 
+            END, 
+            confidence_score DESC
+        ''').fetchall()
+    except sqlite3.OperationalError:
+        leads = []
+        flash("Leads table missing.", "error")
 
-        conn.close()
-        return render_template('admin/leads.html', leads=leads)
-    except Exception as e:
-        import traceback
-        return f"<h1>DEBUG MODE: LEADS CRASH</h1><pre>{traceback.format_exc()}</pre>", 200
+    conn.close()
+    return render_template('admin/leads.html', leads=leads)
 
 @app.route('/admin/leads/delete/<int:id>', methods=['POST'])
 @login_required
