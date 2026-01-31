@@ -67,6 +67,10 @@ def init_db_migrations():
             conn.execute('ALTER TABLE articles ADD COLUMN audio_plays INTEGER DEFAULT 0')
             
         conn.commit()
+    except Exception as e:
+        print(f"Migration failed: {e}")
+    finally:
+        if conn: conn.close()
 
 
 # Run immediately
