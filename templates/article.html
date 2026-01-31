@@ -307,6 +307,12 @@
                         el('btn-play-female').classList.add('bg-pink-600', 'text-white', 'ring-2', 'ring-pink-500/50');
                     }
 
+                    // --- Analytics Hook ---
+                    if (!window.hasTrackedPlay) {
+                        fetch('/api/track-audio/{{ article.id }}', { method: 'POST' });
+                        window.hasTrackedPlay = true;
+                    }
+
                     if (wavesurfer) {
                         wavesurfer.load(url);
                         wavesurfer.once('ready', () => {

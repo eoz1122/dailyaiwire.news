@@ -52,10 +52,22 @@ def init_db_migrations():
         except sqlite3.Error as e:
             print(f"Admin migration error: {e}")
 
+
+        # 3. Analytics Columns
+        try:
+            conn.execute('SELECT views FROM articles LIMIT 1')
+        except sqlite3.OperationalError:
+            print("MIGRATION: Adding 'views' column...")
+            conn.execute('ALTER TABLE articles ADD COLUMN views INTEGER DEFAULT 0')
+            
+        try:
+            conn.execute('SELECT audio_plays FROM articles LIMIT 1')
+        except sqlite3.OperationalError:
+            print("MIGRATION: Adding 'audio_plays' column...")
+            conn.execute('ALTER TABLE articles ADD COLUMN audio_plays INTEGER DEFAULT 0')
+            
         conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Migration failed: {e}")
+
 
 # Run immediately
 init_db_migrations()
@@ -173,7 +185,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
         
         # Main Articles Query
-        query = "SELECT id, title, category, published_at, slug, importance_score, is_published FROM articles" + where_clause + " ORDER BY published_at DESC LIMIT ? OFFSET ?"
+        query = "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays FROM articles" + where_clause + " ORDER BY published_at DESC LIMIT ? OFFSET ?"
         query_params = params + [per_page, offset]
         
         articles = conn.execute(query, query_params).fetchall()
@@ -1265,7 +1277,28 @@ def article(slug):
              rd['image'] = '/' + rd['image']
         related_articles.append(rd)
 
+    # Analytics: Increment Views
+    try:
+        conn = get_db_connection()
+        conn.execute('UPDATE articles SET views = views + 1 WHERE id = ?', (d['id'],))
+        conn.commit()
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+    finally:
+        conn.close()
+
     return render_template('article.html', article=d, related_articles=related_articles)
+
+@app.route('/api/track-audio/<int:id>', methods=['POST'])
+def track_audio_play(id):
+    try:
+        conn = get_db_connection()
+        conn.execute('UPDATE articles SET audio_plays = audio_plays + 1 WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "id": id}, 200
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
 
 @app.route('/about')
 def about(): return render_template('about.html')
