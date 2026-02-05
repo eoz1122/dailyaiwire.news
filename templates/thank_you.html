@@ -81,4 +81,34 @@
         </div>
     </div>
 </div>
+
+{% block head_extra %}
+<script>
+    // Fire conversion tracking on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if this is a new subscriber or existing
+        const isExisting = new URLSearchParams(window.location.search).get('status') === 'existing';
+
+        // Google Analytics 4 Event
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'conversion', {
+                'event_category': 'Newsletter',
+                'event_label': isExisting ? 'Existing Subscriber' : 'New Subscriber',
+                'value': isExisting ? 0 : 1,
+                'send_to': '{{ config_ga_id }}'
+            });
+
+            // Also send as a custom event for better tracking
+            gtag('event', 'newsletter_signup', {
+                'subscriber_type': isExisting ? 'existing' : 'new',
+                'page_path': '/thank-you',
+                'page_title': 'Newsletter Signup Success'
+            });
+        }
+
+        // Console log for debugging (remove in production if needed)
+        console.log('Newsletter signup tracked:', isExisting ? 'Existing' : 'New');
+    });
+</script>
+{% endblock %}
 {% endblock %}
