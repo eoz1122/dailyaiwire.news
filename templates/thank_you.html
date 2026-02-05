@@ -15,6 +15,19 @@
             </svg>
         </div>
 
+        {% if request.args.get('status') == 'existing' %}
+        <h1
+            class="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight leading-none font-['Outfit'] uppercase">
+            Connection<br>
+            <span class="text-blue-500">Verified</span>
+        </h1>
+
+        <div class="w-16 h-1 bg-gradient-to-r from-blue-500 to-blue-400 mx-auto mb-8 rounded-full"></div>
+
+        <p class="text-xl text-gray-600 mb-10 leading-relaxed font-medium">
+            You are already inside the inner circle. Your feed is active.
+        </p>
+        {% else %}
         <h1
             class="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight leading-none font-['Outfit'] uppercase">
             Connection<br>
@@ -26,6 +39,7 @@
         <p class="text-xl text-gray-600 mb-10 leading-relaxed font-medium">
             Welcome to the inner circle. Your intelligence feed has been successfully activated.
         </p>
+        {% endif %}
 
         <!-- Briefing Protocol Box -->
         <div class="bg-gray-50 rounded-2xl p-8 mb-10 text-left border border-gray-100">

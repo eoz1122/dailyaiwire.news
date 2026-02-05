@@ -13,6 +13,9 @@ from budget_tracker import BudgetTracker
 
 load_dotenv()
 app = Flask(__name__)
+# DEBUG: Verification of deployment
+print(f"✅ APP BOOT: Robust Date Fix Loaded at {datetime.utcnow()}")
+
 # SECURITY: Force secure secret key
 secret = os.getenv('SECRET_KEY')
 if not secret:
@@ -189,7 +192,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
         
         # Main Articles Query
-        query = "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays FROM articles" + where_clause + " ORDER BY published_at DESC LIMIT ? OFFSET ?"
+        query = "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays FROM articles" + where_clause + " ORDER BY replace(published_at, 'T', ' ') DESC LIMIT ? OFFSET ?"
         query_params = params + [per_page, offset]
         
         articles = conn.execute(query, query_params).fetchall()
@@ -321,9 +324,10 @@ def admin_leads():
             SELECT * FROM leads 
             ORDER BY 
             CASE status 
-                WHEN 'NEW' THEN 1 
-                WHEN 'PROPOSAL_SENT' THEN 2 
-                ELSE 3 
+                WHEN 'DRAFT_READY' THEN 1
+                WHEN 'NEW' THEN 2 
+                WHEN 'PROPOSAL_SENT' THEN 3 
+                ELSE 4 
             END, 
             confidence_score DESC
         ''').fetchall()
@@ -1094,10 +1098,9 @@ def time_ago(dt_str):
         diff = now - dt
         seconds = int(diff.total_seconds())
         
-        if seconds < 0: return "just now"
-        if seconds < 60: return f"{seconds}s ago"
+        if seconds < 0: return "Future"
+        if seconds < 60: return "Just now"
         if seconds < 3600: return f"{seconds // 60}m ago"
-        if seconds < 7200: return "Just now"
         if seconds < 86400: return f"{seconds // 3600}h ago"
         if seconds < 604800: return f"{seconds // 86400}d ago"
         return dt.strftime('%b %d')
@@ -1209,14 +1212,22 @@ def index():
     elif cat_arg:
         offset = (page - 1) * ITEMS_PER_PAGE
         total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ? AND is_published = 1', (cat_arg,)).fetchone()[0]
+        query_base = 'FROM articles WHERE category = ? AND is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
+        query_params = (cat_arg,)
+
+        offset = (page - 1) * ITEMS_PER_PAGE
+        total_arts_count = conn.execute(f'SELECT COUNT(*) {query_base}', query_params).fetchone()[0]
         total_arts = total_arts_count
-        grid = conn.execute('SELECT * FROM articles WHERE category = ? AND is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (cat_arg, ITEMS_PER_PAGE, offset)).fetchall()
+        grid = conn.execute(f'SELECT * {query_base} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', query_params + (ITEMS_PER_PAGE, offset)).fetchall()
         carousel = []
     else:
+        # Base condition for published articles not in the future
+        published_condition = 'is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
+
         if page == 1:
-            carousel = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY published_at DESC, id DESC LIMIT 10').fetchall()
-            grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
-            total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
+            carousel = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY published_at DESC, id DESC LIMIT 10').fetchall()
+            grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
+            total_arts_count = conn.execute(f'SELECT COUNT(*) FROM articles WHERE {published_condition}').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
         else:
             db_offset = 10 + ((page - 1) * ITEMS_PER_PAGE)
@@ -1243,7 +1254,9 @@ def index():
         except: d['key_details'] = []
         processed_carousel.append(d)
 
-    return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q)
+    resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow()))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 @app.route('/how-it-works')
 def how_it_works():
@@ -1346,7 +1359,8 @@ def remove_emojis(text):
 @app.route('/rss')
 def rss_feed():
     conn = get_db_connection()
-    articles_db = conn.execute('SELECT * FROM articles WHERE published_at IS NOT NULL ORDER BY id DESC LIMIT 20').fetchall()
+    # RSS: Only show currently published
+    articles_db = conn.execute("SELECT * FROM articles WHERE published_at IS NOT NULL AND replace(published_at, 'T', ' ') <= datetime('now') ORDER BY id DESC LIMIT 20").fetchall()
     conn.close()
     
     articles = []
@@ -1604,9 +1618,16 @@ def sitemap():
         print(f"Sitemap Error (Categories): {e}")
 
     # 2. Dynamic Articles (CRAWL BUDGET OPTIMIZED)
-    # Only show LAST 100 Published Articles to focus Googlebot on fresh content
     try:
-        articles = conn.execute("SELECT slug, published_at FROM articles WHERE is_published = 1 ORDER BY published_at DESC LIMIT 100").fetchall()
+        # Only show published articles that are NOT in the future
+        query = """
+            SELECT slug, published_at FROM articles 
+            WHERE is_published = 1 
+            AND replace(published_at, 'T', ' ') <= datetime('now')
+            ORDER BY published_at DESC 
+            LIMIT 50
+        """
+        articles = conn.execute(query).fetchall()
         for art in articles:
             url = f"{base_url}/article/{art['slug']}"
             # Parse date for lastmod
@@ -1689,8 +1710,8 @@ def subscribe():
 
                 return redirect(url_for('thank_you_page'))
             except sqlite3.IntegrityError:
-                flash('You are already subscribed.')
-                return redirect(url_for('thank_you_page'))
+                flash('You are already subscribed. Welcome back!')
+                return redirect(url_for('thank_you_page', status='existing'))
             finally:
                 conn.close()
     return render_template('subscribe.html')
