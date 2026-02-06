@@ -43,7 +43,7 @@
                         {% for row in sources %}
                         <tr class="group hover:bg-white transition-all">
                             <td class="px-6 py-4">
-                                <span class="font-bold text-sm text-[#1a1a1a]">{{ row['source'] }}</span>
+                                <span class="font-bold text-sm text-[#1a1a1a]">{{ row['name'] }}</span>
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <span
@@ -54,14 +54,14 @@
                             <td class="px-6 py-4 text-right">
                                 <form action="{{ url_for('admin_block_source') }}" method="POST"
                                     class="inline-flex gap-2">
-                                    <input type="hidden" name="domain" value="{{ row['source'] }}">
+                                    <input type="hidden" name="domain" value="{{ row['name'] }}">
                                     <!-- Standard Block -->
                                     <button type="submit"
                                         class="text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-200 transition-colors">
                                         Block
                                     </button>
                                     <!-- NUKE Option -->
-                                    {% set source_name = row['source'] %}
+                                    {% set source_name = row['name'] %}
                                     <button type="submit" name="nuke" value="1"
                                         onclick="return confirm('WARNING: This will DELETE ALL articles from {{ source_name }} immediately. Are you sure?')"
                                         class="text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-white bg-red-50 hover:bg-red-600 px-3 py-1.5 rounded-lg border border-red-200 hover:border-red-600 transition-colors">
