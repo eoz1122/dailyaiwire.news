@@ -1236,6 +1236,17 @@ def index():
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
 
+    # Fetch Top Sources for "Trusted Sources" Section (Restored Feature)
+    sources_raw = conn.execute('''
+        SELECT source, COUNT(*) as count 
+        FROM articles 
+        WHERE is_published = 1 AND source IS NOT NULL 
+        GROUP BY source 
+        ORDER BY count DESC 
+        LIMIT 12
+    ''').fetchall()
+    sources = [dict(s) for s in sources_raw]
+
     conn.close()
     
     total_pages = math.ceil(total_arts / ITEMS_PER_PAGE) if total_arts > 0 else 1
@@ -1254,7 +1265,7 @@ def index():
         except: d['key_details'] = []
         processed_carousel.append(d)
 
-    resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow()))
+    resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, sources=sources, now_utc=datetime.utcnow()))
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return resp
 

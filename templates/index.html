@@ -18,7 +18,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 <div class="max-w-6xl mx-auto px-4 py-8">
     <!-- Filter Bar -->
     <!-- Filter Bar -->
-    <div class="flex flex-nowrap items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
+    <div class="flex flex-wrap items-center justify-center gap-3 mb-10">
         <a href="/"
             class="px-5 py-2 rounded-full {% if not category %}bg-blue-700 !text-white{% else %}bg-zinc-200 text-zinc-900 hover:bg-zinc-300{% endif %} font-bold text-xs uppercase tracking-widest transition-all">ALL
             WIRE</a>
@@ -58,7 +58,8 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                     <div class="absolute bottom-0 left-0 right-0">
                         <div
                             class="hero-text-container bg-black/40 backdrop-blur-xl p-4 pb-12 md:p-8 w-full border-t border-white/5">
-                            <div class="flex items-center gap-2 mb-2 md:mb-3">
+                            <!-- Top Line: Category | Date | Audio -->
+                            <div class="flex items-center gap-2 mb-2">
                                 <span
                                     class="inline-block px-2 py-1 md:px-3 md:py-1 {{ category_color(art.category) }} !text-white text-[10px] md:text-xs font-black uppercase tracking-widest rounded-md shadow-lg">
                                     {{ art.category }}
@@ -71,7 +72,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                                 </span>
                                 {% if art.audio_male or art.audio_female %}
                                 <div
-                                    class="flex items-center justify-center bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10 group-hover:bg-blue-600 group-hover:border-blue-500/50 transition-all">
+                                    class="flex items-center justify-center bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10 group-hover:bg-blue-600 group-hover:border-blue-500/50 transition-all ml-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 !text-white"
                                         viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd"
@@ -81,6 +82,41 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                                 </div>
                                 {% endif %}
                             </div>
+
+                            <!-- Source Attribution Line (New, Clean Position) -->
+                            <div class="flex items-center gap-2 mb-3">
+                                {% if art.source %}
+                                <div class="flex items-center space-x-2">
+                                    {% if 'Verge' in art.source %}
+                                    <div
+                                        class="w-4 h-4 md:w-5 md:h-5 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                        <span class="text-white text-[8px] font-black">V</span>
+                                    </div>
+                                    {% elif 'TechCrunch' in art.source %}
+                                    <div
+                                        class="w-4 h-4 md:w-5 md:h-5 rounded bg-green-600 flex items-center justify-center">
+                                        <span class="text-white text-[8px] font-black">TC</span>
+                                    </div>
+                                    {% elif 'Wired' in art.source %}
+                                    <div
+                                        class="w-4 h-4 md:w-5 md:h-5 rounded bg-black border border-white flex items-center justify-center">
+                                        <span class="text-white text-[8px] font-black">W</span>
+                                    </div>
+                                    {% else %}
+                                    <div
+                                        class="w-4 h-4 md:w-5 md:h-5 rounded bg-blue-700 flex items-center justify-center">
+                                        <span class="text-white text-[8px] font-black">AI</span>
+                                    </div>
+                                    {% endif %}
+                                    <span
+                                        class="text-white/60 text-[10px] md:text-xs uppercase font-black tracking-tighter">
+                                        {{ art.source or 'DAILY WIRE' }} // {{ art.published_at[:10] if art.published_at
+                                        else 'LATEST' }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+
                             <h2
                                 class="hero-title text-xl md:text-3xl font-black mb-2 md:mb-3 leading-tight drop-shadow-lg !text-white">
                                 {{
@@ -345,47 +381,91 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
         {% endfor %}
     </div>
 
-    <!-- Pagination -->
-    {% if total_pages > 1 %}
-    <div class="flex items-center justify-center space-x-4 mt-12 pb-8">
-        {% if page > 1 %}
-        <a href="/?page={{ page - 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">Previous</a>
+</div>
+
+<!-- Trusted Sources Grid (Restored) -->
+{% if sources %}
+<div class="mb-12 mt-16 border-t border-zinc-800/50 pt-12">
+    <h3 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-6 px-1 flex items-center gap-2">
+        <span class="w-1 h-1 bg-blue-500 rounded-full"></span> Trusted Intelligence Sources
+    </h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {% for source in sources %}
+        <a href="/?q={{ source.source }}"
+            class="glass-card p-4 rounded-xl flex flex-col items-center justify-center text-center hover:bg-zinc-800/80 transition-all duration-300 group border border-white/5 hover:border-blue-500/30 relative overflow-hidden">
+
+            <div
+                class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+            </div>
+
+            <!-- Dynamic Icon Generation -->
+            <div class="relative w-10 h-10 mb-3 rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform duration-300 shadow-lg
+                    {% if 'Verge' in source.source %}bg-gradient-to-br from-purple-600 to-pink-600
+                    {% elif 'TechCrunch' in source.source %}bg-green-600
+                    {% elif 'Wired' in source.source %}bg-black border-white/20
+                    {% elif 'OpenAI' in source.source %}bg-teal-600
+                    {% elif 'Google' in source.source %}bg-blue-600
+                    {% else %}bg-zinc-900{% endif %}">
+
+                <span class="text-xs font-black text-white drop-shadow-md">
+                    {% if 'Verge' in source.source %}V
+                    {% elif 'TechCrunch' in source.source %}TC
+                    {% elif 'Google' in source.source %}G
+                    {% else %}{{ source.source[:1].upper() }}{% endif %}
+                </span>
+            </div>
+
+            <span
+                class="relative text-[9px] font-black text-zinc-400 uppercase tracking-wider group-hover:text-white transition-colors truncate w-full px-2">
+                {{ source.source }}
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="flex items-center justify-center space-x-4 mt-12 pb-8">
+    {% if page > 1 %}
+    <a href="/?page={{ page - 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+        class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">Previous</a>
+    {% else %}
+    <span
+        class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Previous</span>
+    {% endif %}
+
+    <div class="text-zinc-500 text-xs font-bold uppercase tracking-widest">
+        Page {{ page }} of {{ total_pages }}
+    </div>
+
+    {% if page < total_pages %} <a
+        href="/?page={{ page + 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
+        class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">
+        Next</a>
         {% else %}
         <span
-            class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Previous</span>
+            class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Next</span>
         {% endif %}
+</div>
+{% endif %}
 
-        <div class="text-zinc-500 text-xs font-bold uppercase tracking-widest">
-            Page {{ page }} of {{ total_pages }}
-        </div>
 
-        {% if page < total_pages %} <a
-            href="/?page={{ page + 1 }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q }}{% endif %}"
-            class="px-6 py-2 bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-blue-700 transition-all">
-            Next</a>
+{% if not articles %}
+<div class="text-center py-20">
+    <div class="inline-block p-10 glass-card rounded-3xl">
+        <h3 class="text-2xl font-bold mb-2">No Intelligence found</h3>
+        <p class="text-zinc-500">
+            {% if q %}
+            We couldn't find any signals matching "{{ q }}". Try a different frequency.
             {% else %}
-            <span
-                class="px-6 py-2 bg-zinc-900 text-zinc-600 font-bold text-xs uppercase tracking-widest rounded-full cursor-not-allowed">Next</span>
+            Run `python fetcher.py` to aggregate the latest intelligence.
             {% endif %}
+        </p>
     </div>
-    {% endif %}
-
-
-    {% if not articles %}
-    <div class="text-center py-20">
-        <div class="inline-block p-10 glass-card rounded-3xl">
-            <h3 class="text-2xl font-bold mb-2">No Intelligence found</h3>
-            <p class="text-zinc-500">
-                {% if q %}
-                We couldn't find any signals matching "{{ q }}". Try a different frequency.
-                {% else %}
-                Run `python fetcher.py` to aggregate the latest intelligence.
-                {% endif %}
-            </p>
-        </div>
-    </div>
-    {% endif %}
+</div>
+{% endif %}
 </div>
 
 <script>

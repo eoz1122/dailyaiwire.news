@@ -166,7 +166,7 @@
                         <div class="flex items-center gap-3">
                             <div class="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                                 <div class="h-full rounded-full {% if article.importance_score >= 80 %}bg-emerald-500{% elif article.importance_score >= 50 %}bg-amber-500{% else %}bg-zinc-600{% endif %}"
-                                    style="width: {{ article.importance_score }}%"></div>
+                                    style="width: {{ article.importance_score }}%;"></div>
                             </div>
                             <span class="text-xs font-bold text-white">{{ article.importance_score }}</span>
                         </div>

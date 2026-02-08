@@ -75,7 +75,7 @@
                             <div class="flex items-center gap-2">
                                 <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                                     <div class="bg-blue-600 h-full rounded-full"
-                                        style="width: {{ lead['confidence_score'] }}%"></div>
+                                        style="width: {{ lead['confidence_score'] }}%;"></div>
                                 </div>
                                 <span class="text-xs font-bold text-gray-700">{{ lead['confidence_score'] }}%</span>
                             </div>
@@ -95,7 +95,8 @@
                         <td class="p-4 text-right align-top">
                             {% if lead['status'] == 'DRAFT_READY' or lead['status'] == 'PROPOSAL_SENT' %}
                             <!-- View Draft Action -->
-                            <button onclick="openDraftModal({{ lead['id'] }}, '{{ lead['title']|escape }}')"
+                            <button onclick="openDraftModal(this)" data-lead-id="{{ lead['id'] }}"
+                                data-lead-title="{{ lead['title']|escape }}"
                                 class="inline-flex items-center gap-1 bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-all shadow-sm">
                                 📜 View Pitch
                             </button>
@@ -127,65 +128,6 @@
                         </td>
                     </tr>
 
-                    <!-- Proposal Modal -->
-                    {% if lead['draft_proposal'] %}
-                    <div id="modal-{{ lead['id'] }}"
-                        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity">
-                        <div
-                            class="bg-white rounded-xl w-full max-w-2xl m-4 overflow-hidden shadow-2xl transform transition-all scale-100">
-                            <div
-                                class="bg-zinc-50 px-6 py-4 border-b border-zinc-100 flex justify-between items-center">
-                                <h3 class="font-bold text-zinc-800 flex items-center gap-2">
-                                    <span>Proposal for {{ lead['title'] }}</span>
-                                    {% if lead['status'] == 'PROPOSAL_SENT' %}
-                                    <span
-                                        class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full border border-green-200">Sent</span>
-                                    {% endif %}
-                                </h3>
-                                <button
-                                    onclick="document.getElementById('modal-{{ lead['id'] }}').classList.add('hidden')"
-                                    class="text-zinc-400 hover:text-zinc-600 transition-colors">✕</button>
-                            </div>
-                            <div class="p-6">
-                                <div
-                                    class="bg-zinc-50 border border-zinc-200 rounded p-4 mb-4 font-mono text-sm text-zinc-600 shadow-inner">
-                                    <div id="json-subject-{{ lead['id'] }}" class="font-semibold text-zinc-800">...
-                                    </div>
-                                </div>
-                                <div class="prose prose-sm max-w-none text-zinc-600 bg-white p-4 border border-zinc-100 rounded shadow-sm min-h-[150px]"
-                                    id="json-body-{{ lead['id'] }}">
-                                    <!-- Content Injected via JS -->
-                                </div>
-                                <textarea id="raw-json-{{ lead['id'] }}"
-                                    class="hidden">{{ lead['draft_proposal'] }}</textarea>
-                            </div>
-                            <div class="bg-zinc-50 px-6 py-4 border-t border-zinc-100 flex justify-end gap-3">
-                                <button
-                                    onclick="document.getElementById('modal-{{ lead['id'] }}').classList.add('hidden')"
-                                    class="px-4 py-2 text-sm font-bold text-zinc-500 hover:text-zinc-700">Cancel</button>
-
-                                <!-- Manual Fallback -->
-                                <a href="mailto:{{ lead['detected_email'] }}?subject=..." id="send-btn-{{ lead['id'] }}"
-                                    class="px-4 py-2 text-sm font-bold bg-white border border-zinc-300 text-zinc-700 rounded hover:bg-zinc-50 transition-colors">
-                                    📩 Local App
-                                </a>
-
-                                <!-- Resend Action (Iron Judo) - DISABLED BY USER REQUEST
-                                {% if lead['status'] != 'PROPOSAL_SENT' %}
-                                <div class="hidden">
-                                <form action="{{ url_for('admin_send_lead_proposal', id=lead['id']) }}" method="POST"
-                                    class="inline" onsubmit="return confirm('Ready to send this payload?');">
-                                    <button type="submit"
-                                        class="px-4 py-2 text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded hover:from-emerald-600 hover:to-teal-600 shadow-md transition-all transform hover:-translate-y-0.5">
-                                        🚀 Send via Wire
-                                    </button>
-                                </form>
-                                </div>
-                                {% endif %}
-                                -->
-                            </div>
-                        </div>
-                    </div>
                     {% endif %}
                     {% else %}
                     <tr>
@@ -198,30 +140,83 @@
             </table>
         </div>
     </div>
+
+    <!-- Modals Container (Outside Tbody) -->
+    {% for lead in leads %}
+    {% if lead['draft_proposal'] %}
+    <div id="modal-{{ lead['id'] }}"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity">
+        <div
+            class="bg-white rounded-xl w-full max-w-2xl m-4 overflow-hidden shadow-2xl transform transition-all scale-100">
+            <div class="bg-zinc-50 px-6 py-4 border-b border-zinc-100 flex justify-between items-center">
+                <h3 class="font-bold text-zinc-800 flex items-center gap-2">
+                    <span id="modal-title-{{ lead['id'] }}">Proposal for {{ lead['title'] }}</span>
+                    {% if lead['status'] == 'PROPOSAL_SENT' %}
+                    <span
+                        class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full border border-green-200">Sent</span>
+                    {% endif %}
+                </h3>
+                <button onclick="closeModal({{ lead['id'] }})"
+                    class="text-zinc-400 hover:text-zinc-600 transition-colors">✕</button>
+            </div>
+            <div class="p-6">
+                <div
+                    class="bg-zinc-50 border border-zinc-200 rounded p-4 mb-4 font-mono text-sm text-zinc-600 shadow-inner">
+                    <div id="json-subject-{{ lead['id'] }}" class="font-semibold text-zinc-800">...</div>
+                </div>
+                <div class="prose prose-sm max-w-none text-zinc-600 bg-white p-4 border border-zinc-100 rounded shadow-sm min-h-[150px]"
+                    id="json-body-{{ lead['id'] }}">
+                    <!-- Content Injected via JS -->
+                </div>
+                <textarea id="raw-json-{{ lead['id'] }}" class="hidden">{{ lead['draft_proposal'] }}</textarea>
+            </div>
+            <div class="bg-zinc-50 px-6 py-4 border-t border-zinc-100 flex justify-end gap-3">
+                <button onclick="closeModal({{ lead['id'] }})"
+                    class="px-4 py-2 text-sm font-bold text-zinc-500 hover:text-zinc-700">Cancel</button>
+
+                <!-- Manual Fallback -->
+                <a href="mailto:{{ lead['detected_email'] }}?subject=..." id="send-btn-{{ lead['id'] }}"
+                    class="px-4 py-2 text-sm font-bold bg-white border border-zinc-300 text-zinc-700 rounded hover:bg-zinc-50 transition-colors">
+                    📩 Local App
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
 </div>
 
 <script>
-    function openDraftModal(id, title) {
+    function openDraftModal(btn) {
+        const id = btn.getAttribute('data-lead-id');
         const modal = document.getElementById(`modal-${id}`);
         const raw = document.getElementById(`raw-json-${id}`).value;
 
         if (modal && raw) {
             try {
-                const data = JSON.parse(raw);
+                let data = JSON.parse(raw);
+                if (Array.isArray(data)) {
+                    data = data[0];
+                }
                 document.getElementById(`json-subject-${id}`).textContent = "Subject: " + data.subject;
                 document.getElementById(`json-body-${id}`).innerHTML = data.body_html;
 
-                // Wire up the Mailto link with the generated content
-                const btn = document.getElementById(`send-btn-${id}`);
+                const mailBtn = document.getElementById(`send-btn-${id}`);
                 const subject = encodeURIComponent(data.subject);
-                // Plain text body preferred for mailto, but we have HTML. Use rudimentary strip.
                 const body = encodeURIComponent(data.body_html.replace(/<br>/g, "\n").replace(/<[^>]*>/g, ""));
-                btn.href = `mailto:?subject=${subject}&body=${body}`;
+                mailBtn.href = `mailto:?subject=${subject}&body=${body}`;
 
             } catch (e) {
                 console.error("JSON Parse error", e);
             }
             modal.classList.remove('hidden');
+        }
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(`modal-${id}`);
+        if (modal) {
+            modal.classList.add('hidden');
         }
     }
 </script>
