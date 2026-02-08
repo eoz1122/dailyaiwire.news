@@ -1182,11 +1182,12 @@ def inject_config():
         }
         return colors.get(c, 'bg-blue-600')
 
+    from flask import has_request_context
     return {
         'current_year': datetime.now().year,
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'config_web3forms_key': os.getenv('WEB3FORMS_ACCESS_KEY'),
-        'q': request.args.get('q', ''),
+        'q': request.args.get('q', '') if has_request_context() else '',
         'emre': emre_data,
         'category_color': get_cat_color
     }
