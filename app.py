@@ -1,4 +1,4 @@
-import os, sqlite3, json, math, re, shutil, time
+import os, sqlite3, json, math, re, shutil, time, base64
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, abort, request, Response, redirect, url_for, flash, make_response
@@ -618,7 +618,13 @@ def admin_mark_shared(id):
 @login_required
 def admin_newsletters():
     conn = get_db_connection()
-    newsletters = conn.execute('SELECT * FROM newsletters ORDER BY created_at DESC').fetchall()
+    newsletters = conn.execute('''
+        SELECT n.*, 
+        (SELECT COUNT(*) FROM newsletter_deliveries WHERE newsletter_id = n.id) as sent_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries WHERE newsletter_id = n.id AND status = 'OPENED') as open_count
+        FROM newsletters n
+        ORDER BY created_at DESC
+    ''').fetchall()
     conn.close()
     return render_template('admin/newsletters.html', newsletters=newsletters)
 
@@ -1328,6 +1334,26 @@ def track_audio_play(id):
         return {"status": "success", "id": id}, 200
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
+
+@app.route('/t/nl/<int:newsletter_id>/<string:recipient_email>')
+def track_newsletter_open(newsletter_id, recipient_email):
+    """Tracks newsletter opens via a 1x1 pixel."""
+    try:
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE newsletter_deliveries 
+            SET status = 'OPENED', opened_at = CURRENT_TIMESTAMP 
+            WHERE newsletter_id = ? AND recipient_email = ? AND (opened_at IS NULL OR status = 'DELIVERED')
+        ''', (newsletter_id, recipient_email))
+        conn.commit()
+    except Exception as e:
+        print(f"Tracking error: {e}")
+    finally:
+        conn.close()
+
+    # Serve 1x1 transparent GIF
+    pixel_data = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+    return Response(pixel_data, mimetype='image/gif')
 
 @app.route('/about')
 def about(): return render_template('about.html')

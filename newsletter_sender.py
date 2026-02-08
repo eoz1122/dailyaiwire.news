@@ -63,7 +63,7 @@ def get_active_subscribers():
     conn.close()
     return subs
 
-def build_email_html(newsletter_id, template='email/briefing.html'):
+def build_email_html(newsletter_id, template='email/briefing.html', recipient_email=None):
     from flask import render_template
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -86,13 +86,18 @@ def build_email_html(newsletter_id, template='email/briefing.html'):
     
     conn.close()
     
+    tracking_url = ""
+    if recipient_email:
+        tracking_url = f"https://dailyaiwire.news/t/nl/{newsletter_id}/{recipient_email}"
+    
     # Render using the requested Jinja2 template
     from app import app
     with app.app_context():
         return render_template(template, 
                                subject=nl['subject'], 
                                intro_text=nl['intro_text'].replace('\n', '<br>'), 
-                               articles=articles)
+                               articles=articles,
+                               tracking_pixel_url=tracking_url)
 
 def send_newsletter(newsletter_id, is_apology=False):
     if not RESEND_API_KEY:
@@ -119,7 +124,7 @@ def send_newsletter(newsletter_id, is_apology=False):
     print(f"🚀 Processing broadcast for '{nl['subject']}' to {len(subscribers)} subscribers...")
     
     template = 'email/apology_briefing.html' if is_apology else 'email/briefing.html'
-    html_content = build_email_html(newsletter_id, template=template)
+    html_base = build_email_html(newsletter_id, template=template, recipient_email="TRACK_ME_TOKEN")
     
     url = "https://api.resend.com/emails"
     headers = {
@@ -141,6 +146,7 @@ def send_newsletter(newsletter_id, is_apology=False):
             continue
             
         # 2. Send Individual Email
+        html_content = html_base.replace("TRACK_ME_TOKEN", sub_email)
         payload = {
             "from": "DailyAIWire <intelligence@dailyaiwire.news>",
             "to": [sub_email],
