@@ -157,7 +157,7 @@ def send_newsletter(newsletter_id, is_apology=False):
             if response.status_code in [200, 201]:
                 print(f"✅ Sent to {sub_email}")
                 # Log success
-                conn.execute("INSERT INTO newsletter_deliveries (newsletter_id, recipient_email, status) VALUES (?, ?, 'DELIVERED')",
+                conn.execute("INSERT INTO newsletter_deliveries (newsletter_id, recipient_email, status) VALUES (?, ?, ?)",
                              (newsletter_id, sub_email, 'DELIVERED'))
                 conn.commit()
                 success_count += 1
@@ -166,7 +166,7 @@ def send_newsletter(newsletter_id, is_apology=False):
                 fail_count += 1
             
             # Rate limit politeness to prevent 429s (especially on broadcast)
-            time.sleep(1.0)
+            time.sleep(2.0)
             
         except Exception as e:
             print(f"❌ Network Error for {sub_email}: {e}")
