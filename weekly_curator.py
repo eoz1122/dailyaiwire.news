@@ -47,7 +47,7 @@ def generate_newsletter_draft():
     print(f"🔬 Synthesizing {len(top_articles)} landmark stories into a weekly wrap...")
     
     articles_context = "\n---\n".join([
-        f"TITLE: {a['title']}\nGIST: {a['gist']}\nIMPORTANCE: {a['importance_score']}" 
+        f"ID: {a['id']}\nTITLE: {a['title']}\nGIST: {a['gist']}\nIMPORTANCE: {a['importance_score']}" 
         for a in top_articles
     ])
     
@@ -63,12 +63,16 @@ def generate_newsletter_draft():
     2. Write an 'EDITOR'S NOTE' (2-3 paragraphs) that synthesizes the meta-trend behind these stories. 
        Why was this week significant for AI? Don't just list news; provide a perspective.
     3. For EACH article, write a one-sentence 'WHY IT MATTERS' blurb that is different from its daily gist.
+       Return these in a dictionary mapped by their ID.
     
     FORMAT: Return a JSON object with:
     {{
       "subject": "The Hooky Subject Line",
       "intro_text": "The full editor's note content with paragraph breaks",
-      "article_blurbs": ["Blurb 1", "Blurb 2", ...]
+      "article_blurbs": {{
+          "ID_FROM_CONTEXT": "The Why It Matters blurb...",
+          "Another_ID": "..."
+      }}
     }}
     
     TONE: Professional, insightful, tech-forward.
@@ -76,19 +80,19 @@ def generate_newsletter_draft():
     
     try:
         from budget_tracker import BudgetTracker
+        from ai_config import DEFAULT_MODEL
         budget = BudgetTracker()
         
         # New Client API Call
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp", # Using latest available or standard
+            model=DEFAULT_MODEL, 
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
             )
         )
         
-        # Log Usage (Estimating token counts if not strictly available in same format, 
-        # but usually response.usage_metadata exists)
+        # Log Usage
         if hasattr(response, 'usage_metadata'):
             budget.log_request(
                 response.usage_metadata.prompt_token_count or 0,
@@ -105,15 +109,26 @@ def generate_newsletter_draft():
         # Serialize article IDs for reference
         article_ids = json.dumps([a['id'] for a in top_articles])
         
+        # Serialize Metadata (Why It Matters)
+        # Ensure keys are strings for JSON
+        article_metadata = json.dumps(data.get('article_blurbs', {}))
+        
         # Default scheduled date: Next Sunday at 18:00
         scheduled_date = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
-        if scheduled_date < datetime.now():
-            scheduled_date += timedelta(days=7)
+        # If today is Sunday and it's after 18:00, or it's simply not Sunday yet?
+        # Logic: If we run this ON Sunday, we probably want it for TODAY if it's early, or Next Week?
+        # Let's keep simpler logic: Next Sunday from 'now'.
+        days_until_sunday = (6 - datetime.now().weekday() + 7) % 7
+        if days_until_sunday == 0 and datetime.now().hour >= 18:
+             days_until_sunday = 7
+        
+        scheduled_date = datetime.now() + timedelta(days=days_until_sunday)
+        scheduled_date = scheduled_date.replace(hour=18, minute=0, second=0, microsecond=0)
 
         cursor.execute('''
-            INSERT INTO newsletters (subject, intro_text, article_ids, status, scheduled_date)
-            VALUES (?, ?, ?, 'DRAFT', ?)
-        ''', (data['subject'], data['intro_text'], article_ids, scheduled_date.isoformat()))
+            INSERT INTO newsletters (subject, intro_text, article_ids, article_metadata, status, scheduled_date)
+            VALUES (?, ?, ?, ?, 'DRAFT', ?)
+        ''', (data['subject'], data['intro_text'], article_ids, article_metadata, scheduled_date.isoformat()))
         
         conn.commit()
         conn.close()
