@@ -2,6 +2,7 @@ import sqlite3
 import json
 import os
 import requests
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -105,8 +106,10 @@ def send_newsletter(newsletter_id):
     cursor.execute("SELECT * FROM newsletters WHERE id = ?", (newsletter_id,))
     nl = cursor.fetchone()
     
-    if not nl or nl['status'] == 'SENT':
-        print(f"⚠️ Newsletter {newsletter_id} not found or already sent.")
+    # Allow sending if DRAFT or SCHEDULED. If SENT, we might be resuming, so strictly allow if we want.
+    # But usually UI blocks it. We'll strict check existence.
+    if not nl:
+        print(f"⚠️ Newsletter {newsletter_id} not found.")
         conn.close()
         return False
         
@@ -116,12 +119,9 @@ def send_newsletter(newsletter_id):
         conn.close()
         return False
         
-    print(f"🚀 Preparing to broadcast report '{nl['subject']}' to {len(subscribers)} subscribers...")
+    print(f"🚀 Processing broadcast for '{nl['subject']}' to {len(subscribers)} subscribers...")
     
     html_content = build_email_html(newsletter_id)
-    
-    # Broadcast (In production, use batching or BCC if allowed, or individual calls)
-    # Resend allows single call to many recipients in 'to' as a list
     
     url = "https://api.resend.com/emails"
     headers = {
@@ -129,29 +129,68 @@ def send_newsletter(newsletter_id):
         "Content-Type": "application/json"
     }
     
-    payload = {
-        "from": "DailyAIWire <intelligence@dailyaiwire.news>",
-        "to": subscribers, # List format
-        "subject": nl['subject'],
-        "html": html_content
-    }
+    success_count = 0
+    skip_count = 0
+    fail_count = 0
     
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code in [200, 201]:
-            print(f"✅ SIGNAL BROADCAST SUCCESSFUL: {response.json().get('id')}")
-            # Mark as sent
-            cursor.execute("UPDATE newsletters SET status = 'SENT' WHERE id = ?", (newsletter_id,))
-            conn.commit()
-            return True
-        else:
-            print(f"❌ BROADCAST FAILED: {response.status_code} - {response.text}")
-            return False
-    except Exception as e:
-        print(f"❌ CRITICAL DELIVERY ERROR: {e}")
-        return False
-    finally:
-        conn.close()
+    for sub_email in subscribers:
+        # 1. Check if already delivered
+        check = conn.execute("SELECT id FROM newsletter_deliveries WHERE newsletter_id = ? AND recipient_email = ?", 
+                             (newsletter_id, sub_email)).fetchone()
+        if check:
+            print(f"⏭️ Skipping {sub_email} (Already Delivered)")
+            skip_count += 1
+            continue
+            
+        # 2. Send Individual Email
+        payload = {
+            "from": "DailyAIWire <intelligence@dailyaiwire.news>",
+            "to": [sub_email],
+            "subject": nl['subject'],
+            "html": html_content
+        }
+
+        # HARD SAFETY CHECK: Prevent Bulk Leaks
+        if isinstance(payload['to'], list) and len(payload['to']) > 1:
+             raise ValueError(f"CRITICAL PRIVACY ERROR: Attempted to send to {len(payload['to'])} people at once. ABORTING.")
+        
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            if response.status_code in [200, 201]:
+                print(f"✅ Sent to {sub_email}")
+                # Log success
+                conn.execute("INSERT INTO newsletter_deliveries (newsletter_id, recipient_email, status) VALUES (?, ?, 'DELIVERED')",
+                             (newsletter_id, sub_email, 'DELIVERED'))
+                conn.commit()
+                success_count += 1
+            else:
+                print(f"❌ Failed to {sub_email}: {response.status_code}")
+                fail_count += 1
+            
+            # Rate limit politeness to prevent 429s (especially on broadcast)
+            time.sleep(1.0)
+            
+        except Exception as e:
+            print(f"❌ Network Error for {sub_email}: {e}")
+            fail_count += 1
+            
+    print(f"🏁 Broadcast Complete. Sent: {success_count} | Skipped: {skip_count} | Failed: {fail_count}")
+    
+    # Mark as SENT only if we processed everyone successfully or mostly successfully?
+    # Actually, always mark as SENT if we finished the loop. If we crash, it stays DRAFT/resumable.
+    if success_count + skip_count == len(subscribers):
+        cursor.execute("UPDATE newsletters SET status = 'SENT' WHERE id = ?", (newsletter_id,))
+        conn.commit()
+        print("✅ Newsletter marked as FULLY SENT")
+    else:
+        print("⚠️ Newsletter status remains DRAFT/PARTIAL (Some failures occurred)")
+        
+    conn.close()
+    return True
+
+if __name__ == "__main__":
+    # For testing, you'd call send_newsletter with an ID
+    pass
 
 if __name__ == "__main__":
     # For testing, you'd call send_newsletter with an ID
