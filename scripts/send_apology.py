@@ -16,11 +16,12 @@ BODY_HTML = """
 <div style="font-family: sans-serif; font-size: 16px; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <p>Hello,</p>
     
-    <p>I am writing to sincerely apologize for a privacy oversight in our recent newsletter broadcast. Due to a technical configuration error on our side, recipient email addresses were visible in the "To" field of the previous message.</p>
+    <p>I am writing to sincerely apologize for the privacy oversight in our recent newsletter broadcast. Recipient email addresses were visible in the "To" field.</p>
     
-    <p><strong>We have identified the issue and have already deployed a fix.</strong> The broadcasting system has been updated to ensure that all future communications are strictly individual and secure.</p>
-    
-    <p>I understand that privacy is paramount, and I deeply regret this mistake. We value your trust and are committed to improving our systems to ensure this does not happen again.</p>
+    <p><strong>Immediate Corrective Action:</strong></p>
+    <p>We are not just "fixing" the bug; we have installed a permanent <strong>Fail-Safe Circuit Breaker</strong> in our delivery engine. The system is now physically incapable of processing bulk recipient lists. If any future bug attempts to group emails, the system will immediately abort the process rather than sending.</p>
+
+    <p>We know trust is earned in drops and lost in buckets. We are committed to earning yours back.</p>
     
     <p>Sincerely,</p>
     <p><strong>The DailyAIWire Team</strong></p>

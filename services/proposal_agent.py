@@ -9,12 +9,12 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from budget_tracker import BudgetTracker
 
-DB_PATH = "news.db"
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "news.db")
 budget = BudgetTracker()
 
 class ProposalAgent:
     def __init__(self):
-        self.model_name = "gemini-2.0-flash-exp"
+        self.model_name = "gemini-2.0-flash"
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
     def generate_pitch(self, lead_id: int):
@@ -80,7 +80,16 @@ class ProposalAgent:
                     category="Proposal Gen"
                 )
 
-            return response.text # Returns JSON string
+            # Clean/Parse Response
+            import json
+            text = response.text
+            try:
+                data = json.loads(text)
+                if isinstance(data, list) and len(data) > 0:
+                    data = data[0]
+                return json.dumps(data)
+            except:
+                return text
             
         except Exception as e:
             print(f"Proposal Generation Error: {e}")

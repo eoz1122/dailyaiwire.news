@@ -63,7 +63,7 @@ def get_active_subscribers():
     conn.close()
     return subs
 
-def build_email_html(newsletter_id):
+def build_email_html(newsletter_id, template='email/briefing.html'):
     from flask import render_template
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -86,16 +86,15 @@ def build_email_html(newsletter_id):
     
     conn.close()
     
-    # Render using the premium Jinja2 template
-    # Note: We need a Flask app context to use render_template
+    # Render using the requested Jinja2 template
     from app import app
     with app.app_context():
-        return render_template('email/briefing.html', 
+        return render_template(template, 
                                subject=nl['subject'], 
                                intro_text=nl['intro_text'].replace('\n', '<br>'), 
                                articles=articles)
 
-def send_newsletter(newsletter_id):
+def send_newsletter(newsletter_id, is_apology=False):
     if not RESEND_API_KEY:
         print("❌ ERROR: RESEND_API_KEY not found in environment.")
         return False
@@ -106,8 +105,6 @@ def send_newsletter(newsletter_id):
     cursor.execute("SELECT * FROM newsletters WHERE id = ?", (newsletter_id,))
     nl = cursor.fetchone()
     
-    # Allow sending if DRAFT or SCHEDULED. If SENT, we might be resuming, so strictly allow if we want.
-    # But usually UI blocks it. We'll strict check existence.
     if not nl:
         print(f"⚠️ Newsletter {newsletter_id} not found.")
         conn.close()
@@ -121,7 +118,8 @@ def send_newsletter(newsletter_id):
         
     print(f"🚀 Processing broadcast for '{nl['subject']}' to {len(subscribers)} subscribers...")
     
-    html_content = build_email_html(newsletter_id)
+    template = 'email/apology_briefing.html' if is_apology else 'email/briefing.html'
+    html_content = build_email_html(newsletter_id, template=template)
     
     url = "https://api.resend.com/emails"
     headers = {

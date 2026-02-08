@@ -1,4 +1,10 @@
 import os
+import sys
+
+# Force unbuffered output for supervisor logs
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 import sqlite3
 import json
 import time
@@ -443,6 +449,7 @@ def fetch_all_sources() -> List[Dict]:
                     
                 link = entry.link
                 if link not in unique_articles and link not in existing_urls:
+                    time.sleep(4)  # Rate Limit Safety: Prevent 429 errors on free tier
                     # SMART SOURCE DISCOVERY
                     # Aggregators often list themselves as the source. We want the Real Publisher.
                     real_source = source_name

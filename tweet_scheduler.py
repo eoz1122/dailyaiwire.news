@@ -55,6 +55,7 @@ def get_next_article_to_share():
         FROM articles 
         WHERE (shared_on_x = 0 OR shared_on_x IS NULL) 
         AND is_published = 1
+        AND published_at <= datetime('now', 'localtime')
         ORDER BY hybrid_rank DESC
         LIMIT 1
     '''
@@ -167,6 +168,7 @@ def main_loop():
                 if distributor.post_to_x(article_for_dist):
                     mark_as_shared(article['slug'])
                     print(f"✅ Successfully shared. Waiting {INTERVAL_SECONDS/60:.0f} mins.")
+                    time.sleep(4) # Rate Limit Safety
                 else:
                     print(f"⚠️ [X ERROR] Post failed. Cooling down for 1 hour...")
                     time.sleep(3600) 

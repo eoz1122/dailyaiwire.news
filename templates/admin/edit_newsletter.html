@@ -42,11 +42,20 @@
                         {% for art in articles %}
                         <div
                             class="p-4 bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-between">
-                            <div class="pr-8">
+                            <div class="pr-8 w-full">
                                 <h4 class="text-white font-bold text-sm">{{ art.title }}</h4>
-                                <p class="text-zinc-500 text-xs mt-1 truncate max-w-md">{{ art.gist }}</p>
+                                <p class="text-zinc-500 text-xs mt-1 truncate max-w-md mb-2">{{ art.gist }}</p>
+
+                                <div class="mt-3">
+                                    <label
+                                        class="block text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-1">
+                                        Why It Matters (Briefing Blurb)
+                                    </label>
+                                    <textarea name="metadata_{{ art.id }}" rows="2"
+                                        class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-300 text-xs focus:outline-none focus:border-blue-600 transition-all">{{ article_metadata.get(art.id|string, '') }}</textarea>
+                                </div>
                             </div>
-                            <span class="text-blue-600 font-mono text-[10px]">VERIFIED</span>
+                            <span class="text-blue-600 font-mono text-[10px] self-start mt-1">VERIFIED</span>
                         </div>
                         {% endfor %}
                     </div>

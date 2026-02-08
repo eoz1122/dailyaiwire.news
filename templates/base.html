@@ -395,10 +395,21 @@
             backdrop-filter: blur(20px);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        /* Utility to hide scrollbar */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col relative">
+    <!-- PROOF OF LIFE: Server generated this page at {{ now_utc }} UTC -->
 
     <!-- Top Ticker -->
     <div class="ticker-wrap">
