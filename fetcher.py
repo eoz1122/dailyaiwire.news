@@ -197,6 +197,13 @@ def init_db():
             status TEXT
         )
     ''')
+
+    # Lazy migration: Add compass_score column if missing
+    try:
+        cursor.execute("SELECT compass_score FROM articles LIMIT 1")
+    except:
+        cursor.execute("ALTER TABLE articles ADD COLUMN compass_score REAL DEFAULT 0.7")
+        print("📐 Added compass_score column to articles table.")
     
     conn.commit()
     conn.close()
@@ -928,6 +935,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
         # 2.5 EDITORIAL COMPASS — Semantic Scoring & Dedup (Phase 0)
         # Score against existing corpus to auto-classify relevance
+        compass_score = 0.7  # Default for articles where compass unavailable
         try:
             from embedding_service import score_article, find_duplicates, index_article
             
@@ -1117,8 +1125,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens, compass_score)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -1142,7 +1150,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 art.get('narration_script'),
                 art.get('thought_provoking_question'),
                 int(art.get('importance_score', 50) or 50),
-                json.dumps(art.get('design_tokens', {}))
+                json.dumps(art.get('design_tokens', {})),
+                round(compass_score, 3)
             ))
             
             # TRIGGER GOOGLE INDEXING (Instant Crawl)

@@ -1232,13 +1232,13 @@ def index():
         published_condition = 'is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
 
         if page == 1:
-            carousel = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY published_at DESC, id DESC LIMIT 10').fetchall()
-            grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
+            carousel = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT 10').fetchall()
+            grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
             total_arts_count = conn.execute(f'SELECT COUNT(*) FROM articles WHERE {published_condition}').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
         else:
             db_offset = 10 + ((page - 1) * ITEMS_PER_PAGE)
-            grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
+            grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
             carousel = []
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
