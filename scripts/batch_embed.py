@@ -9,8 +9,13 @@ into the Qdrant vector collection.
 """
 
 import sys
+import os
 import time
 import sqlite3
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from embedding_service import index_batch, get_collection_stats, DB_PATH
 
 
