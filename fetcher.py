@@ -814,7 +814,7 @@ def process_batch(batch: List[Dict]):
         "    \"headline\": \"Clicky but Factual Title\",\n"
         "    \"seo_slug\": \"url-safe-slug\",\n"
         "    \"image_query\": \"A concise keyword for an Unsplash image\",\n"
-        "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society', 'Ethics']\",\n"
+        "    \"category\": \"Strictly choose ONE from: ['LLMs', 'Robotics', 'Business', 'Tools', 'Policy', 'Science', 'Security', 'Society', 'Ethics', 'AI Agents']\",\n"
         "    \"gist\": \"Single bold sentence (max 25 tokens).\",\n"
         "    \"key_details\": [\"Extract 2-5 verifiable facts (hard data points). If <2 verifiable facts, set status to INSUFFICIENT_DATA and leave empty.\"],\n"
         "    \"why_it_matters\": \"Brief insight on impact (2-3 sentences max)\",\n"
@@ -1076,6 +1076,13 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                     "/static/fallbacks/policy_1.jpg",
                     "/static/fallbacks/policy_2.jpg",
                     "/static/fallbacks/policy_3.jpg"
+                ],
+                "AI Agents": [
+                    "/static/fallbacks/tools_0.jpg",
+                    "/static/fallbacks/tools_1.jpg",
+                    "/static/fallbacks/tools_2.jpg",
+                    "/static/fallbacks/robotics_0.jpg",
+                    "/static/fallbacks/robotics_1.jpg"
                 ]
             }
             # Fallback Logic: Avoid back-to-back duplicates

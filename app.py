@@ -1184,7 +1184,8 @@ def inject_config():
             'Energy': 'bg-yellow-600',
             'LLMs': 'bg-purple-600',
             'Robotics': 'bg-cyan-600',
-            'Society': 'bg-pink-600'
+            'Society': 'bg-pink-600',
+            'AI Agents': 'bg-orange-600'
         }
         return colors.get(c, 'bg-blue-600')
 

@@ -106,7 +106,7 @@
                     <select name="category"
                         class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:border-blue-500">
                         {% for cat in ['Business', 'Technology', 'Policy', 'Science', 'Tools', 'Security', 'Finance',
-                        'Health', 'Energy', 'LLMs', 'Robotics', 'Society'] %}
+                        'Health', 'Energy', 'LLMs', 'Robotics', 'Society', 'AI Agents'] %}
                         <option value="{{ cat }}" {% if article.category==cat %}selected{% endif %}>{{ cat }}</option>
                         {% endfor %}
                     </select>
