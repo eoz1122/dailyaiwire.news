@@ -1,3 +1,0 @@
-TITLE: Google Launches 'CC' GenAI Assistant to Automate Your Inbox and Calendar
-GIST: Google has introduced CC, an experimental Gemini-powered email assistant that automates daily organization by providing users with a 'Your Day Ahead' brief synthesizing data from Gmail, Drive, and Calendar.
-IMPACT: This move signifies Google’s commitment to deeply embedding GenAI for personal and professional Automation, turning the ubiquitous email inbox into a central hub for daily task management and intelligence.
