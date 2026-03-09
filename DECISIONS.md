@@ -1,6 +1,26 @@
 # DECISIONS.md — Daily AI Wire News
 
+# Architectural Decision Log
+
 Architectural decision log for the Daily AI Wire News project. Every entry includes an ISO 8601 timestamp per §6 of the AI Directives.
+
+---
+
+## 2026-03-09T23:21:00+01:00 — Phase 0: Editorial Compass (RAG Infrastructure)
+
+**Decision**: Integrated a vector-based Editorial Compass into the article fetcher.
+
+**Stack**: `bge-large-en-v1.5` (HuggingFace, 1024-dim, local CPU) + Qdrant (local disk persistence).
+
+**How it works**:
+- 3,780 existing articles embedded into Qdrant vector collection
+- New articles scored against corpus at ingestion time in `save_to_db()`
+- Score > 0.75 → auto-publish, 0.55–0.75 → review, < 0.55 → auto-kill → Iron Judo leads
+- Semantic dedup: > 0.92 cosine similarity → rejected as duplicate
+- Post-save: new articles auto-indexed into Qdrant (compass self-improves)
+- All hooks are non-blocking with graceful ImportError fallback
+
+**Rollback**: Remove the "2.5 EDITORIAL COMPASS" and "INDEX INTO QDRANT" blocks from `fetcher.py`. Delete `qdrant_data/` directory on VPS.
 
 ---
 
