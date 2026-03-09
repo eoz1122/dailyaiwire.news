@@ -926,6 +926,49 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             print(f"Skipping '{art.get('headline')}' due to content blocker signal (JS/Access Denied).")
             continue
 
+        # 2.5 EDITORIAL COMPASS — Semantic Scoring & Dedup (Phase 0)
+        # Score against existing corpus to auto-classify relevance
+        try:
+            from embedding_service import score_article, find_duplicates, index_article
+            
+            # Semantic Dedup: Check if near-duplicate exists (>0.92 cosine)
+            dup = find_duplicates(
+                art.get('headline', ''),
+                art.get('gist', ''),
+                threshold=0.92
+            )
+            if dup:
+                print(f"🧬 Semantic Duplicate Detected: '{art.get('headline')}' matches '{dup['title']}' (score: {dup['score']})")
+                continue
+            
+            # Editorial Compass: Score relevance to existing corpus
+            compass_score, similar = score_article(
+                art.get('headline', ''),
+                art.get('gist', ''),
+                art.get('why_it_matters', '')
+            )
+            
+            if compass_score > 0:
+                if compass_score >= 0.75:
+                    print(f"🧭 Compass: HIGH MATCH ({compass_score}) — '{art.get('headline')}'")
+                elif compass_score >= 0.55:
+                    print(f"🧭 Compass: REVIEW ({compass_score}) — '{art.get('headline')}'")
+                else:
+                    print(f"🧭 Compass: LOW MATCH ({compass_score}) — '{art.get('headline')}' → Auto-kill candidate")
+                    # Route to Iron Judo lead pipeline for low-match articles
+                    try:
+                        from services.lead_extractor import LeadExtractor
+                        lead_extractor = LeadExtractor()
+                        lead_extractor.extract_and_log(original.get('link', ''), art.get('headline', ''))
+                        print(f"🥋 Iron Judo: Low-compass article routed to leads.")
+                    except Exception as le:
+                        print(f"   ⚠️ Lead extraction failed: {le}")
+                    continue
+        except ImportError:
+            pass  # Compass not installed, skip gracefully
+        except Exception as compass_err:
+            print(f"⚠️ Editorial Compass error (non-blocking): {compass_err}")
+
         # Determine the article identifier (Gemini's provided slug or derived from title)
         lookup_slug = art.get('seo_slug') or slugify(art.get('headline', ''))
         
@@ -1110,6 +1153,27 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             # RUN QA AUDIT (Self-Correction)
             # Verifies the live page actually renders correctly
             run_post_publication_audit(local_url)
+
+            # INDEX INTO QDRANT (Editorial Compass — Phase 0)
+            # Add new article to vector DB so compass grows with every article
+            try:
+                from embedding_service import index_article
+                new_id = cursor.execute("SELECT id FROM articles WHERE slug = ?", (final_slug,)).fetchone()
+                if new_id:
+                    index_article(
+                        article_id=new_id[0],
+                        title=art.get('headline', ''),
+                        gist=art.get('gist', ''),
+                        why_it_matters=art.get('why_it_matters', ''),
+                        category=art.get('category', ''),
+                        source=original.get('source', ''),
+                        importance_score=imp_score
+                    )
+                    print(f"📦 Indexed into Qdrant: {art.get('headline')}")
+            except ImportError:
+                pass  # Compass not installed
+            except Exception as idx_err:
+                print(f"⚠️ Qdrant indexing error (non-blocking): {idx_err}")
 
             # STAGGERED SOCIAL QUEUING - DISABLED
             # Consolidating all posting into tweet_scheduler.py for strict 1h gaps.
