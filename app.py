@@ -208,7 +208,7 @@ class MyAdminIndexView(AdminIndexView):
         # Fetch leads count for Target Acquisition widget
         try:
             conn2 = get_db_connection()
-            leads = conn2.execute('SELECT id FROM leads WHERE status != ? ORDER BY created_at DESC', ('rejected',)).fetchall()
+            leads = conn2.execute('SELECT id FROM leads WHERE status != ? ORDER BY found_at DESC', ('rejected',)).fetchall()
             conn2.close()
         except Exception:
             leads = []
