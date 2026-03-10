@@ -51,15 +51,22 @@ def generate_newsletter_draft():
         for a in top_articles
     ])
     
+    week_ending = datetime.now().strftime('%B %d, %Y')
+    
     prompt = f"""
     You are the Editor-in-Chief of 'Daily AI Wire'. 
     Your task is to write a high-end weekly intelligence briefing for subscribers.
+    This is the AI Weekly Wrap for the week ending {week_ending}.
     
     TOP ARTICLES THIS WEEK:
     {articles_context}
     
     TASK:
-    1. Write a compelling, curiosity-driven SUBJECT LINE.
+    1. Write a compelling, curiosity-driven SUBJECT LINE for this week's newsletter.
+       - The subject should reference specific themes from THIS week's stories.
+       - Format: "AI Weekly Wrap: [Specific Theme from Articles]"
+       - Do NOT use generic/abstract words like "Orbital", "Trajectory", "Nexus", "Paradigm", "Quantum Leap".
+       - Be direct and descriptive about what happened this week.
     2. Write an 'EDITOR'S NOTE' (2-3 paragraphs) that synthesizes the meta-trend behind these stories. 
        Why was this week significant for AI? Don't just list news; provide a perspective.
     3. For EACH article, write a one-sentence 'WHY IT MATTERS' blurb that is different from its daily gist.
@@ -67,7 +74,7 @@ def generate_newsletter_draft():
     
     FORMAT: Return a JSON object with:
     {{
-      "subject": "The Hooky Subject Line",
+      "subject": "AI Weekly Wrap: [Your Specific Theme]",
       "intro_text": "The full editor's note content with paragraph breaks",
       "article_blurbs": {{
           "ID_FROM_CONTEXT": "The Why It Matters blurb...",
@@ -113,17 +120,9 @@ def generate_newsletter_draft():
         # Ensure keys are strings for JSON
         article_metadata = json.dumps(data.get('article_blurbs', {}))
         
-        # Default scheduled date: Next Sunday at 18:00
+        # Schedule for TODAY at 18:00 — newsletter covers last 7 days and should
+        # be ready for immediate review and sending, not queued for next Sunday.
         scheduled_date = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
-        # If today is Sunday and it's after 18:00, or it's simply not Sunday yet?
-        # Logic: If we run this ON Sunday, we probably want it for TODAY if it's early, or Next Week?
-        # Let's keep simpler logic: Next Sunday from 'now'.
-        days_until_sunday = (6 - datetime.now().weekday() + 7) % 7
-        if days_until_sunday == 0 and datetime.now().hour >= 18:
-             days_until_sunday = 7
-        
-        scheduled_date = datetime.now() + timedelta(days=days_until_sunday)
-        scheduled_date = scheduled_date.replace(hour=18, minute=0, second=0, microsecond=0)
 
         cursor.execute('''
             INSERT INTO newsletters (subject, intro_text, article_ids, article_metadata, status, scheduled_date)
