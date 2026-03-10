@@ -70,15 +70,20 @@
 <!-- GenUI CSS Custom Properties -->
 <style>
     .genui-article {
-        /* Default: techno-optimist (blue) */
-        --genui-accent: 59, 130, 246;
+        /* ═══ BRAND COLORS — Always DailyAIWire blue ═══ */
+        --genui-brand: 59, 130, 246;
         /* blue-500 RGB */
-        --genui-accent-hex: #3b82f6;
-        --genui-glow: rgba(59, 130, 246, 0.15);
-        --genui-border: rgba(59, 130, 246, 0.25);
-        --genui-bg-tint: rgba(59, 130, 246, 0.03);
-        --genui-badge-bg: #1d4ed8;
+        --genui-brand-hex: #3b82f6;
+        --genui-brand-dark: #1d4ed8;
         /* blue-700 */
+        --genui-brand-tint: rgba(59, 130, 246, 0.03);
+        --genui-brand-border: rgba(59, 130, 246, 0.25);
+
+        /* ═══ SIGNAL COLORS — Sentiment-driven (intensity badge + hero only) ═══ */
+        --genui-signal: 59, 130, 246;
+        /* default: blue */
+        --genui-signal-hex: #3b82f6;
+        --genui-signal-dark: #1d4ed8;
         --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(29, 78, 216, 0.15), rgba(0, 0, 0, 0.2));
     }
 
@@ -87,15 +92,10 @@
     }
 
     .genui-article {
-        --genui-accent: 239, 68, 68;
-        /* red-500 RGB */
-        --genui-accent-hex: #ef4444;
-        --genui-glow: rgba(239, 68, 68, 0.2);
-        --genui-border: rgba(239, 68, 68, 0.3);
-        --genui-bg-tint: rgba(239, 68, 68, 0.04);
-        --genui-badge-bg: #b91c1c;
-        /* red-700 */
-        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(127, 29, 29, 0.25), rgba(0, 0, 0, 0.3));
+        --genui-signal: 239, 68, 68;
+        --genui-signal-hex: #ef4444;
+        --genui-signal-dark: #b91c1c;
+        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(127, 29, 29, 0.2), rgba(0, 0, 0, 0.3));
     }
 
         {
@@ -103,63 +103,61 @@
     }
 
     .genui-article {
-        --genui-accent: 245, 158, 11;
-        /* amber-500 RGB */
-        --genui-accent-hex: #f59e0b;
-        --genui-glow: rgba(245, 158, 11, 0.18);
-        --genui-border: rgba(245, 158, 11, 0.28);
-        --genui-bg-tint: rgba(245, 158, 11, 0.04);
-        --genui-badge-bg: #b45309;
-        /* amber-700 */
-        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(120, 53, 15, 0.2), rgba(0, 0, 0, 0.25));
+        --genui-signal: 245, 158, 11;
+        --genui-signal-hex: #f59e0b;
+        --genui-signal-dark: #b45309;
+        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(120, 53, 15, 0.15), rgba(0, 0, 0, 0.25));
     }
 
         {
         % endif %
     }
 
-    /* GenUI: Accent-aware component overrides */
-    .genui-article .genui-accent-border {
-        border-color: rgba(var(--genui-accent), 0.4) !important;
-    }
-
+    /* ═══ BRAND elements (ALWAYS blue) ═══ */
     .genui-article .genui-accent-text {
-        color: var(--genui-accent-hex) !important;
+        color: var(--genui-brand-hex) !important;
     }
 
     .genui-article .genui-accent-bg {
-        background-color: var(--genui-badge-bg) !important;
-    }
-
-    .genui-article .genui-accent-border-left {
-        border-left-color: var(--genui-accent-hex) !important;
+        background-color: var(--genui-brand-dark) !important;
     }
 
     .genui-article .genui-gist-box {
-        border-left: 4px solid var(--genui-accent-hex);
-        background-color: var(--genui-bg-tint);
+        border-left: 4px solid var(--genui-brand-hex);
+        background-color: var(--genui-brand-tint);
     }
 
+    .genui-article .genui-cta-primary {
+        background-color: var(--genui-brand-dark);
+        box-shadow: 0 10px 30px rgba(var(--genui-brand), 0.2);
+    }
+
+    .genui-article .genui-cta-primary:hover {
+        background-color: var(--genui-brand-hex);
+        box-shadow: 0 10px 40px rgba(var(--genui-brand), 0.3);
+    }
+
+    .genui-article .genui-section-border {
+        border-left-color: var(--genui-brand-dark) !important;
+    }
+
+    .genui-article .genui-ping {
+        background-color: var(--genui-brand-hex);
+    }
+
+    /* ═══ SIGNAL elements (sentiment-driven — hero + intensity badge only) ═══ */
     .genui-article .genui-hero-overlay {
         background: var(--genui-hero-gradient);
     }
 
-    .genui-article .genui-cta-primary {
-        background-color: var(--genui-badge-bg);
-        box-shadow: 0 10px 30px rgba(var(--genui-accent), 0.2);
+    .genui-article .genui-intensity-badge {
+        background: rgba(var(--genui-signal), 0.15);
+        border-color: rgba(var(--genui-signal), 0.4);
+        color: var(--genui-signal-hex);
     }
 
-    .genui-article .genui-cta-primary:hover {
-        background-color: var(--genui-accent-hex);
-        box-shadow: 0 10px 40px rgba(var(--genui-accent), 0.3);
-    }
-
-    .genui-article .genui-section-border {
-        border-left-color: var(--genui-badge-bg) !important;
-    }
-
-    .genui-article .genui-ping {
-        background-color: var(--genui-accent-hex);
+    .genui-article .genui-signal-ping {
+        background-color: var(--genui-signal-hex);
     }
 
     /* Intensity: Critical pulse effect */
@@ -171,11 +169,11 @@
 
         0%,
         100% {
-            box-shadow: 0 0 0 0 rgba(var(--genui-accent), 0.4);
+            box-shadow: 0 0 0 0 rgba(var(--genui-signal), 0.4);
         }
 
         50% {
-            box-shadow: 0 0 20px 4px rgba(var(--genui-accent), 0.15);
+            box-shadow: 0 0 20px 4px rgba(var(--genui-signal), 0.15);
         }
     }
 
@@ -195,7 +193,7 @@
     .genui-article .genui-deep-analysis {
         font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
         background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(var(--genui-accent), 0.15);
+        border: 1px solid rgba(var(--genui-brand), 0.15);
         border-radius: 1rem;
         padding: 2rem;
         font-size: 0.9rem;
@@ -221,8 +219,8 @@
     .genui-article .genui-facts-grid li {
         display: flex;
         align-items: flex-start;
-        background: rgba(var(--genui-accent), 0.05);
-        border: 1px solid rgba(var(--genui-accent), 0.12);
+        background: rgba(var(--genui-brand), 0.05);
+        border: 1px solid rgba(var(--genui-brand), 0.12);
         border-radius: 0.75rem;
         padding: 1rem;
     }
@@ -289,12 +287,12 @@
                     {{ article.category }}
                 </div>
                 {% if intensity in ['critical', 'high'] %}
-                <div class="genui-intensity-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border"
-                    style="background: rgba(var(--genui-accent), 0.15); border-color: rgba(var(--genui-accent), 0.4); color: var(--genui-accent-hex);">
+                <div
+                    class="genui-intensity-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border">
                     <span class="relative flex h-1.5 w-1.5">
                         <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full genui-ping opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 genui-ping"></span>
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full genui-signal-ping opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 genui-signal-ping"></span>
                     </span>
                     {{ intensity | upper }}
                 </div>
@@ -457,7 +455,7 @@
                 // --- GenUI Configuration ---
                 // Read accent color from CSS custom properties (set by GenUI Engine above)
                 const genui = getComputedStyle(document.querySelector('.genui-article') || document.documentElement);
-                const PRIMARY_COLOR = genui.getPropertyValue('--genui-accent-hex').trim() || '#3b82f6';
+                const PRIMARY_COLOR = genui.getPropertyValue('--genui-brand-hex').trim() || '#3b82f6';
 
                 // --- Global State ---
                 let wavesurfer = null;
@@ -701,8 +699,8 @@
                 <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
                     target="_blank"
                     class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all shadow-lg group"
-                    style="border: 1px solid rgba(var(--genui-accent), 0.3);"
-                    onmouseover="this.style.backgroundColor='var(--genui-badge-bg)';this.style.borderColor='var(--genui-accent-hex)'"
+                    style="border: 1px solid rgba(var(--genui-brand), 0.3);"
+                    onmouseover="this.style.backgroundColor='var(--genui-brand-dark)';this.style.borderColor='var(--genui-brand-hex)'"
                     onmouseout="this.style.backgroundColor='';this.style.borderColor=''">
                     <span>Read Full Story on {{ article.source }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
