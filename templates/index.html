@@ -30,15 +30,110 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
     </div>
 
     {% if q %}
-    <div class="mb-10 flex items-center justify-between">
-        <h2 class="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">Search Results for: <span
-                class="text-blue-600">"{{ q }}"</span></h2>
+    <div class="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3 flex-wrap">
+            <h2 class="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">Results for: <span
+                    class="text-blue-600">"{{ q }}"</span></h2>
+            {% if search_mode == 'semantic' %}
+            <span
+                class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-600/20 border border-purple-500/30 rounded-full text-[10px] font-black uppercase tracking-widest text-purple-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Semantic Search
+            </span>
+            {% elif search_mode == 'keyword' %}
+            <span
+                class="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-600/20 border border-zinc-500/30 rounded-full text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Keyword Search
+            </span>
+            {% endif %}
+            {% if articles %}
+            <span class="text-zinc-600 text-[10px] font-bold uppercase tracking-widest">{{ articles|length }}
+                results</span>
+            {% endif %}
+        </div>
         <a href="/"
-            class="text-zinc-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+            class="text-zinc-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shrink-0">
             Clear Search <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </a>
+    </div>
+    {% endif %}
+
+    <!-- Phase 4: Trending Intelligence Section -->
+    {% if trends and trends.has_trends and not q %}
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+            <h2 class="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">📈 Trending Intelligence</h2>
+            <span class="text-zinc-700 text-[10px] font-mono">{{ trends.total_articles }} articles analyzed</span>
+        </div>
+        <div class="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+            {% for cat in trends.hot_categories[:4] %}
+            <a href="/?category={{ cat.category }}"
+                class="glass-card rounded-xl p-4 min-w-[180px] flex-shrink-0 group cursor-pointer hover:border-blue-500/40 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-black uppercase tracking-widest
+                        {% if cat.direction == 'surging' %}text-emerald-400
+                        {% elif cat.direction == 'rising' %}text-blue-400
+                        {% else %}text-zinc-500{% endif %}">
+                        {{ cat.emoji }} {{ cat.direction }}
+                    </span>
+                    <span class="text-[10px] font-mono
+                        {% if cat.velocity_pct > 0 %}text-emerald-500
+                        {% elif cat.velocity_pct < 0 %}text-red-500
+                        {% else %}text-zinc-600{% endif %}">
+                        {% if cat.velocity_pct > 0 %}+{% endif %}{{ cat.velocity_pct|int }}%
+                    </span>
+                </div>
+                <h3 class="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{{ cat.category }}
+                </h3>
+                <p class="text-[10px] text-zinc-600 mt-1">{{ cat.count_current }} articles this week</p>
+            </a>
+            {% endfor %}
+
+            {% for tag in trends.hot_hashtags[:4] %}
+            <a href="/?q={{ tag.hashtag|replace('#', '') }}"
+                class="glass-card rounded-xl p-4 min-w-[160px] flex-shrink-0 group cursor-pointer hover:border-purple-500/40 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-black uppercase tracking-widest
+                        {% if tag.direction == 'surging' %}text-purple-400
+                        {% elif tag.direction == 'rising' %}text-purple-300
+                        {% else %}text-zinc-500{% endif %}">
+                        {{ tag.emoji }} {{ tag.direction }}
+                    </span>
+                    <span class="text-[10px] font-mono
+                        {% if tag.velocity_pct > 0 %}text-purple-400
+                        {% else %}text-zinc-600{% endif %}">
+                        {% if tag.velocity_pct > 0 %}+{% endif %}{{ tag.velocity_pct|int }}%
+                    </span>
+                </div>
+                <h3 class="text-sm font-bold text-purple-300 group-hover:text-purple-200 transition-colors">{{
+                    tag.hashtag }}</h3>
+                <p class="text-[10px] text-zinc-600 mt-1">{{ tag.count_current }}x this week</p>
+            </a>
+            {% endfor %}
+
+            {% for kw in trends.hot_keywords[:3] %}
+            <a href="/?q={{ kw.keyword }}"
+                class="glass-card rounded-xl p-4 min-w-[150px] flex-shrink-0 group cursor-pointer hover:border-amber-500/40 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                        {{ kw.emoji }} keyword
+                    </span>
+                </div>
+                <h3 class="text-sm font-bold text-amber-300 group-hover:text-amber-200 transition-colors">{{ kw.keyword
+                    }}</h3>
+                <p class="text-[10px] text-zinc-600 mt-1">{{ kw.count_current }} mentions</p>
+            </a>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
 
@@ -403,47 +498,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
 </div>
 
-<!-- Trusted Sources Grid (Restored) -->
-{% if sources %}
-<div class="mb-12 mt-16 border-t border-zinc-800/50 pt-12">
-    <h3 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-6 px-1 flex items-center gap-2">
-        <span class="w-1 h-1 bg-blue-500 rounded-full"></span> Trusted Intelligence Sources
-    </h3>
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {% for source in sources %}
-        <a href="/?q={{ source.source }}"
-            class="glass-card p-4 rounded-xl flex flex-col items-center justify-center text-center hover:bg-zinc-800/80 transition-all duration-300 group border border-white/5 hover:border-blue-500/30 relative overflow-hidden">
 
-            <div
-                class="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-            </div>
-
-            <!-- Dynamic Icon Generation -->
-            <div class="relative w-10 h-10 mb-3 rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform duration-300 shadow-lg
-                    {% if 'Verge' in source.source %}bg-gradient-to-br from-purple-600 to-pink-600
-                    {% elif 'TechCrunch' in source.source %}bg-green-600
-                    {% elif 'Wired' in source.source %}bg-black border-white/20
-                    {% elif 'OpenAI' in source.source %}bg-teal-600
-                    {% elif 'Google' in source.source %}bg-blue-600
-                    {% else %}bg-zinc-900{% endif %}">
-
-                <span class="text-xs font-black text-white drop-shadow-md">
-                    {% if 'Verge' in source.source %}V
-                    {% elif 'TechCrunch' in source.source %}TC
-                    {% elif 'Google' in source.source %}G
-                    {% else %}{{ source.source[:1].upper() }}{% endif %}
-                </span>
-            </div>
-
-            <span
-                class="relative text-[9px] font-black text-zinc-400 uppercase tracking-wider group-hover:text-white transition-colors truncate w-full px-2">
-                {{ source.source }}
-            </span>
-        </a>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
 
 <!-- Pagination -->
 {% if total_pages > 1 %}

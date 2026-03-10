@@ -232,6 +232,101 @@ def delete_subscriber(id):
     return redirect(url_for('admin_subscribers'))
 
 
+# --- Phase 2: Smart Deduplication Admin Routes ---
+
+@app.route('/admin/duplicates')
+@login_required
+def admin_duplicates():
+    conn = get_db_connection()
+    # Lazy: ensure table exists
+    try:
+        conn.execute("SELECT 1 FROM duplicate_clusters LIMIT 1")
+    except Exception:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS duplicate_clusters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                keeper_id INTEGER NOT NULL,
+                keeper_title TEXT,
+                articles_json TEXT NOT NULL,
+                max_score REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                resolved_at TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+
+    clusters_raw = conn.execute(
+        "SELECT * FROM duplicate_clusters WHERE status = 'pending' ORDER BY max_score DESC"
+    ).fetchall()
+    resolved_count = conn.execute(
+        "SELECT COUNT(*) FROM duplicate_clusters WHERE status != 'pending'"
+    ).fetchone()[0]
+    conn.close()
+
+    # Parse JSON articles for each cluster
+    import json as json_module
+    clusters = []
+    for c in clusters_raw:
+        d = dict(c)
+        try:
+            d['articles'] = json_module.loads(d['articles_json'])
+        except Exception:
+            d['articles'] = []
+        clusters.append(d)
+
+    return render_template('admin/duplicates.html', clusters=clusters, resolved_count=resolved_count)
+
+
+@app.route('/admin/duplicates/merge/<int:cluster_id>', methods=['POST'])
+@login_required
+def admin_dedup_merge(cluster_id):
+    conn = get_db_connection()
+    cluster = conn.execute("SELECT * FROM duplicate_clusters WHERE id = ?", (cluster_id,)).fetchone()
+    if not cluster:
+        flash("Cluster not found.", "error")
+        conn.close()
+        return redirect(url_for('admin_duplicates'))
+
+    import json as json_module
+    articles = json_module.loads(cluster['articles_json'])
+    keeper_id = cluster['keeper_id']
+
+    # Unpublish all articles except the keeper
+    unpublished = 0
+    for art in articles:
+        if art['id'] != keeper_id:
+            conn.execute("UPDATE articles SET is_published = 0 WHERE id = ?", (art['id'],))
+            unpublished += 1
+
+    # Mark cluster as resolved
+    from datetime import datetime as dt
+    conn.execute(
+        "UPDATE duplicate_clusters SET status = 'merged', resolved_at = ? WHERE id = ?",
+        (dt.utcnow().isoformat(), cluster_id)
+    )
+    conn.commit()
+    conn.close()
+
+    flash(f"Merged: kept #{keeper_id}, unpublished {unpublished} duplicates.", "success")
+    return redirect(url_for('admin_duplicates'))
+
+
+@app.route('/admin/duplicates/dismiss/<int:cluster_id>', methods=['POST'])
+@login_required
+def admin_dedup_dismiss(cluster_id):
+    conn = get_db_connection()
+    from datetime import datetime as dt
+    conn.execute(
+        "UPDATE duplicate_clusters SET status = 'dismissed', resolved_at = ? WHERE id = ?",
+        (dt.utcnow().isoformat(), cluster_id)
+    )
+    conn.commit()
+    conn.close()
+    flash("Cluster dismissed as false positive.", "success")
+    return redirect(url_for('admin_duplicates'))
+
+
 @app.route('/admin/budget')
 @login_required
 def admin_budget():
@@ -1202,6 +1297,14 @@ def inject_config():
 @app.route('/')
 def index():
     conn = get_db_connection()
+
+    # Lazy migration: ensure compass_score column exists (added in Phase 0)
+    try:
+        conn.execute("SELECT compass_score FROM articles LIMIT 1")
+    except Exception:
+        conn.execute("ALTER TABLE articles ADD COLUMN compass_score REAL DEFAULT 0.7")
+        conn.commit()
+
     cats = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category LIMIT 12').fetchall()
     categories = sorted([c['category'] for c in cats])
     
@@ -1211,12 +1314,43 @@ def index():
     
     ITEMS_PER_PAGE = 8
 
+    search_mode = 'none'
+
     if q:
-        query = f"%{q}%"
-        offset = (page - 1) * ITEMS_PER_PAGE
-        total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1', (query, query, query)).fetchone()[0]
-        grid = conn.execute('SELECT * FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
-        carousel = []
+        # --- Phase 1: Semantic Search (Qdrant) with keyword fallback ---
+        semantic_results = []
+        try:
+            from embedding_service import search_articles
+            semantic_results = search_articles(q, limit=20)
+        except (ImportError, Exception) as e:
+            print(f"⚠️ Semantic search unavailable, falling back to keyword: {e}")
+
+        if semantic_results:
+            # Qdrant returned results — fetch full articles preserving rank order
+            search_mode = 'semantic'
+            ranked_ids = [r['id'] for r in semantic_results]
+            # Build a score lookup for template
+            score_lookup = {r['id']: r['score'] for r in semantic_results}
+
+            placeholders = ','.join('?' * len(ranked_ids))
+            rows = conn.execute(
+                f'SELECT * FROM articles WHERE id IN ({placeholders}) AND is_published = 1',
+                ranked_ids
+            ).fetchall()
+
+            # Reorder rows to match Qdrant ranking
+            row_map = {dict(r)['id']: r for r in rows}
+            grid = [row_map[aid] for aid in ranked_ids if aid in row_map]
+            total_arts = len(grid)
+            carousel = []
+        else:
+            # Fallback: SQL LIKE keyword search
+            search_mode = 'keyword'
+            query = f"%{q}%"
+            offset = (page - 1) * ITEMS_PER_PAGE
+            total_arts = conn.execute('SELECT COUNT(*) FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1', (query, query, query)).fetchone()[0]
+            grid = conn.execute('SELECT * FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
+            carousel = []
     elif cat_arg:
         offset = (page - 1) * ITEMS_PER_PAGE
         total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE category = ? AND is_published = 1', (cat_arg,)).fetchone()[0]
@@ -1244,16 +1378,16 @@ def index():
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
 
-    # Fetch Top Sources for "Trusted Sources" Section (Restored Feature)
-    sources_raw = conn.execute('''
-        SELECT source, COUNT(*) as count 
-        FROM articles 
-        WHERE is_published = 1 AND source IS NOT NULL 
-        GROUP BY source 
-        ORDER BY count DESC 
-        LIMIT 12
-    ''').fetchall()
-    sources = [dict(s) for s in sources_raw]
+
+
+    # Phase 4: Trend Intelligence — compute before closing connection
+    trends = None
+    if not q:
+        try:
+            from trend_engine import get_trend_snapshot
+            trends = get_trend_snapshot(conn)
+        except Exception as trend_err:
+            print(f"⚠️ Trend engine error (non-blocking): {trend_err}")
 
     conn.close()
     
@@ -1273,7 +1407,8 @@ def index():
         except: d['key_details'] = []
         processed_carousel.append(d)
 
-    resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, sources=sources, now_utc=datetime.utcnow()))
+
+    resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow(), search_mode=search_mode, trends=trends))
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return resp
 
@@ -1324,6 +1459,65 @@ def article(slug):
         conn.close()
 
     return render_template('article.html', article=d, related_articles=related_articles)
+
+@app.route('/api/search')
+def api_search():
+    """Semantic search API endpoint for typeahead and programmatic access."""
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 2:
+        return {"results": [], "mode": "none"}, 200
+
+    # Try semantic search first
+    try:
+        from embedding_service import search_articles
+        results = search_articles(q, limit=10)
+        if results:
+            # Enrich with slugs from DB
+            conn = get_db_connection()
+            ids = [r['id'] for r in results]
+            placeholders = ','.join('?' * len(ids))
+            rows = conn.execute(
+                f'SELECT id, slug FROM articles WHERE id IN ({placeholders}) AND is_published = 1',
+                ids
+            ).fetchall()
+            conn.close()
+            slug_map = {r['id']: r['slug'] for r in rows}
+
+            enriched = []
+            for r in results:
+                if r['id'] in slug_map:
+                    r['slug'] = slug_map[r['id']]
+                    enriched.append(r)
+
+            return {"results": enriched, "mode": "semantic"}, 200
+    except (ImportError, Exception) as e:
+        print(f"⚠️ API semantic search fallback: {e}")
+
+    # Fallback: keyword search
+    conn = get_db_connection()
+    query = f"%{q}%"
+    rows = conn.execute(
+        'SELECT id, title, slug, category, source FROM articles WHERE (title LIKE ? OR gist LIKE ?) AND is_published = 1 ORDER BY published_at DESC LIMIT 10',
+        (query, query)
+    ).fetchall()
+    conn.close()
+
+    return {
+        "results": [{"id": r['id'], "title": r['title'], "slug": r['slug'], "category": r['category'], "source": r['source'], "score": None} for r in rows],
+        "mode": "keyword"
+    }, 200
+
+@app.route('/api/trends')
+def api_trends():
+    """Trend Intelligence API endpoint."""
+    try:
+        from trend_engine import get_trend_snapshot
+        conn = get_db_connection()
+        snapshot = get_trend_snapshot(conn)
+        conn.close()
+        return snapshot, 200
+    except Exception as e:
+        return {"error": str(e), "has_trends": False}, 200
 
 @app.route('/api/track-audio/<int:id>', methods=['POST'])
 def track_audio_play(id):
