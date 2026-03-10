@@ -31,7 +31,7 @@
                 </td>
                 <td class="px-6 py-4 text-zinc-500 text-xs">{{ sub.created_at }}</td>
                 <td class="px-6 py-4">
-                    <form action="{{ url_for('delete_subscriber', id=sub.id) }}" method="POST"
+                    <form action="{{ url_for('admin_content.delete_subscriber', id=sub.id) }}" method="POST"
                         onsubmit="return confirm('Are you sure you want to delete this subscriber?');">
                         <button type="submit"
                             class="text-red-500 hover:text-red-400 font-bold text-[10px] uppercase tracking-wider">

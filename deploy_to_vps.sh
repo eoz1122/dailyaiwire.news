@@ -12,8 +12,8 @@ cd /home/dailyai/dailyaiwire.news
 # Pull latest changes
 echo "📥 Pulling latest changes from Git..."
 git fetch origin
-git checkout iron-judo-v1
-git pull origin iron-judo-v1
+git checkout main
+git pull origin main
 
 # Install/update dependencies if requirements.txt changed
 echo "📦 Checking dependencies..."

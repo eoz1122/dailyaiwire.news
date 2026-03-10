@@ -223,6 +223,202 @@ def find_duplicates(title: str, gist: str, threshold: float = 0.92) -> Optional[
     return None
 
 
+def search_articles(query: str, limit: int = 20, score_threshold: float = 0.35) -> List[Dict]:
+    """
+    Semantic search: find articles matching a natural-language query.
+
+    Uses bge-large-en-v1.5 retrieval prefix for optimal recall.
+    Returns list of {id, title, score, category, source} ranked by relevance.
+    Never raises — returns empty list on any failure.
+    """
+    try:
+        client = get_qdrant()
+        model = get_model()
+
+        # BGE retrieval best practice: prefix query for asymmetric search
+        query_text = f"Represent this sentence for searching relevant passages: {query}"
+        query_embedding = model.encode([query_text], normalize_embeddings=True)[0]
+
+        results = client.search(
+            collection_name=COLLECTION_NAME,
+            query_vector=query_embedding.tolist(),
+            limit=limit,
+            score_threshold=score_threshold
+        )
+
+        return [
+            {
+                "id": r.id,
+                "title": r.payload.get("title", ""),
+                "score": round(r.score, 3),
+                "category": r.payload.get("category", ""),
+                "source": r.payload.get("source", "")
+            }
+            for r in results
+        ]
+    except Exception as e:
+        print(f"⚠️ Semantic search failed: {e}")
+        return []
+
+
+def find_all_duplicates(threshold: float = 0.88, batch_size: int = 100) -> List[Dict]:
+    """
+    Batch scan: find ALL duplicate clusters in the corpus.
+
+    Scrolls through every vector in Qdrant, finds nearest neighbors
+    above threshold, and groups them into clusters via union-find.
+
+    Returns: [{
+        'keeper_id': int,       # Newest article in cluster
+        'keeper_title': str,
+        'articles': [{'id': int, 'title': str, 'score': float}],
+        'max_score': float      # Highest pairwise similarity
+    }]
+
+    Sorted by max_score descending (most obvious duplicates first).
+    """
+    try:
+        client = get_qdrant()
+        total = client.count(COLLECTION_NAME).count
+        if total == 0:
+            return []
+
+        print(f"🔍 Scanning {total} articles for duplicates (threshold={threshold})...")
+
+        # Union-Find for clustering
+        parent = {}
+        def find(x):
+            while parent.get(x, x) != x:
+                parent[x] = parent.get(parent[x], parent[x])
+                x = parent[x]
+            return x
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        # Track pairwise scores and metadata
+        pair_scores = {}  # (min_id, max_id) -> score
+        metadata = {}     # id -> {title, ...}
+        processed = set()
+
+        # Scroll through all vectors
+        offset = None
+        scanned = 0
+        while True:
+            results, offset = client.scroll(
+                collection_name=COLLECTION_NAME,
+                limit=batch_size,
+                offset=offset,
+                with_vectors=True,
+                with_payload=True
+            )
+
+            if not results:
+                break
+
+            for point in results:
+                pid = point.id
+                if pid in processed:
+                    continue
+                processed.add(pid)
+
+                metadata[pid] = {
+                    "title": point.payload.get("title", ""),
+                    "category": point.payload.get("category", ""),
+                    "source": point.payload.get("source", "")
+                }
+
+                # Search for neighbors
+                neighbors = client.search(
+                    collection_name=COLLECTION_NAME,
+                    query_vector=point.vector,
+                    limit=5,
+                    score_threshold=threshold
+                )
+
+                for nb in neighbors:
+                    if nb.id == pid:
+                        continue  # Skip self
+                    pair_key = (min(pid, nb.id), max(pid, nb.id))
+                    if pair_key not in pair_scores or nb.score > pair_scores[pair_key]:
+                        pair_scores[pair_key] = nb.score
+                    union(pid, nb.id)
+
+                    # Store metadata for neighbor too
+                    if nb.id not in metadata:
+                        metadata[nb.id] = {
+                            "title": nb.payload.get("title", ""),
+                            "category": nb.payload.get("category", ""),
+                            "source": nb.payload.get("source", "")
+                        }
+
+            scanned += len(results)
+            if scanned % 500 == 0:
+                print(f"   Scanned {scanned}/{total} articles...")
+
+            if offset is None:
+                break
+
+        print(f"✅ Scan complete. {len(pair_scores)} duplicate pairs found.")
+
+        # Build clusters from union-find
+        clusters_map = {}  # root -> [member_ids]
+        for mid in metadata:
+            root = find(mid)
+            if root not in clusters_map:
+                clusters_map[root] = []
+            clusters_map[root].append(mid)
+
+        # Filter to clusters with 2+ members
+        clusters = []
+        for root, members in clusters_map.items():
+            if len(members) < 2:
+                continue
+
+            # Keeper = highest ID (newest article)
+            keeper_id = max(members)
+            max_score = 0.0
+
+            articles = []
+            for mid in sorted(members):
+                # Find the max pairwise score involving this member
+                member_max = 0.0
+                for other in members:
+                    if other == mid:
+                        continue
+                    pk = (min(mid, other), max(mid, other))
+                    s = pair_scores.get(pk, 0.0)
+                    member_max = max(member_max, s)
+                    max_score = max(max_score, s)
+
+                articles.append({
+                    "id": mid,
+                    "title": metadata.get(mid, {}).get("title", ""),
+                    "score": round(member_max, 3),
+                    "category": metadata.get(mid, {}).get("category", ""),
+                    "source": metadata.get(mid, {}).get("source", "")
+                })
+
+            clusters.append({
+                "keeper_id": keeper_id,
+                "keeper_title": metadata.get(keeper_id, {}).get("title", ""),
+                "articles": articles,
+                "max_score": round(max_score, 3)
+            })
+
+        # Sort by highest similarity first
+        clusters.sort(key=lambda c: c["max_score"], reverse=True)
+        print(f"📊 {len(clusters)} duplicate clusters identified.")
+        return clusters
+
+    except Exception as e:
+        print(f"⚠️ Batch dedup scan failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
 def get_collection_stats() -> Dict:
     """Get stats about the vector collection."""
     client = get_qdrant()

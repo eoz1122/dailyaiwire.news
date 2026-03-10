@@ -1,0 +1,129 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dedup Review | DailyAIWire{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">🧹 Smart Deduplication</h1>
+            <p class="text-zinc-500 text-sm mt-1">Review semantic duplicate clusters. Merge to keep newest, dismiss
+                false positives.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if clusters %}
+            <span
+                class="px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold">
+                {{ clusters|length }} clusters pending
+            </span>
+            {% else %}
+            <span
+                class="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold">
+                ✅ All clear
+            </span>
+            {% endif %}
+            {% if resolved_count %}
+            <span class="px-3 py-1.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-lg text-xs font-bold">
+                {{ resolved_count }} resolved
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not clusters %}
+    <!-- Empty State -->
+    <div class="bg-zinc-800/30 border border-zinc-800 rounded-2xl p-12 text-center">
+        <div class="text-5xl mb-4">🎯</div>
+        <h2 class="text-xl font-bold text-white mb-2">No Pending Duplicates</h2>
+        <p class="text-zinc-500 text-sm max-w-md mx-auto">
+            Run the sweep script on VPS to scan for duplicates:<br>
+            <code class="text-blue-400 text-xs mt-2 block">python scripts/dedup_sweep.py --threshold 0.88</code>
+        </p>
+    </div>
+    {% else %}
+
+    <!-- Cluster Cards -->
+    <div class="space-y-6">
+        {% for cluster in clusters %}
+        <div class="bg-zinc-800/30 border border-zinc-800 rounded-2xl overflow-hidden" id="cluster-{{ cluster.id }}">
+            <!-- Cluster Header -->
+            <div
+                class="px-6 py-4 border-b border-zinc-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-bold text-zinc-500 bg-zinc-900 px-2 py-1 rounded">#{{ cluster.id }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest
+                            {% if cluster.max_score >= 0.95 %}
+                                bg-red-500/20 text-red-400 border border-red-500/30
+                            {% elif cluster.max_score >= 0.90 %}
+                                bg-amber-500/20 text-amber-400 border border-amber-500/30
+                            {% else %}
+                                bg-blue-500/20 text-blue-400 border border-blue-500/30
+                            {% endif %}
+                        ">
+                            {{ '%.0f'|format(cluster.max_score * 100) }}% match
+                        </span>
+                        <span class="text-zinc-600 text-xs">{{ cluster.articles|length }} articles</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <form method="POST" action="{{ url_for('admin_ops.admin_dedup_merge', cluster_id=cluster.id) }}"
+                        class="inline">
+                        <button type="submit"
+                            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
+                            onclick="return confirm('Merge: Keep newest article, unpublish {{ cluster.articles|length - 1 }} older duplicates?')">
+                            ✅ Merge (Keep Newest)
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin_ops.admin_dedup_dismiss', cluster_id=cluster.id) }}"
+                        class="inline">
+                        <button type="submit"
+                            class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-bold rounded-lg transition-colors">
+                            ❌ Dismiss
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Articles in Cluster -->
+            <div class="divide-y divide-zinc-800/50">
+                {% for art in cluster.articles %}
+                <div class="px-6 py-4 flex flex-col md:flex-row items-start md:items-center gap-4 
+                    {% if art.id == cluster.keeper_id %}bg-emerald-500/5{% else %}bg-zinc-900/30{% endif %}">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            {% if art.id == cluster.keeper_id %}
+                            <span
+                                class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[10px] font-black uppercase tracking-widest shrink-0">KEEP</span>
+                            {% else %}
+                            <span
+                                class="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded text-[10px] font-black uppercase tracking-widest shrink-0">DUPE</span>
+                            {% endif %}
+                            <span class="text-zinc-600 text-[10px] font-mono shrink-0">ID: {{ art.id }}</span>
+                            {% if art.score %}
+                            <span class="text-zinc-600 text-[10px] font-mono shrink-0">sim: {{ art.score }}</span>
+                            {% endif %}
+                        </div>
+                        <h3 class="text-sm font-bold text-white truncate">{{ art.title }}</h3>
+                        <div class="flex items-center gap-3 mt-1">
+                            {% if art.category %}
+                            <span class="text-[10px] text-zinc-500 font-bold uppercase">{{ art.category }}</span>
+                            {% endif %}
+                            {% if art.source %}
+                            <span class="text-[10px] text-zinc-600">via {{ art.source }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ url_for('admin_core.admin_edit_article', id=art.id) }}"
+                        class="text-blue-500 hover:text-blue-400 text-xs font-bold shrink-0 transition-colors"
+                        target="_blank">View →</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

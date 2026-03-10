@@ -5,6 +5,35 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-10T16:32:00+01:00 — Phase 5: Architectural Refactoring (Blueprint Split + Shared DB)
+
+**Decision**: Split the 1,967-line `app.py` monolith into 8 Flask Blueprints + slim app factory. Created shared `db.py` database module. Cleaned up stale files and synced ROADMAP.md.
+
+**Changes**:
+- `app.py`: Reduced from 1,967 → 275 lines. Now contains only app setup, Flask-Admin dashboard view, context processor, security headers, and Blueprint registration.
+- `db.py` [NEW]: Shared `get_db_connection()` with Row factory + `DB_PATH`.
+- `helpers.py` [NEW]: Extracted template filters (`time_ago`, `remove_emojis`, `add_utm_to_html`, `slugify`).
+- `routes/public.py` [NEW]: Homepage, article, static pages, subscribe (9 routes).
+- `routes/api.py` [NEW]: Search, trends, audio tracking, newsletter tracking (4 routes).
+- `routes/auth.py` [NEW]: Login, logout, user management, Flask-Login init (5 routes).
+- `routes/seo.py` [NEW]: Sitemap, robots, RSS feed, favicon (6 routes).
+- `routes/lab.py` [NEW]: Lab index, lab post (2 routes).
+- `routes/admin_core.py` [NEW]: Article CRUD, file manager, author profile (5 routes).
+- `routes/admin_content.py` [NEW]: Newsletters, editorials, social queue, audio/video gen, subscribers (15 routes).
+- `routes/admin_ops.py` [NEW]: Sources, leads, duplicates, budget, kill article (14 routes).
+- All 32 template files: `url_for()` calls updated with Blueprint prefixes.
+- `fetcher.py`: Removed duplicate `get_db_connection()`, now imports from `db.py`.
+- `deploy_to_vps.sh`: Fixed branch from `iron-judo-v1` → `main`.
+- `ROADMAP.md`: Synced 12+ shipped features, added Phase 5 section.
+- `requirements.txt`: Removed 4 duplicate entries.
+- Deleted 4 stale test audio files.
+
+**Rationale**: `app.py` at 1,967 lines was untenable for development velocity — no IDE could navigate it efficiently, and new contributors would be overwhelmed. Blueprint split enables per-module ownership, parallel development, and cleaner git diffs. Shared `db.py` eliminates 2 conflicting `get_db_connection()` implementations.
+
+**Rollback**: `git revert` the refactoring commit. The old monolithic `app.py` will restore all route registrations inline. Templates' `url_for()` calls will need reverting (remove Blueprint prefixes).
+
+---
+
 ## 2026-03-10T13:04:00+01:00 — Phase 2: Generative UI — Adaptive CSS Engine
 
 **Decision**: Implemented the Adaptive CSS Engine that consumes AI-generated `design_tokens` (intensity, sentiment_pallet, component_triggers) to dynamically theme article pages. Uses CSS Custom Properties architecture for maintainability.

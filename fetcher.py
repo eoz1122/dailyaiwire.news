@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from typing import List, Dict, Tuple
 from bs4 import BeautifulSoup
 import requests
+from db import get_db_connection, DB_PATH
 
 from social_distributor import SocialDistributor
 from audio_generator import AudioGenerator
@@ -39,8 +40,7 @@ from budget_tracker import BudgetTracker
 MONTHLY_BUDGET_USD = float(os.getenv("MONTHLY_BUDGET_USD", "10.0"))
 budget = BudgetTracker(monthly_cap_usd=MONTHLY_BUDGET_USD)
 
-# Database setup
-DB_PATH = "news.db"
+# Database setup uses shared db.py (DB_PATH imported above)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -692,15 +692,7 @@ def extract_content(url: str) -> Tuple[str, str]:
         return (content if content else ""), og_image, (author if author else "")
     return "", "", ""
 
-import os
-import re
-import sqlite3
-
-# Assuming DB_PATH is defined globally or passed around
-# Placeholder for get_db_connection, as it's not provided in the instruction
-def get_db_connection():
-    """Establishes a connection to the SQLite database."""
-    return sqlite3.connect(DB_PATH)
+# Shared get_db_connection imported from db.py
 
 def is_spam_source(url, title):
     """

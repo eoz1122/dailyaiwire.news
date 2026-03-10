@@ -52,7 +52,7 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <form action="{{ url_for('admin_block_source') }}" method="POST"
+                                <form action="{{ url_for('admin_ops.admin_block_source') }}" method="POST"
                                     class="inline-flex gap-2">
                                     <input type="hidden" name="domain" value="{{ row['name'] }}">
                                     <!-- Standard Block -->
@@ -90,7 +90,7 @@
             </h2>
 
             <!-- Manual Block Form -->
-            <form action="{{ url_for('admin_block_source') }}" method="POST" class="mb-6 flex gap-2">
+            <form action="{{ url_for('admin_ops.admin_block_source') }}" method="POST" class="mb-6 flex gap-2">
                 <input type="text" name="domain" placeholder="Enter domain to block (e.g., example.com)"
                     class="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
                 <button type="submit"
@@ -115,7 +115,7 @@
                                 <div class="text-[10px] text-red-400 font-mono mt-0.5">{{ row['added_at'] }}</div>
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <form action="{{ url_for('admin_unblock_source') }}" method="POST" class="inline">
+                                <form action="{{ url_for('admin_ops.admin_unblock_source') }}" method="POST" class="inline">
                                     <input type="hidden" name="domain" value="{{ row['domain'] }}">
                                     <button type="submit"
                                         class="text-[10px] font-black uppercase tracking-wider text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg border border-green-200 transition-colors">

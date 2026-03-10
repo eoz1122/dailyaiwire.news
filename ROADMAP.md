@@ -16,15 +16,18 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [x] **Web Indexing:** Sitemap and indexing infrastructure optimized for fast discovery.
 - [x] **Resilient Scheduler:** Self-healing social distribution pipeline.
 - [x] **Editorial Guidelines (Q1 '26):** Implemented automated "Safety Filters" (Suicide/Murder blocks) and "Quality Thresholds" (Min Score 50).
+- [x] **Semantic Search:** Upgraded from SQL `LIKE` to Qdrant vector search with automatic keyword fallback.
+- [x] **Editorial Compass (RAG):** `bge-large-en-v1.5` + Qdrant for editorial scoring and semantic deduplication.
+- [x] **Smart Deduplication:** Historical dedup sweep using Qdrant vector similarity + admin review dashboard.
 
-## 🚧 Phase 2: Generative UI (High Priority - Q2 '26)
+## ✅ Phase 2: Generative UI (Shipped Q1 '26)
 
 **Objective:** A "Living" Frontend that adapts to the story.
 
-- [ ] **Adaptive CSS Engine:** Frontend consumes `design_tokens` (Intensity, Sentiment) to change colors/fonts per article.
-  - *Example:* "Crisis" articles render in high-contrast red/monochrome. "Optimistic" articles use glassmorphism/green.
-- [ ] **Dynamic Components:** AI decides *layout*.
-  - *Example:* If an article contains stock data, the AI injects a "Ticker Widget" instead of text.
+- [x] **Adaptive CSS Engine:** Frontend consumes `design_tokens` (Intensity, Sentiment) to change colors/fonts per article.
+  - *Two-tier CSS variables:* `--genui-brand-*` (always blue) + `--genui-signal-*` (sentiment-driven).
+- [x] **Dynamic Components:** AI decides *layout* via `component_triggers`.
+  - *Shipped:* `quick_facts_grid`, `market_ticker`. Removed `code_block` (made deep analysis look like raw markdown).
 - [ ] **Audio-First Experience:** Auto-mix background ambience based on article sentiment (e.g., subtle tense drone for cybersecurity news).
 - [ ] **Automated Article Visuals (DeepDiagram):** Investigate integrating `DeepDiagram` (AGPL-3.0) to auto-generate editable charts/mermaid diagrams for technical articles.
 
@@ -45,8 +48,20 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 **Objective:** Full control from the dashboard.
 
 - [x] **Author-Aware Search:** Admin panel now searches by Author and Title.
+- [x] **Source Management UI:** Add/Ban sources directly from the dashboard without SQL scripts.
+- [x] **Admin Panel Redesign:** Standalone light-mode interface, fully responsive, decoupled from public site.
+- [x] **Trend Intelligence Engine:** SQL-driven trend detection (surging categories, trending hashtags, emerging keywords).
 - [ ] **Manual Override Mode:** "Emergency Button" to kill a story globally (CDN purge) from the Admin UI.
-- [ ] **Source Management UI:** Add/Ban sources directly from the dashboard without SQL scripts.
+
+## 🏗️ Phase 5: Architectural Refactoring
+
+**Objective:** Reduce tech debt before scaling.
+
+- [x] **R2: Blueprint Split:** `app.py` split from 1,967 lines to 275-line factory + 8 Blueprint modules.
+- [x] **R4: Shared DB Layer:** Single `db.py` module with `get_db_connection()`.
+- [x] **R5: Cleanup:** Deploy script fixed, test audio removed, requirements deduped.
+- [ ] **R1: Safety Net:** Add pytest + smoke tests (currently 0% test coverage).
+- [ ] **R3: Fetcher Decomposition:** Split `fetcher.py` (1,349 lines) into focused modules.
 
 ## 🔮 Phase 6: Future Architecture & AdCP
 
