@@ -120,6 +120,7 @@
 
     .genui-article .genui-accent-bg {
         background-color: var(--genui-brand-dark) !important;
+        color: #fff !important;
     }
 
     .genui-article .genui-gist-box {
@@ -129,6 +130,7 @@
 
     .genui-article .genui-cta-primary {
         background-color: var(--genui-brand-dark);
+        color: #fff !important;
         box-shadow: 0 10px 30px rgba(var(--genui-brand), 0.2);
     }
 
@@ -185,25 +187,7 @@
         % endif %
     }
 
-    /* Dynamic Component: code_block terminal aesthetic */
-        {
-        % if 'code_block' in triggers %
-    }
-
-    .genui-article .genui-deep-analysis {
-        font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(var(--genui-brand), 0.15);
-        border-radius: 1rem;
-        padding: 2rem;
-        font-size: 0.9rem;
-        line-height: 1.8;
-        color: #a1a1aa;
-    }
-
-        {
-        % endif %
-    }
+    /* Dynamic Component: code_block — removed (caused markdown-like appearance) */
 
     /* Dynamic Component: quick_facts_grid */
         {
