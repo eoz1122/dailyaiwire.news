@@ -55,21 +55,217 @@
 {% endblock %}
 
 {% block content %}
-<!-- GenUI: Adaptive Theming Engine -->
-{% set intensity = article.design_tokens.get('intensity', 'standard') %}
-{% set sentiment = article.design_tokens.get('sentiment_pallet', 'techno-optimist') %}
+<!-- ═══════════════════════════════════════════════════════════════════
+     GenUI: Phase 2 — Adaptive CSS Engine
+     Consumes AI-generated design_tokens to theme the article.
+     Tokens: intensity (critical|high|standard|low)
+             sentiment_pallet (crisis|warning|techno-optimist)
+             component_triggers (quick_facts_grid|code_block|market_ticker)
+     ═══════════════════════════════════════════════════════════════════ -->
+{% set intensity = article.design_tokens.get('intensity', 'standard') if article.design_tokens else 'standard' %}
+{% set sentiment = article.design_tokens.get('sentiment_pallet', 'techno-optimist') if article.design_tokens else
+'techno-optimist' %}
+{% set triggers = article.design_tokens.get('component_triggers', []) if article.design_tokens else [] %}
 
-<!-- Theme Mappings -->
-{% set theme_class = 'theme-standard' %}
-{% if intensity == 'critical' %}
-{% set theme_class = 'theme-critical border-red-900 bg-red-950/10' %}
-{% elif sentiment == 'warning' %}
-{% set theme_class = 'theme-warning border-amber-900 bg-amber-950/10' %}
-{% elif sentiment == 'techno-optimist' %}
-{% set theme_class = 'theme-optimist border-blue-900 bg-blue-950/10' %}
-{% endif %}
+<!-- GenUI CSS Custom Properties -->
+<style>
+    .genui-article {
+        /* Default: techno-optimist (blue) */
+        --genui-accent: 59, 130, 246;
+        /* blue-500 RGB */
+        --genui-accent-hex: #3b82f6;
+        --genui-glow: rgba(59, 130, 246, 0.15);
+        --genui-border: rgba(59, 130, 246, 0.25);
+        --genui-bg-tint: rgba(59, 130, 246, 0.03);
+        --genui-badge-bg: #1d4ed8;
+        /* blue-700 */
+        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(29, 78, 216, 0.15), rgba(0, 0, 0, 0.2));
+    }
 
-<div class="container mx-auto px-4 py-12 max-w-4xl {{ theme_class }} transition-colors duration-1000">
+        {
+        % if sentiment=='crisis' or intensity=='critical' %
+    }
+
+    .genui-article {
+        --genui-accent: 239, 68, 68;
+        /* red-500 RGB */
+        --genui-accent-hex: #ef4444;
+        --genui-glow: rgba(239, 68, 68, 0.2);
+        --genui-border: rgba(239, 68, 68, 0.3);
+        --genui-bg-tint: rgba(239, 68, 68, 0.04);
+        --genui-badge-bg: #b91c1c;
+        /* red-700 */
+        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(127, 29, 29, 0.25), rgba(0, 0, 0, 0.3));
+    }
+
+        {
+        % elif sentiment=='warning' %
+    }
+
+    .genui-article {
+        --genui-accent: 245, 158, 11;
+        /* amber-500 RGB */
+        --genui-accent-hex: #f59e0b;
+        --genui-glow: rgba(245, 158, 11, 0.18);
+        --genui-border: rgba(245, 158, 11, 0.28);
+        --genui-bg-tint: rgba(245, 158, 11, 0.04);
+        --genui-badge-bg: #b45309;
+        /* amber-700 */
+        --genui-hero-gradient: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(120, 53, 15, 0.2), rgba(0, 0, 0, 0.25));
+    }
+
+        {
+        % endif %
+    }
+
+    /* GenUI: Accent-aware component overrides */
+    .genui-article .genui-accent-border {
+        border-color: rgba(var(--genui-accent), 0.4) !important;
+    }
+
+    .genui-article .genui-accent-text {
+        color: var(--genui-accent-hex) !important;
+    }
+
+    .genui-article .genui-accent-bg {
+        background-color: var(--genui-badge-bg) !important;
+    }
+
+    .genui-article .genui-accent-border-left {
+        border-left-color: var(--genui-accent-hex) !important;
+    }
+
+    .genui-article .genui-gist-box {
+        border-left: 4px solid var(--genui-accent-hex);
+        background-color: var(--genui-bg-tint);
+    }
+
+    .genui-article .genui-hero-overlay {
+        background: var(--genui-hero-gradient);
+    }
+
+    .genui-article .genui-cta-primary {
+        background-color: var(--genui-badge-bg);
+        box-shadow: 0 10px 30px rgba(var(--genui-accent), 0.2);
+    }
+
+    .genui-article .genui-cta-primary:hover {
+        background-color: var(--genui-accent-hex);
+        box-shadow: 0 10px 40px rgba(var(--genui-accent), 0.3);
+    }
+
+    .genui-article .genui-section-border {
+        border-left-color: var(--genui-badge-bg) !important;
+    }
+
+    .genui-article .genui-ping {
+        background-color: var(--genui-accent-hex);
+    }
+
+    /* Intensity: Critical pulse effect */
+        {
+        % if intensity=='critical' %
+    }
+
+    @keyframes genui-critical-pulse {
+
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 rgba(var(--genui-accent), 0.4);
+        }
+
+        50% {
+            box-shadow: 0 0 20px 4px rgba(var(--genui-accent), 0.15);
+        }
+    }
+
+    .genui-article .genui-intensity-badge {
+        animation: genui-critical-pulse 2s ease-in-out infinite;
+    }
+
+        {
+        % endif %
+    }
+
+    /* Dynamic Component: code_block terminal aesthetic */
+        {
+        % if 'code_block' in triggers %
+    }
+
+    .genui-article .genui-deep-analysis {
+        font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(var(--genui-accent), 0.15);
+        border-radius: 1rem;
+        padding: 2rem;
+        font-size: 0.9rem;
+        line-height: 1.8;
+        color: #a1a1aa;
+    }
+
+        {
+        % endif %
+    }
+
+    /* Dynamic Component: quick_facts_grid */
+        {
+        % if 'quick_facts_grid' in triggers %
+    }
+
+    .genui-article .genui-facts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .genui-article .genui-facts-grid li {
+        display: flex;
+        align-items: flex-start;
+        background: rgba(var(--genui-accent), 0.05);
+        border: 1px solid rgba(var(--genui-accent), 0.12);
+        border-radius: 0.75rem;
+        padding: 1rem;
+    }
+
+    @media (max-width: 640px) {
+        .genui-article .genui-facts-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+        {
+        % endif %
+    }
+
+    /* Dynamic Component: market_ticker */
+        {
+        % if 'market_ticker' in triggers %
+    }
+
+    @keyframes genui-ticker-scroll {
+        0% {
+            transform: translateX(0);
+        }
+
+        100% {
+            transform: translateX(-50%);
+        }
+    }
+
+    .genui-ticker-track {
+        animation: genui-ticker-scroll 20s linear infinite;
+    }
+
+    .genui-ticker-track:hover {
+        animation-play-state: paused;
+    }
+
+        {
+        % endif %
+    }
+</style>
+
+<div class="genui-article container mx-auto px-4 py-12 max-w-4xl transition-colors duration-1000">
     <!-- Breadcrumb / Back Navigation -->
     <a href="/"
         class="inline-flex items-center space-x-2 text-zinc-500 hover:text-blue-600 transition-colors mb-8 font-bold text-xs uppercase tracking-widest">
@@ -85,11 +281,24 @@
         <img src="{{ article.image if article.image.startswith('http') or article.image.startswith('/') else '/' + article.image }}"
             alt="{{ article.title }}" class="w-full h-full object-cover"
             onerror="this.src='/static/fallbacks/tools_0.jpg'">
-        <div class="absolute inset-0 hero-container-gradient"></div>
+        <div class="absolute inset-0 genui-hero-overlay"></div>
         <div class="absolute bottom-10 left-10 pr-10">
-            <div
-                class="inline-block px-4 py-1.5 bg-blue-700 text-white text-xs font-black uppercase tracking-[0.2em] rounded-full mb-4 shadow-xl">
-                {{ article.category }}
+            <div class="flex items-center gap-3 mb-4">
+                <div
+                    class="inline-block px-4 py-1.5 genui-accent-bg text-white text-xs font-black uppercase tracking-[0.2em] rounded-full shadow-xl">
+                    {{ article.category }}
+                </div>
+                {% if intensity in ['critical', 'high'] %}
+                <div class="genui-intensity-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border"
+                    style="background: rgba(var(--genui-accent), 0.15); border-color: rgba(var(--genui-accent), 0.4); color: var(--genui-accent-hex);">
+                    <span class="relative flex h-1.5 w-1.5">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full genui-ping opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 genui-ping"></span>
+                    </span>
+                    {{ intensity | upper }}
+                </div>
+                {% endif %}
             </div>
             <h1 class="text-4xl md:text-5xl font-black leading-tight text-white max-w-3xl hero-title drop-shadow-2xl">
                 {{ article.title }}
@@ -137,9 +346,8 @@
                         <div class="flex items-center gap-2">
                             <span class="relative flex h-2 w-2">
                                 <span
-                                    class="animate-ping absolute inline-flex h-full w-full rounded-full {{ 'bg-red-500' if intensity == 'critical' else 'bg-blue-400' }} opacity-75"></span>
-                                <span
-                                    class="relative inline-flex rounded-full h-2 w-2 {{ 'bg-red-500' if intensity == 'critical' else 'bg-blue-500' }}"></span>
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full genui-ping opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 genui-ping"></span>
                             </span>
                             <h3 class="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
                                 Sonic Intelligence</h3>
@@ -247,17 +455,9 @@
 
             <script>
                 // --- GenUI Configuration ---
-                // Determinist color mapping based on Jinja variables
-                const THEME_COLORS = {
-                    'critical': '#ef4444', // Red-500
-                    'warning': '#f59e0b',  // Amber-500
-                    'techno-optimist': '#3b82f6', // Blue-500
-                    'standard': '#3b82f6'
-                };
-
-                // Using Jinja to inject the current sentiment color
-                const WAVE_COLOR = "{{ 'critical' if intensity == 'critical' else ('warning' if sentiment == 'warning' else 'techno-optimist') }}";
-                const PRIMARY_COLOR = THEME_COLORS[WAVE_COLOR] || '#3b82f6';
+                // Read accent color from CSS custom properties (set by GenUI Engine above)
+                const genui = getComputedStyle(document.querySelector('.genui-article') || document.documentElement);
+                const PRIMARY_COLOR = genui.getPropertyValue('--genui-accent-hex').trim() || '#3b82f6';
 
                 // --- Global State ---
                 let wavesurfer = null;
@@ -464,9 +664,8 @@
             {% endif %}
 
             <!-- The Gist summary box -->
-            <div
-                class="border-l-4 border-blue-600 bg-zinc-800/40 p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
-                <h3 class="text-blue-600 font-black uppercase text-xs tracking-widest mb-4">The Gist
+            <div class="genui-gist-box p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
+                <h3 class="genui-accent-text font-black uppercase text-xs tracking-widest mb-4">The Gist
                 </h3>
                 <p class="text-xl font-semibold leading-relaxed text-zinc-100">
                     {{ article.gist.replace('**', '') | add_utm_to_html | safe }}
@@ -501,7 +700,10 @@
             <div class="mb-12 flex justify-center md:justify-start">
                 <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
                     target="_blank"
-                    class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 hover:bg-blue-700 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all border border-zinc-700 hover:border-blue-600 shadow-lg group">
+                    class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all shadow-lg group"
+                    style="border: 1px solid rgba(var(--genui-accent), 0.3);"
+                    onmouseover="this.style.backgroundColor='var(--genui-badge-bg)';this.style.borderColor='var(--genui-accent-hex)'"
+                    onmouseout="this.style.backgroundColor='';this.style.borderColor=''">
                     <span>Read Full Story on {{ article.source }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
                         class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
@@ -515,9 +717,9 @@
             <!-- Deep Analysis Section -->
             <section class="mb-8">
                 <h3
-                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 border-blue-700 pl-4 py-1">
+                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 genui-section-border pl-4 py-1">
                     Deep Intelligence Analysis</h3>
-                <div class="text-zinc-300 text-lg leading-relaxed space-y-4">
+                <div class="genui-deep-analysis text-zinc-300 text-lg leading-relaxed space-y-4">
                     {{ article.deep_analysis | replace('\n', '<br>') | add_utm_to_html | safe }}
                 </div>
             </section>
@@ -533,7 +735,7 @@
                 <!-- Prominent Link to Source -->
                 <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
                     target="_blank"
-                    class="inline-flex items-center justify-center w-full md:w-auto px-12 py-6 bg-blue-700 hover:bg-blue-600 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all shadow-xl hover:shadow-blue-600/20 group">
+                    class="genui-cta-primary inline-flex items-center justify-center w-full md:w-auto px-12 py-6 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all group">
                     <span>Read Full Story on {{ article.source }}</span>
                     <svg xmlns="http://www.w3.org/2000/svg"
                         class="h-6 w-6 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
@@ -550,16 +752,49 @@
                 <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
                     Key
                     Details</h3>
-                <ul class="space-y-4"><!--
+                <ul class="{% if 'quick_facts_grid' in triggers %}genui-facts-grid{% else %}space-y-4{% endif %}"><!--
                     -->{%- for detail in article.key_details -%}
                     <li class="flex items-start">
-                        <span class="text-blue-600 mr-3 mt-1 text-lg">●</span>
+                        <span class="genui-accent-text mr-3 mt-1 text-lg">●</span>
                         <span class="text-zinc-300 text-lg">{{ detail }}</span>
                     </li>
                     {%- endfor -%}<!--
                 -->
                 </ul>
             </section>
+            {% endif %}
+
+            <!-- GenUI Dynamic Component: Market Ticker -->
+            {% if 'market_ticker' in triggers and article.key_details %}
+            <div class="mb-8 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/50">
+                <div class="flex items-center gap-2 px-4 py-2 border-b border-zinc-800">
+                    <span class="relative flex h-1.5 w-1.5">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full genui-ping opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 genui-ping"></span>
+                    </span>
+                    <span class="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-600">Key Data Points</span>
+                </div>
+                <div class="overflow-hidden">
+                    <div class="flex whitespace-nowrap genui-ticker-track">
+                        {% for detail in article.key_details %}
+                        <span
+                            class="inline-flex items-center gap-2 px-6 py-3 text-xs font-bold text-zinc-400 border-r border-zinc-800/50">
+                            <span class="genui-accent-text">▸</span> {{ detail[:80] }}{% if detail|length > 80 %}…{%
+                            endif %}
+                        </span>
+                        {% endfor %}
+                        <!-- Duplicate for seamless loop -->
+                        {% for detail in article.key_details %}
+                        <span
+                            class="inline-flex items-center gap-2 px-6 py-3 text-xs font-bold text-zinc-400 border-r border-zinc-800/50">
+                            <span class="genui-accent-text">▸</span> {{ detail[:80] }}{% if detail|length > 80 %}…{%
+                            endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
             {% endif %}
 
             <!-- Analysis Grid: Optimistic vs Pessimistic -->

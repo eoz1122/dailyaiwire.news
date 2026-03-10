@@ -1407,6 +1407,8 @@ def index():
         d = dict(a)
         try: d['key_details'] = json.loads(d['key_details'])
         except: d['key_details'] = []
+        try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
+        except: d['design_tokens'] = {}
         processed_grid.append(d)
 
     processed_carousel = []
@@ -1414,6 +1416,8 @@ def index():
         d = dict(a)
         try: d['key_details'] = json.loads(d['key_details'])
         except: d['key_details'] = []
+        try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
+        except: d['design_tokens'] = {}
         processed_carousel.append(d)
 
 

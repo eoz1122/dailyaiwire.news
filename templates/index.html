@@ -354,7 +354,12 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
         <!-- Article Item -->
         <div class="h-full">
-            <div class="glass-card article-card rounded-2xl overflow-hidden flex flex-col group h-full relative"
+            {% set art_intensity = art.design_tokens.get('intensity', 'standard') if art.design_tokens else 'standard'
+            %}
+            {% set art_sentiment = art.design_tokens.get('sentiment_pallet', 'techno-optimist') if art.design_tokens
+            else 'techno-optimist' %}
+            <div class="glass-card article-card rounded-2xl overflow-hidden flex flex-col group h-full relative
+                {% if art_intensity == 'critical' or art_sentiment == 'crisis' %}border-l-2 border-l-red-500/60{% elif art_intensity == 'high' or art_sentiment == 'warning' %}border-l-2 border-l-amber-500/50{% endif %}"
                 data-published="{{ art.published_at }}">
                 <!-- Badge Removed -->
 
@@ -364,7 +369,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onerror="this.src='/static/fallbacks/tools_0.jpg'">
                     <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent"></div>
-                    <div class="absolute bottom-4 left-4">
+                    <div class="absolute bottom-4 left-4 flex items-center gap-1.5">
                         <span
                             class="px-3 py-1 {{ category_color(art.category) }} !text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg">
                             {{ art.category }}
@@ -373,6 +378,13 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
                             class="px-2 py-0.5 bg-black/40 text-white/90 text-[10px] font-black uppercase tracking-tighter rounded backdrop-blur-sm border border-white/5">
                             {{ art.published_at | time_ago }}
                         </span>
+                        {% if art_intensity in ['critical', 'high'] %}
+                        <span
+                            class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded backdrop-blur-sm border
+                            {% if art_intensity == 'critical' %}bg-red-600/80 border-red-400/40 text-white{% else %}bg-amber-600/70 border-amber-400/30 text-white{% endif %}">
+                            {{ art_intensity | upper }}
+                        </span>
+                        {% endif %}
                     </div>
                     {% if art.audio_male or art.audio_female %}
                     <div
