@@ -192,7 +192,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
         
         # Main Articles Query
-        query = "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays FROM articles" + where_clause + " ORDER BY replace(published_at, 'T', ' ') DESC LIMIT ? OFFSET ?"
+        query = "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays, source FROM articles" + where_clause + " ORDER BY replace(published_at, 'T', ' ') DESC LIMIT ? OFFSET ?"
         query_params = params + [per_page, offset]
         
         articles = conn.execute(query, query_params).fetchall()
@@ -205,7 +205,15 @@ class MyAdminIndexView(AdminIndexView):
         
         conn.close()
         
-        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total)
+        # Fetch leads count for Target Acquisition widget
+        try:
+            conn2 = get_db_connection()
+            leads = conn2.execute('SELECT id FROM leads WHERE status != ? ORDER BY created_at DESC', ('rejected',)).fetchall()
+            conn2.close()
+        except Exception:
+            leads = []
+        
+        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total, leads=leads)
 
 
 
