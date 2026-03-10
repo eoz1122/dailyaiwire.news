@@ -210,7 +210,8 @@ class MyAdminIndexView(AdminIndexView):
             conn2 = get_db_connection()
             leads = conn2.execute('SELECT id FROM leads WHERE status != ? ORDER BY found_at DESC', ('rejected',)).fetchall()
             conn2.close()
-        except Exception:
+        except Exception as e:
+            app.logger.error(f"Failed to fetch leads for dashboard: {e}")
             leads = []
         
         return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total, leads=leads)
