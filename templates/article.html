@@ -1043,7 +1043,7 @@
 {% if article.mermaid_diagram %}
 <script>
     mermaid.initialize({
-        startOnLoad: true,
+        startOnLoad: false,
         theme: 'dark',
         themeVariables: {
             primaryColor: '#1e40af',
@@ -1058,6 +1058,7 @@
             fontSize: '14px'
         }
     });
+    mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
 </script>
 {% endif %}
 {% endblock %}
