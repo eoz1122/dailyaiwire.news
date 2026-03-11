@@ -133,7 +133,8 @@ def process_batch(batch: List[Dict]):
         "      \"intensity\": \"critical | high | standard | low\",\n"
         "      \"sentiment_pallet\": \"techno-optimist | warning | crisis\",\n"
         "      \"component_triggers\": [\"quick_facts_grid\", \"market_ticker\", \"code_block\"]\n"
-        "    }\n"
+        "    },\n"
+        "    \"mermaid_diagram\": \"Valid Mermaid.js syntax (flowchart, sequence, timeline, or mindmap). Generate ONLY for technical/process/business articles where a visual flow adds genuine value (e.g. architecture, pipelines, funding flows, regulatory processes). For opinion pieces, minor updates, or non-visual topics, set to null. Use LR direction for flowcharts. Keep node labels concise (max 6 words). Do NOT wrap in markdown code fences.\"\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input) +

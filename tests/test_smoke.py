@@ -260,3 +260,23 @@ class TestSignalRoutes:
     def test_signal_detail_not_found(self, client):
         resp = client.get('/signal/99999')
         assert resp.status_code == 404
+
+
+# ── Phase 2: DeepDiagram (Visual Intelligence) ─────────────────────
+
+class TestDiagramRendering:
+    """Mermaid diagram rendering on article pages."""
+
+    def test_article_with_diagram_renders_mermaid(self, client):
+        resp = client.get('/article/test-article-with-diagram')
+        assert resp.status_code == 200
+        assert b'mermaid' in resp.data
+        assert b'Visual Intelligence' in resp.data
+        assert b'flowchart LR' in resp.data
+
+    def test_article_without_diagram_no_mermaid(self, client):
+        resp = client.get('/article/test-article-slug')
+        assert resp.status_code == 200
+        # Check the actual rendered section ID (not the HTML comment)
+        assert b'id="visual-intelligence"' not in resp.data
+

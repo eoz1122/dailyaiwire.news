@@ -5,6 +5,23 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-11T01:57:00+01:00 — Phase 2: DeepDiagram (Automated Article Visuals)
+
+**Decision**: Added AI-powered mermaid diagram generation for technical articles. Gemini generates Mermaid.js syntax during article ingestion; diagrams render client-side with dark theme matching brand colors. Progressive enhancement — articles without diagrams are unaffected.
+
+**Changes**:
+- `fetcher/ai_processor.py`: Added `mermaid_diagram` field to Gemini prompt JSON schema. AI decides per-article whether a diagram adds value (null for opinion/non-visual pieces).
+- `routes/public.py`: Extracts `mermaid_diagram` from `full_json` column on article detail pages.
+- `templates/article.html`: Conditional Mermaid.js CDN load, "Visual Intelligence" section between Deep Analysis and Impact Assessment, dark-theme Mermaid.js initialization with brand color variables.
+- `scripts/generate_diagrams.py` [NEW]: Backfill CLI for existing high-value articles (`--limit`, `--min-score`, `--dry-run` flags).
+- `tests/conftest.py`: Added test article with diagram fixture.
+- `tests/test_smoke.py`: 2 new tests (74 total) — diagram rendering positive and negative paths.
+- `ROADMAP.md`: Removed "Audio-First Experience" item (per Architect directive).
+
+**Rollback**: Remove `mermaid_diagram` field from `ai_processor.py` prompt. Revert `routes/public.py` extraction block. Remove Mermaid.js CDN, Visual Intelligence section, and init script from `article.html`. Delete `scripts/generate_diagrams.py`.
+
+---
+
 ## 2026-03-11T00:13:00+01:00 — Phase 3: Agentic Optimization (GEO)
 
 **Decision**: Shipped all three Phase 3 items: Deep Research (DuckDuckGo, free), Answer-Engine API, and "The Signal" Newsletter.

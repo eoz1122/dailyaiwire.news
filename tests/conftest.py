@@ -147,6 +147,33 @@ def _patch_db(tmp_path_factory):
         1,
         '{"intensity": "standard", "sentiment_pallet": "techno-optimist", "component_triggers": []}'
     ))
+
+    # Seed a second test article WITH a mermaid diagram for DeepDiagram tests
+    conn.execute('''
+        INSERT INTO articles (slug, title, image, category, gist, why_it_matters,
+            bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url,
+            full_json, published_at, importance_score, is_published, design_tokens)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        'test-article-with-diagram',
+        'Test Article With Diagram',
+        '/static/fallbacks/tools_0.jpg',
+        'Tools',
+        'Test gist for diagram article.',
+        'Diagrams matter for visualization.',
+        'Visual upside.',
+        'Complexity risk.',
+        '["Fact A", "Fact B"]',
+        'A picture is worth a thousand words.',
+        'Deep analysis with technical architecture details.',
+        'Test Source',
+        'https://example.com/test-diagram-article',
+        '{"mermaid_diagram": "flowchart LR\\n  A[Input] --> B[Process] --> C[Output]"}',
+        '2026-03-10T13:00:00',
+        85,
+        1,
+        '{"intensity": "high", "sentiment_pallet": "techno-optimist", "component_triggers": []}'
+    ))
     conn.commit()
     conn.close()
 

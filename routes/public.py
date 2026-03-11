@@ -206,6 +206,13 @@ def article(slug):
     try: d['design_tokens'] = json.loads(art['design_tokens'])
     except: d['design_tokens'] = {}
 
+    # DeepDiagram: Extract mermaid diagram from full AI response
+    try:
+        full = json.loads(art['full_json'] or '{}')
+        d['mermaid_diagram'] = full.get('mermaid_diagram')
+    except:
+        d['mermaid_diagram'] = None
+
     # SEO Internal Linking: 3 Related Articles (Same Category)
     conn = get_db_connection()
     related = conn.execute('''

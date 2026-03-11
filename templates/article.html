@@ -52,6 +52,9 @@
   "backstory": "This article was orchestrated by the Gemini 2.5 Flash model and expert-vetted for accuracy and depth."
 }
 </script>
+{% if article.mermaid_diagram %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -705,6 +708,21 @@
                     {{ article.deep_analysis | replace('\n', '<br>') | add_utm_to_html | safe }}
                 </div>
             </section>
+
+            <!-- DeepDiagram: Visual Intelligence (Phase 2) -->
+            {% if article.mermaid_diagram %}
+            <section class="mb-12 mt-8" id="visual-intelligence">
+                <h3
+                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 genui-section-border pl-4 py-1">
+                    Visual Intelligence</h3>
+                <div
+                    class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 overflow-x-auto">
+                    <pre class="mermaid">{{ article.mermaid_diagram }}</pre>
+                </div>
+                <p class="text-zinc-600 text-xs mt-3 uppercase tracking-widest font-bold">Auto-generated diagram · AI-interpreted flow</p>
+            </section>
+            {% endif %}
+
             <!-- Why It Matters Section -->
             <section class="mb-8 mt-10 pt-8 border-t border-zinc-800">
                 <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
@@ -1020,4 +1038,26 @@
     {% endif %}
 
 </div>
+
+<!-- DeepDiagram: Mermaid.js Initialization -->
+{% if article.mermaid_diagram %}
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1e40af',
+            primaryTextColor: '#f4f4f5',
+            primaryBorderColor: '#3b82f6',
+            lineColor: '#52525b',
+            secondaryColor: '#1e293b',
+            tertiaryColor: '#18181b',
+            noteBkgColor: '#27272a',
+            noteTextColor: '#e4e4e7',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: '14px'
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}

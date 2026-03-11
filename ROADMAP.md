@@ -28,8 +28,7 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
   - *Two-tier CSS variables:* `--genui-brand-*` (always blue) + `--genui-signal-*` (sentiment-driven).
 - [x] **Dynamic Components:** AI decides *layout* via `component_triggers`.
   - *Shipped:* `quick_facts_grid`, `market_ticker`. Removed `code_block` (made deep analysis look like raw markdown).
-- [ ] **Audio-First Experience:** Auto-mix background ambience based on article sentiment (e.g., subtle tense drone for cybersecurity news).
-- [ ] **Automated Article Visuals (DeepDiagram):** Investigate integrating `DeepDiagram` (AGPL-3.0) to auto-generate editable charts/mermaid diagrams for technical articles.
+- [x] **Automated Article Visuals (DeepDiagram):** AI-generated mermaid diagrams for technical articles. Gemini decides per-article; rendered client-side with Mermaid.js dark theme.
 
 ## 🔮 Phase 3: Agentic Optimization (GEO)
 
