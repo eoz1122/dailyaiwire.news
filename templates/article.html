@@ -52,9 +52,7 @@
   "backstory": "This article was orchestrated by the Gemini 2.5 Flash model and expert-vetted for accuracy and depth."
 }
 </script>
-{% if article.mermaid_diagram %}
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-{% endif %}
+
 {% endblock %}
 
 {% block content %}
@@ -1039,26 +1037,38 @@
 
 </div>
 
-<!-- DeepDiagram: Mermaid.js Initialization -->
+<!-- DeepDiagram: Mermaid.js — self-contained loader -->
 {% if article.mermaid_diagram %}
 <script>
-    mermaid.initialize({
-        startOnLoad: false,
-        theme: 'dark',
-        themeVariables: {
-            primaryColor: '#1e40af',
-            primaryTextColor: '#f4f4f5',
-            primaryBorderColor: '#3b82f6',
-            lineColor: '#52525b',
-            secondaryColor: '#1e293b',
-            tertiaryColor: '#18181b',
-            noteBkgColor: '#27272a',
-            noteTextColor: '#e4e4e7',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: '14px'
-        }
-    });
-    mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+(function() {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+    s.onload = function() {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#1e40af',
+                primaryTextColor: '#f4f4f5',
+                primaryBorderColor: '#3b82f6',
+                lineColor: '#52525b',
+                secondaryColor: '#1e293b',
+                tertiaryColor: '#18181b',
+                noteBkgColor: '#27272a',
+                noteTextColor: '#e4e4e7',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontSize: '14px'
+            }
+        });
+        mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+    };
+    s.onerror = function() {
+        /* CDN blocked — hide raw code gracefully */
+        var el = document.getElementById('visual-intelligence');
+        if (el) el.style.display = 'none';
+    };
+    document.head.appendChild(s);
+})();
 </script>
 {% endif %}
 {% endblock %}
