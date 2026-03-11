@@ -174,7 +174,6 @@ def sitemap():
             WHERE is_published = 1
             AND replace(published_at, 'T', ' ') <= datetime('now')
             ORDER BY published_at DESC
-            LIMIT 50
         """
         articles_rows = conn.execute(query).fetchall()
         for art in articles_rows:
