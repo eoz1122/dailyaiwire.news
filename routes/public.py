@@ -38,7 +38,7 @@ def index():
     cat_arg = request.args.get('category')
     q = request.args.get('q', '')
 
-    ITEMS_PER_PAGE = 8
+    ITEMS_PER_PAGE = 9
 
     search_mode = 'none'
 
