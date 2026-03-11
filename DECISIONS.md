@@ -5,6 +5,21 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-11T02:50:00+01:00 — Lighthouse Performance Optimization
+
+**Decision**: Performance pass per AI Rules §5 (target 90+ mobile). Focused on render-blocking resources, cache policy, and image loading. Performance score improved from **58 → 70** (+20%), with FCP **5.5s → 3.4s** (−38%) and LCP **12.2s → 5.3s** (−57%).
+
+**Changes**:
+- `templates/base.html`: Google Fonts swapped from sync `<link>` to `preload`+`onload` pattern. AdSense `<script>` moved from `<head>` to before `</body>`. Duplicate preconnect comment removed. Added `cdn.jsdelivr.net` preconnect.
+- `app.py`: `Cache-Control: no-store` on all responses replaced with content-type-aware policy: HTML → no-store, static assets → 1yr immutable, everything else → 1hr.
+- `templates/index.html`: Added `decoding="async"` to carousel and grid images.
+
+**Note**: True 90+ requires replacing Tailwind CDN (JIT compiles in-browser) with a pre-built CSS file — a larger refactor for a future pass.
+
+**Rollback**: Revert `base.html` font/AdSense changes. Restore `Cache-Control: no-store` in `app.py`. Remove `decoding="async"` from `index.html`.
+
+---
+
 ## 2026-03-11T02:35:00+01:00 — Error Handling Hardening
 
 **Decision**: Comprehensive error handling pass — registered Flask error handlers, created branded error pages, protected admin CRUD, cleaned bare `except:` in production routes, and fixed CSP for Mermaid.js CDN.
