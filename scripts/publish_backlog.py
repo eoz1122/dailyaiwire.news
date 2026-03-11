@@ -68,7 +68,7 @@ def catch_up_posting():
                         'Wsj': 'WSJ', 'Cnbc': 'CNBC', 'Techcrunch': 'TechCrunch'
                     }
                     real_source = overrides.get(real_source, real_source)
-             except:
+             except Exception:
                 pass
 
         # Prepare payload

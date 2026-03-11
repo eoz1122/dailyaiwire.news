@@ -131,7 +131,7 @@ def send_welcome_email(recipient_email):
         from app import app
         with app.app_context():
             html_content = render_template('email/welcome.html')
-    except:
+    except Exception:
         html_content = "<h1>Welcome</h1><p>You are subscribed.</p>"
 
     url = "https://api.resend.com/emails"

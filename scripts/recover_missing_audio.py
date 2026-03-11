@@ -60,7 +60,7 @@ def recover_audio():
             # Fallback logic mirroring app.py
             try:
                 details = json.loads(art['key_details']) if art['key_details'] else []
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 details = []
             details_text = ". ".join(details)
             

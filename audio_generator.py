@@ -297,7 +297,7 @@ class AudioGenerator:
             for f in temp_clips:
                 try:
                     os.remove(f)
-                except: pass
+                except OSError: pass
 
         # Ensure conversation_clip is not None before proceeding
         if conversation_clip is None:
@@ -330,7 +330,7 @@ class AudioGenerator:
                 raw_clip = AudioFileClip(str(raw_output))
                 raw_clip.write_audiofile(str(final_output), fps=44100, logger=None)
                 raw_clip.close()
-            except:
+            except Exception:
                 pass
 
         # We keep the raw_output now (to allow re-mixing without re-generating TTS)

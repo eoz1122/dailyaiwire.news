@@ -89,7 +89,7 @@ def get_last_post_time():
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
-        except:
+        except (ValueError, TypeError):
             return datetime.min.replace(tzinfo=timezone.utc)
     return datetime.min.replace(tzinfo=timezone.utc)
 

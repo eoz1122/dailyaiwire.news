@@ -50,7 +50,7 @@ def create_intro_video(output_file="static/video/intro.mp4"):
                     bg = bg_clip.resize(lambda t: 1.0 + 0.1 * (t / duration))
                 else:
                     bg = bg_clip
-            except:
+            except Exception:
                 bg = bg_clip
                 
             # Center it
@@ -99,7 +99,7 @@ def create_intro_video(output_file="static/video/intro.mp4"):
                 else:
                     from moviepy.video.fx import FadeIn, FadeOut
                     logo = logo.with_effects([FadeIn(1.0), FadeOut(1.0)])
-            except:
+            except Exception:
                 pass
         except Exception as e:
             print(f"⚠️ Logo error: {e}")
@@ -138,7 +138,7 @@ def create_intro_video(output_file="static/video/intro.mp4"):
         else:
             from moviepy.video.fx import FadeIn, FadeOut
             txt = txt.with_effects([FadeIn(1.0), FadeOut(1.0)])
-    except:
+    except Exception:
         pass
 
     # 4. Composite

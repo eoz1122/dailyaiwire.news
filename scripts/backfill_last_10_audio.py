@@ -33,7 +33,7 @@ def backfill():
         # Construct Expanded Text
         try:
             key_details = json.loads(art['key_details']) if art['key_details'] else []
-        except:
+        except (json.JSONDecodeError, ValueError, TypeError):
             key_details = []
             
         key_details_text = ". ".join(key_details)

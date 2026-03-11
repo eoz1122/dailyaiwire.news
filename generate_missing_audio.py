@@ -40,7 +40,7 @@ def generate_audio_for_recent_articles(limit=10):
             print(f"   📜 Using Field Fallback for: {title[:50]}...")
             try:
                 key_details = json.loads(details_json) if details_json else []
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 key_details = []
             key_details_text = ". ".join(key_details)
             text_to_read = (

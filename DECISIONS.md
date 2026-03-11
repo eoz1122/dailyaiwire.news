@@ -5,6 +5,33 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-11T10:30:00+01:00 — Bare Except Cleanup (19 fixes across 12 files)
+
+**Decision**: Replaced all 19 remaining bare `except:` statements with specific exception types. Routes were cleaned in the previous session; this pass covers scripts/, services/, fetcher/, and utility files. All replacements are behavior-preserving (catches the same runtime errors) but now properly propagate `SystemExit`, `KeyboardInterrupt`, and `GeneratorExit`.
+
+**Changes**:
+- `deploy_email_feature.py`: `except:` → `except Exception:`
+- `services/proposal_agent.py`: `except:` → `except (json.JSONDecodeError, ValueError):`
+- `services/lead_extractor.py`: `except:` → `except Exception:`
+- `scripts/backfill_last_10_audio.py`: `except:` → `except (json.JSONDecodeError, ValueError, TypeError):`
+- `scripts/generate_diagrams.py` (×2): `except:` → `except (json.JSONDecodeError, ValueError, TypeError):`
+- `scripts/create_intro.py` (×3): `except:` → `except Exception:`
+- `scripts/publish_backlog.py`: `except:` → `except Exception:`
+- `scripts/convert_killed_to_leads.py`: `except:` → `except (ValueError, AttributeError):`
+- `audio_generator.py` (×2): `except:` → `except OSError:` and `except Exception:`
+- `scripts/recover_missing_audio.py`: `except:` → `except (json.JSONDecodeError, ValueError, TypeError):`
+- `fetcher/db_init.py`: `except:` → `except sqlite3.OperationalError:`
+- `fetcher/sources.py`: `except:` → `except (ValueError, AttributeError):`
+- `fetcher/persistence.py`: `except:` → `except (sqlite3.OperationalError, TypeError):`
+- `generate_missing_audio.py`: `except:` → `except (json.JSONDecodeError, ValueError, TypeError):`
+- `tweet_scheduler.py`: `except:` → `except (ValueError, TypeError):`
+
+**Tests**: 77/77 passing. Zero bare `except:` remaining (verified via grep).
+
+**Rollback**: `git diff HEAD` shows only `except:` → `except SpecificType:` changes. `git checkout -- <file>` for any individual file, or `git revert <commit>` for the full batch.
+
+---
+
 ## 2026-03-11T02:50:00+01:00 — Lighthouse Performance Optimization
 
 **Decision**: Performance pass per AI Rules §5 (target 90+ mobile). Focused on render-blocking resources, cache policy, and image loading. Performance score improved from **58 → 70** (+20%), with FCP **5.5s → 3.4s** (−38%) and LCP **12.2s → 5.3s** (−57%).

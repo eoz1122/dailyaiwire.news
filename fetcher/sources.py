@@ -210,7 +210,7 @@ def fetch_all_sources() -> List[Dict]:
                                         'Wsj': 'Wall Street Journal', 'Cnbc': 'CNBC', 'Techcrunch': 'TechCrunch'
                                     }
                                     real_source = overrides.get(real_source, real_source)
-                            except:
+                            except (ValueError, AttributeError):
                                 pass
 
                     # IGNORE LOCAL/BLOCKED SOURCES

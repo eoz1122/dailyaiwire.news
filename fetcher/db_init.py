@@ -170,7 +170,7 @@ def init_db():
     # Lazy migration: Add compass_score column if missing
     try:
         cursor.execute("SELECT compass_score FROM articles LIMIT 1")
-    except:
+    except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE articles ADD COLUMN compass_score REAL DEFAULT 0.7")
         print("📐 Added compass_score column to articles table.")
 

@@ -168,7 +168,7 @@ class LeadExtractor:
                         # Filter out common false positives
                         if not any(x in found_email for x in ['example.com', 'domain.com', 'sentry.io', 'wixpress']):
                             return found_email, target_url
-            except:
+            except Exception:
                 continue
                 
         return None, None

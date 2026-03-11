@@ -219,7 +219,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             try:
                 last_img_row = cursor.execute("SELECT image FROM articles ORDER BY id DESC LIMIT 1").fetchone()
                 last_img = last_img_row[0] if last_img_row else None
-            except:
+            except (sqlite3.OperationalError, TypeError):
                 last_img = None
 
             available_images = [img for img in images if img != last_img]

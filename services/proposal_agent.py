@@ -88,7 +88,7 @@ class ProposalAgent:
                 if isinstance(data, list) and len(data) > 0:
                     data = data[0]
                 return json.dumps(data)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 return text
             
         except Exception as e:

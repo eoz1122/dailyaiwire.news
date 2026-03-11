@@ -62,7 +62,7 @@ def backfill_diagrams(limit=10, min_score=75, dry_run=False):
             full = json.loads(row['full_json'] or '{}')
             if full.get('mermaid_diagram'):
                 continue  # Already has a diagram
-        except:
+        except (json.JSONDecodeError, ValueError, TypeError):
             pass
         candidates.append(dict(row))
         if len(candidates) >= limit:
@@ -120,7 +120,7 @@ def backfill_diagrams(limit=10, min_score=75, dry_run=False):
             # Update full_json with the diagram
             try:
                 full = json.loads(c['full_json'] or '{}')
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 full = {}
             full['mermaid_diagram'] = diagram
 

@@ -25,7 +25,7 @@ def convert_killed_to_leads():
         # Extract domain
         try:
             domain = urlparse(art['source_url']).netloc
-        except:
+        except (ValueError, AttributeError):
             domain = art['source']
 
         # Determine value (simple heuristic)
