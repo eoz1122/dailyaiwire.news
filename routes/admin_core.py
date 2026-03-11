@@ -79,17 +79,23 @@ def admin_edit_article(id):
         if uploaded_female:
             new_audio_female = uploaded_female
 
-        conn.execute('''
-            UPDATE articles
-            SET title = ?, slug = ?, category = ?, published_at = ?, source = ?, source_url = ?,
-                gist = ?, why_it_matters = ?, bull_case = ?, bear_case = ?, deep_analysis = ?,
-                image = ?, audio_male = ?, audio_female = ?
-            WHERE id = ?
-        ''', (title, slug, category, published_at, source, source_url, gist, why_it_matters, bull_case, bear_case, deep_analysis,
-              new_image, new_audio_male, new_audio_female, id))
-        conn.commit()
-        conn.close()
-        flash('Article updated successfully!')
+        try:
+            conn.execute('''
+                UPDATE articles
+                SET title = ?, slug = ?, category = ?, published_at = ?, source = ?, source_url = ?,
+                    gist = ?, why_it_matters = ?, bull_case = ?, bear_case = ?, deep_analysis = ?,
+                    image = ?, audio_male = ?, audio_female = ?
+                WHERE id = ?
+            ''', (title, slug, category, published_at, source, source_url, gist, why_it_matters, bull_case, bear_case, deep_analysis,
+                  new_image, new_audio_male, new_audio_female, id))
+            conn.commit()
+            flash('Article updated successfully!')
+        except sqlite3.IntegrityError:
+            flash('Error: An article with this slug already exists.', 'error')
+        except Exception as e:
+            flash(f'Error updating article: {e}', 'error')
+        finally:
+            conn.close()
         return redirect(url_for('admin_core.admin_edit_article', id=id))
 
     article = conn.execute('SELECT * FROM articles WHERE id = ?', (id,)).fetchone()
@@ -146,18 +152,24 @@ def admin_create_article():
         new_audio_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
         new_audio_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
 
-        conn = get_db_connection()
-        conn.execute('''
-            INSERT INTO articles
-            (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, deep_analysis, source, source_url, published_at, audio_male, audio_female)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (slug, title, new_image, category, gist, why_it_matters, bull_case, bear_case, deep_analysis, source, source_url, published_at, new_audio_male, new_audio_female))
-        conn.commit()
-        new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        conn.close()
-
-        flash('Article created successfully!')
-        return redirect(url_for('admin_core.admin_edit_article', id=new_id))
+        try:
+            conn = get_db_connection()
+            conn.execute('''
+                INSERT INTO articles
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, deep_analysis, source, source_url, published_at, audio_male, audio_female)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (slug, title, new_image, category, gist, why_it_matters, bull_case, bear_case, deep_analysis, source, source_url, published_at, new_audio_male, new_audio_female))
+            conn.commit()
+            new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            conn.close()
+            flash('Article created successfully!')
+            return redirect(url_for('admin_core.admin_edit_article', id=new_id))
+        except sqlite3.IntegrityError:
+            flash('Error: An article with this slug or source URL already exists.', 'error')
+            return redirect(url_for('admin_core.admin_create_article'))
+        except Exception as e:
+            flash(f'Error creating article: {e}', 'error')
+            return redirect(url_for('admin_core.admin_create_article'))
 
     return render_template('admin/create_article.html')
 
@@ -165,11 +177,14 @@ def admin_create_article():
 @admin_core_bp.route('/admin/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_article(id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM articles WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
-    flash('Article deleted.')
+    try:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM articles WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        flash('Article deleted.')
+    except Exception as e:
+        flash(f'Error deleting article: {e}', 'error')
     return redirect(url_for('admin.index'))
 
 

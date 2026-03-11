@@ -7,7 +7,7 @@ import os
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, request, redirect, url_for, has_request_context
+from flask import Flask, request, redirect, url_for, has_request_context, render_template
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.model import BaseModelView
 from flask_login import current_user, login_required
@@ -257,7 +257,7 @@ def inject_config():
 def add_security_headers(response):
     csp = (
         "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' https: data: blob:; "
@@ -298,6 +298,28 @@ app.register_blueprint(admin_ops_bp)
 app.register_blueprint(admin_carousel_bp)
 app.register_blueprint(admin_emergency_bp)
 app.register_blueprint(signal_bp)
+
+
+# --- Error Handlers ---
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    app.logger.error(f"500 Internal Server Error: {e}")
+    return render_template('500.html'), 500
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('403.html'), 403
+
+
+@app.errorhandler(429)
+def too_many_requests(e):
+    return render_template('429.html'), 429
 
 
 # --- Emergency Override Middleware ---

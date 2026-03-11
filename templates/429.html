@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}429 - Too Many Requests | DailyAIWire.news{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-20 max-w-2xl text-center">
+    <div class="glass-card p-12 rounded-3xl">
+        <div class="mb-8">
+            <svg class="w-24 h-24 mx-auto text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </div>
+
+        <h1 class="text-6xl font-black mb-4 tracking-tighter">429</h1>
+        <h2 class="text-2xl font-bold mb-4 text-zinc-300">Slow Down, Agent</h2>
+        <p class="text-zinc-500 mb-8 leading-relaxed">
+            You're sending requests faster than our intelligence network can process them.
+            Please wait a moment before trying again.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/"
+                class="px-8 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold uppercase text-xs tracking-widest rounded-xl transition-all">
+                Return to Wire
+            </a>
+            <button onclick="location.reload()"
+                class="px-8 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-xs tracking-widest rounded-xl transition-all">
+                Retry
+            </button>
+        </div>
+
+        <p class="text-zinc-600 text-xs mt-8 uppercase tracking-widest">Auto-retry recommended after 60 seconds</p>
+    </div>
+</div>
+{% endblock %}

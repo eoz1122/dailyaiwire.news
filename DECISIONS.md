@@ -5,6 +5,24 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-11T02:35:00+01:00 — Error Handling Hardening
+
+**Decision**: Comprehensive error handling pass — registered Flask error handlers, created branded error pages, protected admin CRUD, cleaned bare `except:` in production routes, and fixed CSP for Mermaid.js CDN.
+
+**Changes**:
+- `app.py`: Registered `@app.errorhandler` for 404, 500, 403, 429. Added `cdn.jsdelivr.net` to CSP `script-src`. Imported `render_template`.
+- `templates/403.html` [NEW]: Branded "Access Denied" page with lock icon.
+- `templates/429.html` [NEW]: Branded "Rate Limited" page with clock icon.
+- `templates/500.html` [EXISTING]: Already existed, now wired to handler.
+- `templates/404.html` [EXISTING]: Already existed, now wired to handler.
+- `routes/admin_core.py`: Wrapped article create/edit/delete in try/except with `sqlite3.IntegrityError` handling.
+- `routes/public.py`: Replaced 10 bare `except:` with specific exception types.
+- `tests/test_smoke.py`: 3 new tests (77 total).
+
+**Rollback**: Remove error handlers from `app.py`. Delete `403.html`, `429.html`. Revert `admin_core.py` and `public.py` try/except changes.
+
+---
+
 ## 2026-03-11T01:57:00+01:00 — Phase 2: DeepDiagram (Automated Article Visuals)
 
 **Decision**: Added AI-powered mermaid diagram generation for technical articles. Gemini generates Mermaid.js syntax during article ingestion; diagrams render client-side with dark theme matching brand colors. Progressive enhancement — articles without diagrams are unaffected.

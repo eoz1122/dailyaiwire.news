@@ -167,18 +167,18 @@ def index():
     for a in grid:
         d = dict(a)
         try: d['key_details'] = json.loads(d['key_details'])
-        except: d['key_details'] = []
+        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
         try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
-        except: d['design_tokens'] = {}
+        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
         processed_grid.append(d)
 
     processed_carousel = []
     for a in carousel:
         d = dict(a)
         try: d['key_details'] = json.loads(d['key_details'])
-        except: d['key_details'] = []
+        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
         try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
-        except: d['design_tokens'] = {}
+        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
         processed_carousel.append(d)
 
     resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow(), search_mode=search_mode, trends=trends))
@@ -200,17 +200,17 @@ def article(slug):
         abort(404)
     d = dict(art)
     try: d['key_details'] = json.loads(art['key_details'])
-    except: d['key_details'] = []
+    except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
 
     # GenUI Token Parsing
     try: d['design_tokens'] = json.loads(art['design_tokens'])
-    except: d['design_tokens'] = {}
+    except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
 
     # DeepDiagram: Extract mermaid diagram from full AI response
     try:
         full = json.loads(art['full_json'] or '{}')
         d['mermaid_diagram'] = full.get('mermaid_diagram')
-    except:
+    except (ValueError, json.JSONDecodeError, TypeError, KeyError):
         d['mermaid_diagram'] = None
 
     # SEO Internal Linking: 3 Related Articles (Same Category)

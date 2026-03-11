@@ -280,3 +280,27 @@ class TestDiagramRendering:
         # Check the actual rendered section ID (not the HTML comment)
         assert b'id="visual-intelligence"' not in resp.data
 
+
+# ── Error Handling ──────────────────────────────────────────────────
+
+class TestErrorPages:
+    """Branded error pages should render correctly."""
+
+    def test_404_branded_page(self, client):
+        resp = client.get('/this-page-does-not-exist')
+        assert resp.status_code == 404
+        assert b'Intelligence Not Found' in resp.data
+
+    def test_404_article_not_found(self, client):
+        resp = client.get('/article/definitely-not-a-real-slug-xyz')
+        assert resp.status_code == 404
+        assert b'Intelligence Not Found' in resp.data
+
+    def test_error_handlers_registered(self, client):
+        from app import app
+        handlers = app.error_handler_spec.get(None, {})
+        assert 404 in handlers
+        assert 500 in handlers
+        assert 403 in handlers
+        assert 429 in handlers
+
