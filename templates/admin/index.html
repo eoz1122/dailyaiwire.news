@@ -1,6 +1,58 @@
 {% extends "admin/base_admin.html" %}
 
 {% block admin_content %}
+<!-- Emergency Override Banner -->
+{% if emergency_mode %}
+<div class="bg-red-50 border-2 border-red-300 rounded-xl p-4 lg:p-5 mb-6 lg:mb-8 relative overflow-hidden">
+    <div class="absolute inset-0 bg-red-100/50 animate-pulse" style="animation-duration: 2s;"></div>
+    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 relative z-10">
+        <div class="flex items-center gap-3">
+            <span class="flex h-4 w-4 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+            </span>
+            <div>
+                <div class="text-sm font-black text-red-700 uppercase tracking-wider">🚨 Emergency Override Active</div>
+                <div class="text-xs text-red-500 mt-0.5">Public site is OFFLINE — Admin panel remains accessible.</div>
+            </div>
+        </div>
+        <form action="{{ url_for('admin_emergency.toggle_emergency') }}" method="POST" class="flex items-center gap-2 w-full lg:w-auto">
+            <input type="hidden" name="confirm" value="CONFIRM">
+            <button type="submit"
+                class="w-full lg:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg transition-all text-xs min-h-[44px]"
+                onclick="return confirm('Lift emergency override and bring the site back ONLINE?')">
+                ✅ LIFT OVERRIDE — Go Online
+            </button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="mb-6 lg:mb-8">
+    <details class="group">
+        <summary class="cursor-pointer list-none flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-red-500 transition-colors py-1">
+            <svg class="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            Emergency Override
+        </summary>
+        <div class="mt-2 bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs text-red-600 mb-3">Takes the entire public site offline and serves a maintenance page. Admin panel remains accessible.</p>
+            <form action="{{ url_for('admin_emergency.toggle_emergency') }}" method="POST"
+                id="emergency-form" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <input type="text" name="confirm" placeholder="Type CONFIRM to proceed"
+                    class="flex-1 bg-white border border-red-300 text-red-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-red-300 min-h-[44px]"
+                    autocomplete="off" required pattern="CONFIRM">
+                <button type="submit"
+                    class="bg-red-600 hover:bg-red-500 text-white font-black uppercase py-2.5 px-6 rounded-lg shadow-lg shadow-red-900/20 transition-all text-xs min-h-[44px] tracking-wider"
+                    onclick="return confirm('⚠️ This will take the ENTIRE public site OFFLINE.\n\nAre you absolutely sure?')">
+                    🚨 Activate Override
+                </button>
+            </form>
+        </div>
+    </details>
+</div>
+{% endif %}
+
 <!-- Stats Grid (2-col mobile, 4-col desktop) -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
     <!-- Metric 1: Signal Volume -->
@@ -186,6 +238,24 @@
                 class="flex-1 text-center text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-2.5 rounded-lg border border-gray-300 transition-colors min-h-[44px] flex items-center justify-center">
                 EDIT
             </a>
+            {% if article.id in carousel_pinned_ids %}
+            <form action="{{ url_for('admin_carousel.unpin_article', article_id=article.id) }}" method="POST"
+                class="flex-1">
+                <button type="submit"
+                    class="w-full text-center text-xs font-black uppercase text-amber-600 bg-amber-50 hover:bg-amber-100 py-2.5 rounded-lg border border-amber-300 transition-colors min-h-[44px]">
+                    📌 PINNED
+                </button>
+            </form>
+            {% else %}
+            <form action="{{ url_for('admin_carousel.pin_article', article_id=article.id) }}" method="POST"
+                class="flex-1">
+                <input type="hidden" name="duration" value="">
+                <button type="submit"
+                    class="w-full text-center text-xs font-bold text-blue-500 bg-blue-50 hover:bg-blue-100 py-2.5 rounded-lg border border-blue-200 transition-colors min-h-[44px]">
+                    📌 PIN
+                </button>
+            </form>
+            {% endif %}
             <form action="{{ url_for('admin_ops.admin_kill_article', id=article.id) }}" method="POST" class="flex-1">
                 {% if article.is_published == 0 %}
                 <button type="submit"
@@ -330,6 +400,26 @@
                                 class="text-[10px] font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded border border-gray-200 transition-colors">
                                 EDIT
                             </a>
+                            {% if article.id in carousel_pinned_ids %}
+                            <form action="{{ url_for('admin_carousel.unpin_article', article_id=article.id) }}"
+                                method="POST" class="inline">
+                                <button type="submit"
+                                    class="text-[9px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-300 hover:bg-amber-100 transition-colors"
+                                    title="Unpin from Carousel">
+                                    📌
+                                </button>
+                            </form>
+                            {% else %}
+                            <form action="{{ url_for('admin_carousel.pin_article', article_id=article.id) }}"
+                                method="POST" class="inline">
+                                <input type="hidden" name="duration" value="">
+                                <button type="submit"
+                                    class="text-[9px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 transition-colors"
+                                    title="Pin to Carousel">
+                                    📌
+                                </button>
+                            </form>
+                            {% endif %}
                             <form action="{{ url_for('admin_ops.admin_kill_article', id=article.id) }}" method="POST"
                                 class="inline">
                                 {% if article.is_published == 0 %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ newsletter.subject }} | The Signal — DailyAIWire{% endblock %}
+{% block meta_description %}{{ newsletter.intro_text[:160] }}{% endblock %}
+
+{% block content %}
+<article class="max-w-2xl mx-auto px-4 pt-10 md:pt-14 pb-16">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="/signal" class="inline-flex items-center gap-1.5 text-blue-500 text-[11px] font-bold no-underline uppercase tracking-widest mb-4 hover:text-blue-400 transition-colors min-h-[44px]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            The Signal Archive
+        </a>
+        <h1 class="brand-font text-2xl md:text-3xl font-black tracking-tighter leading-tight mb-3 text-[var(--text-primary)]">
+            {{ newsletter.subject }}
+        </h1>
+        <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+                {{ newsletter.scheduled_date[:10] if newsletter.scheduled_date else '' }}
+            </span>
+            <span class="text-zinc-700">•</span>
+            <span class="text-[11px] font-bold text-blue-500">
+                {{ articles|length }} stories curated
+            </span>
+        </div>
+    </div>
+
+    <!-- Editor's Note -->
+    {% if newsletter.intro_text %}
+    <div class="glass-card rounded-2xl p-5 md:p-6 mb-8 border-l-[3px] border-l-blue-600 border border-[var(--border-color)]">
+        <p class="text-[10px] font-black text-blue-500 uppercase tracking-[0.15em] mb-3">
+            Editor's Note
+        </p>
+        <div class="text-[var(--text-secondary)] text-sm leading-relaxed">
+            {{ newsletter.intro_text|replace('\n', '<br>')|safe }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Stories Section -->
+    {% if articles %}
+    <h2 class="brand-font text-sm font-black uppercase tracking-widest text-zinc-500 mb-5 pb-3 border-b border-[var(--border-color)]">
+        This Week's Intelligence
+    </h2>
+
+    <div class="grid gap-3">
+        {% for art in articles %}
+        <div class="glass-card rounded-2xl p-4 md:p-5 border border-[var(--border-color)] transition-all hover:border-blue-600/30">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <span class="text-[9px] font-black uppercase tracking-widest text-blue-500 bg-blue-600/10 px-2 py-0.5 rounded-md">
+                    {{ art.category or 'AI' }}
+                </span>
+                {% if art.importance_score and art.importance_score >= 80 %}
+                <span class="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                    High Signal
+                </span>
+                {% endif %}
+            </div>
+            <h3 class="text-base font-bold mb-2 leading-snug">
+                <a href="/article/{{ art.slug }}" class="text-[var(--text-primary)] no-underline hover:text-blue-500 transition-colors">
+                    {{ art.title }}
+                </a>
+            </h3>
+
+            {% set blurb = article_metadata.get(art.id|string, '') %}
+            {% if blurb %}
+            <p class="text-[var(--text-secondary)] text-xs md:text-sm leading-relaxed m-0">
+                {{ blurb }}
+            </p>
+            {% elif art.gist %}
+            <p class="text-[var(--text-secondary)] text-xs md:text-sm leading-relaxed m-0">
+                {{ art.gist }}
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Subscribe CTA -->
+    <div class="mt-12 glass-card rounded-2xl p-6 md:p-8 text-center border border-blue-500/15">
+        <p class="text-[var(--text-primary)] font-bold text-base mb-1.5">Get The Signal in your inbox</p>
+        <p class="text-[var(--text-secondary)] text-xs mb-5">Free weekly intelligence briefing, every Sunday.</p>
+        <form action="/subscribe" method="POST" class="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+            <input type="email" name="email" placeholder="you@example.com" required autocomplete="email"
+                class="flex-1 bg-zinc-900/50 border border-zinc-800 text-[var(--text-primary)] rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-blue-600 transition-all min-h-[44px] placeholder:text-zinc-600">
+            <button type="submit"
+                class="bg-blue-600 hover:bg-blue-500 text-white border-0 rounded-xl px-6 py-3 font-black text-xs uppercase tracking-widest cursor-pointer min-h-[44px] whitespace-nowrap transition-all shadow-lg shadow-blue-600/20">
+                Subscribe
+            </button>
+        </form>
+    </div>
+
+</article>
+{% endblock %}

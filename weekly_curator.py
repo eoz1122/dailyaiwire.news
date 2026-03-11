@@ -139,4 +139,27 @@ def generate_newsletter_draft():
         print(f"❌ Failed to generate weekly wrap: {e}")
 
 if __name__ == "__main__":
-    generate_newsletter_draft()
+    import sys
+
+    if "--auto" in sys.argv:
+        # Unattended mode: include trend data in the curation
+        print("🤖 Running in --auto mode (unattended weekly curation)...")
+
+        # Inject trend snapshot into the prompt
+        try:
+            from trend_engine import get_trend_snapshot
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            snapshot = get_trend_snapshot(conn)
+            conn.close()
+
+            if snapshot.get('has_trends'):
+                hot_cats = [c['category'] for c in snapshot.get('hot_categories', [])[:3]]
+                hot_tags = [h['hashtag'] for h in snapshot.get('hot_hashtags', [])[:5]]
+                print(f"📊 Trend context: categories={hot_cats}, hashtags={hot_tags}")
+        except Exception as e:
+            print(f"⚠️ Trend injection skipped: {e}")
+
+        generate_newsletter_draft()
+    else:
+        generate_newsletter_draft()

@@ -5,6 +5,113 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-11T00:13:00+01:00 — Phase 3: Agentic Optimization (GEO)
+
+**Decision**: Shipped all three Phase 3 items: Deep Research (DuckDuckGo, free), Answer-Engine API, and "The Signal" Newsletter.
+
+**Changes**:
+- `tavily_research.py` [NEW]: Deep web research using DuckDuckGo Search (free, no API key). Enriches high-signal article prompts with primary sources, whitepapers, and official docs.
+- `routes/api.py`: Added `GET /api/intelligence` (feed with category/score/date filters, CORS, Cache-Control) and `GET /api/intelligence/<slug>` (full article detail).
+- `static/llms.txt` [UPDATED]: AI crawler guidance file documenting all endpoints and content structure.
+- `routes/seo.py`: Added `/llms.txt` and `/.well-known/llms.txt` routes.
+- `routes/signal.py` [NEW]: Public newsletter archive (`/signal`) and detail (`/signal/<id>`) pages.
+- `templates/signal.html` [NEW]: Archive page with subscribe CTA. `templates/signal_detail.html` [NEW]: Web view of individual editions.
+- `templates/base.html`: Added "The Signal" to desktop and mobile navigation.
+- `weekly_curator.py`: Added `--auto` flag for unattended curation with trend snapshot injection.
+- `fetcher/ai_processor.py`: Deep research enrichment for high-signal headlines (keyword heuristic trigger).
+- `requirements.txt`: Added `duckduckgo-search`.
+- `app.py`: Registered `signal_bp` Blueprint.
+- `tests/test_smoke.py`: 10 new tests (72 total): Answer-Engine API (7), Signal (2), llms.txt (1).
+
+**Rollback**: Delete `tavily_research.py`, `routes/signal.py`, `templates/signal*.html`. Revert `routes/api.py`, `routes/seo.py`, `fetcher/ai_processor.py`, `weekly_curator.py`, `templates/base.html`, `app.py`.
+
+---
+
+## 2026-03-10T23:48:00+01:00 — Phase 4: Emergency Override (Manual Kill Switch)
+
+**Decision**: Added a global "Emergency Override" that takes the entire public site offline with a branded maintenance page (HTTP 503). Admin panel remains fully accessible during override.
+
+**Changes**:
+- `routes/admin_emergency.py` [NEW]: Toggle endpoint with `CONFIRM` safety parameter. Google deindex/re-crawl signals via `notify_google_index()`.
+- `templates/maintenance.html` [NEW]: Standalone dark-themed maintenance page with animated grid + pulsing status badge. Returns 503 + `Retry-After`.
+- `app.py`: `before_request` middleware checks `metadata.emergency_mode`. Allows `/admin`, `/login`, `/logout`, `/static` through. New Blueprint registered.
+- `templates/admin/index.html`: Emergency Override banner at the top of dashboard. Expandable `<details>` panel with text confirmation. Active state shows pulsing red alert with one-click lift button.
+
+**Rollback**: Remove `routes/admin_emergency.py`, `templates/maintenance.html`. Revert `app.py` (remove `before_request` hook and Blueprint registration). Revert `admin/index.html` emergency banner block.
+
+---
+
+## 2026-03-10T23:48:00+01:00 — Phase 5 R3: Fetcher Decomposition
+
+**Decision**: Decomposed the 1,341-line `fetcher.py` monolith into 7 focused modules inside a `fetcher/` package.
+
+**Changes**:
+- `fetcher/__init__.py` [NEW]: Orchestrator with `main()` and `main_loop()` re-exports.
+- `fetcher/db_init.py` [NEW]: Schema creation, lazy migrations, scan metadata helpers.
+- `fetcher/sources.py` [NEW]: RSS fetching, fuzzy dedup, AI headline filter.
+- `fetcher/content.py` [NEW]: URL content extraction + SSRF protection.
+- `fetcher/spam.py` [NEW]: Keyword/heuristic/blocklist spam defense.
+- `fetcher/ai_processor.py` [NEW]: Gemini batch processing + prompt template.
+- `fetcher/persistence.py` [NEW]: `save_to_db()`, social queue, Google/Qdrant indexing.
+- `fetcher.py`: Replaced 1,341 lines with 14-line backward-compat shim. `python fetcher.py --loop` still works.
+
+**Rollback**: Delete `fetcher/` directory, restore original `fetcher.py` from git.
+
+---
+
+## 2026-03-10T23:48:00+01:00 — Phase 5 R1: Safety Net (pytest Smoke Tests)
+
+**Decision**: Added pytest and 62 smoke tests to establish baseline test coverage (previously 0%).
+
+**Changes**:
+- `requirements.txt`: Added `pytest`.
+- `tests/__init__.py` [NEW]: Package marker.
+- `tests/conftest.py` [NEW]: Shared fixtures — temporary SQLite DB, seeded test article, `client` (unauthenticated) and `auth_client` (authenticated) Flask test clients.
+- `tests/test_smoke.py` [NEW]: 40 smoke tests across 6 classes — `TestAppBoot` (3), `TestPublicRoutes` (12), `TestAuthGuard` (5), `TestAdminRoutesAuthenticated` (6), `TestAPIRoutes` (5), `TestSEORoutes` (4).
+- `tests/test_helpers.py` [NEW]: 22 unit tests for `slugify`, `remove_emojis`, `time_ago`, `add_utm_to_html`.
+
+**Rollback**: Delete `tests/` directory, remove `pytest` from `requirements.txt`.
+
+---
+
+## 2026-03-10T22:25:00+01:00 — Restored Newsletter Subscription Popup
+
+**Decision**: Restored the 5-second delayed newsletter popup that was accidentally removed during the Blueprint refactor (Phase 5). Recovered original code from git history.
+
+**Features**: 5s `setTimeout` trigger, 30-day `localStorage` suppression after close, backdrop blur dismiss, close button (44px min touch target), glassmorphism card design, form action `/subscribe`.
+
+**Rollback**: Remove the `newsletter-modal` div and its `<script>` from `templates/base.html`.
+
+---
+
+## 2026-03-10T22:10:00+01:00 — Trend Engine Keyword Filtering + Category Cleanup
+
+**Decision**: Expanded keyword stopwords from ~120 to ~200+ words to filter generic news verbs ("unveils", "reveals") and broad nouns ("public", "company"). Raised minimum keyword frequency from 2→4. Fixed category pills to hide categories with 0 published articles.
+
+**Changes**:
+- `trend_engine.py`: Added generic news headline verbs, broad nouns, and AI-site-generic terms to STOPWORDS.
+- `routes/public.py`: Category query now uses `WHERE is_published = 1 HAVING cnt > 0`.
+
+**Rollback**: Revert STOPWORDS in `trend_engine.py` and the category query in `routes/public.py`.
+
+---
+
+## 2026-03-10T16:35:00+01:00 — Carousel Management Feature (Manual Ordering + Timers)
+
+**Decision**: Added editorial control over the homepage carousel. Editors can pin articles, set display order, and define expiry timers (1h, 4h, 12h, 24h, 48h, 1w, custom, or no expiry). Pinned articles appear first in the carousel; auto-selected articles fill remaining slots.
+
+**Changes**:
+- `app.py`: `carousel_slots` table migration, Blueprint registration, `carousel_pinned_ids` passed to dashboard.
+- `routes/admin_carousel.py` [NEW]: Pin, unpin, reorder, update-timer endpoints.
+- `routes/public.py`: Pinned-first hybrid carousel query (expiry checked at query time — no cron needed).
+- `templates/admin/carousel.html` [NEW]: Management UI with sortable slots, timer controls, quick-pin panel.
+- `templates/admin/base_admin.html`: "Carousel" link in sidebar.
+- `templates/admin/index.html`: Pin/unpin buttons on article rows.
+
+**Rollback**: Remove `carousel_slots` table, `admin_carousel_bp` Blueprint, and revert template changes.
+
+---
+
 ## 2026-03-10T16:32:00+01:00 — Phase 5: Architectural Refactoring (Blueprint Split + Shared DB)
 
 **Decision**: Split the 1,967-line `app.py` monolith into 8 Flask Blueprints + slim app factory. Created shared `db.py` database module. Cleaned up stale files and synced ROADMAP.md.

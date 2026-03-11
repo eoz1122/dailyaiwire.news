@@ -1,15 +1,15 @@
 {% extends 'admin/base_admin.html' %}
 
 {% block admin_content %}
-<div class="flex items-center justify-between mb-8">
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
     <h1 class="text-xl font-bold text-white uppercase tracking-widest">Intelligence Reports</h1>
-    <div class="flex gap-4">
+    <div class="flex flex-wrap gap-3">
         <a href="/admin/newsletter/preview" target="_blank"
-            class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+            class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all min-h-[44px] flex items-center">
             Design Preview (Mock)
         </a>
         <a href="/admin/newsletter/generate"
-            class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all">
+            class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all min-h-[44px] flex items-center">
             Synthesize New Weekly Wrap
         </a>
     </div>
@@ -18,37 +18,66 @@
 <div class="grid grid-cols-1 gap-4">
     {% for nl in newsletters %}
     <div
-        class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex items-center justify-between group hover:border-blue-600/50 transition-all shadow-lg">
-        <div class="flex items-center space-x-6">
-            <div
-                class="w-10 h-10 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-blue-600">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l4 4v10a2 2 0 01-2 2zM14 2v4h4"></path>
-                </svg>
-            </div>
-            <div>
-                <h2 class="text-lg font-bold text-white mb-1">{{ nl.subject }}</h2>
-                <div class="flex items-center space-x-4 text-[10px] font-bold uppercase tracking-widest">
-                    <span class="{% if nl.status == 'SENT' %}text-green-500{% else %}text-orange-500{% endif %}">{{
-                        nl.status }}</span>
-                    <span class="text-zinc-600">•</span>
-                    <span class="text-zinc-500">Scheduled: {{ nl.scheduled_date }}</span>
+        class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 md:p-6 group hover:border-blue-600/50 transition-all shadow-lg">
+
+        <!-- Title Row -->
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-bold text-white mb-3 leading-snug">{{ nl.subject }}</h2>
+
+                <!-- Status + Metadata -->
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <!-- Status Badge -->
                     {% if nl.status == 'SENT' %}
-                    <span class="text-zinc-600">•</span>
-                    <span class="text-blue-400">Sent: {{ nl.sent_count }}</span>
-                    <span class="text-zinc-600">•</span>
-                    <span class="text-emerald-400">Opens: {{ nl.open_count }}</span>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold uppercase tracking-wider">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                        Sent
+                    </span>
+                    {% elif nl.status == 'DRAFT' %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider">
+                        <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                        Draft
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-700/30 border border-zinc-700 text-zinc-400 text-xs font-bold uppercase tracking-wider">
+                        {{ nl.status }}
+                    </span>
+                    {% endif %}
+
+                    <!-- Scheduled Date -->
+                    <span class="text-sm text-zinc-400 font-medium">
+                        Scheduled: <span class="text-zinc-300">{{ nl.scheduled_date }}</span>
+                    </span>
+
+                    {% if nl.status == 'SENT' %}
+                    <!-- Delivery Stats -->
+                    <span class="text-sm font-semibold text-blue-400">
+                        📨 {{ nl.sent_count }} sent
+                    </span>
+                    <span class="text-sm font-semibold text-emerald-400">
+                        👁 {{ nl.open_count }} opens
+                    </span>
                     {% endif %}
                 </div>
             </div>
-        </div>
 
-        <div class="flex items-center space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            <a href="/admin/newsletter/edit/{{ nl.id }}"
-                class="px-4 py-2 bg-zinc-800 text-white rounded-lg text-xs font-bold hover:bg-zinc-700 transition-colors">Edit</a>
-            <a href="/admin/newsletter/delete/{{ nl.id }}" onclick="return confirm('Purge this report?')"
-                class="px-4 py-2 bg-red-600/10 text-red-500 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all">Delete</a>
+            <!-- Actions -->
+            <div class="flex items-center gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                {% if nl.status == 'DRAFT' %}
+                <a href="/admin/newsletter/send/{{ nl.id }}"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors min-h-[40px] flex items-center">
+                    Send Now
+                </a>
+                {% endif %}
+                <a href="/admin/newsletter/edit/{{ nl.id }}"
+                    class="px-4 py-2 bg-zinc-800 text-white rounded-lg text-xs font-bold hover:bg-zinc-700 transition-colors min-h-[40px] flex items-center">
+                    Edit
+                </a>
+                <a href="/admin/newsletter/delete/{{ nl.id }}" onclick="return confirm('Purge this report?')"
+                    class="px-4 py-2 bg-red-600/10 text-red-400 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition-all min-h-[40px] flex items-center">
+                    Delete
+                </a>
+            </div>
         </div>
     </div>
     {% else %}

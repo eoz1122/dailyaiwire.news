@@ -231,3 +231,10 @@ def robots():
 @seo_bp.route('/favicon.ico')
 def favicon():
     return current_app.send_static_file('favicon.png')
+
+
+@seo_bp.route('/llms.txt')
+@seo_bp.route('/.well-known/llms.txt')
+def llms_txt():
+    """Serve llms.txt for AI crawler guidance (Phase 3: GEO)."""
+    return current_app.send_static_file('llms.txt')

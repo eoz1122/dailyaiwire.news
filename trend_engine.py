@@ -13,8 +13,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 
-# Common English stopwords for keyword extraction
+# Common English stopwords + generic news/tech headline words
 STOPWORDS = {
+    # Standard English stopwords
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
     'of', 'with', 'by', 'from', 'is', 'it', 'its', 'that', 'this', 'was',
     'are', 'be', 'has', 'have', 'had', 'not', 'will', 'can', 'do', 'does',
@@ -29,7 +30,30 @@ STOPWORDS = {
     'other', 'well', 'very', 'still', 'even', 'much', 'many', 'such',
     'way', 'part', 'set', 'big', 'take', 'top', 'per', 'go', 'look',
     'see', 'come', 'want', 'give', 'one', 'two', 'three', 'year', 'years',
-    'report', 'reports', 'according', 'across'
+    'report', 'reports', 'according', 'across',
+    # Generic news headline verbs (not meaningful as trends)
+    'unveils', 'unveil', 'reveals', 'reveal', 'launches', 'launch',
+    'announces', 'announce', 'announced', 'released', 'release', 'releases',
+    'shows', 'show', 'finds', 'find', 'found', 'faces', 'face', 'facing',
+    'aims', 'plans', 'targets', 'calls', 'warns', 'claims', 'joins',
+    'seeks', 'offers', 'brings', 'takes', 'makes', 'opens', 'turns',
+    'raises', 'builds', 'leads', 'moves', 'hits', 'pushes', 'rolls',
+    'backs', 'adds', 'creates', 'introduces', 'expands', 'grows',
+    'tests', 'updates', 'explores', 'develops', 'powers', 'enables',
+    'highlights', 'addresses', 'tackles', 'sparks', 'fuels', 'drives',
+    # Generic nouns too broad to be meaningful
+    'public', 'company', 'companies', 'world', 'global', 'industry',
+    'market', 'users', 'user', 'future', 'major', 'latest', 'million',
+    'billion', 'percent', 'today', 'week', 'month', 'time', 'help',
+    'need', 'work', 'working', 'open', 'source', 'based', 'tech',
+    'technology', 'technologies', 'tool', 'tools', 'platform', 'system',
+    'systems', 'service', 'services', 'research', 'study', 'project',
+    'available', 'key', 'real', 'full', 'free', 'best', 'next', 'last',
+    'high', 'long', 'small', 'large', 'human', 'humans', 'people',
+    # AI/tech terms too generic on an AI news site
+    'data', 'model', 'models', 'training', 'intelligence', 'artificial',
+    'machine', 'learning', 'deep', 'neural', 'network', 'networks',
+    'software', 'hardware', 'digital', 'cloud', 'compute', 'computing',
 }
 
 
@@ -216,7 +240,7 @@ def get_trending_keywords(conn, days: int = 7, top_n: int = 8) -> List[Dict]:
     for kw in all_kw:
         curr = current_kw.get(kw, 0)
         prev = previous_kw.get(kw, 0)
-        if curr < 2:  # Minimum frequency to be "trending"
+        if curr < 4:  # Minimum frequency to be "trending"
             continue
         vel = _velocity(curr, prev)
         trends.append({

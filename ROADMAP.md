@@ -36,12 +36,11 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 **Objective:** Optimizing for AI Search (Perplexity/SearchGPT) over Google.
 
 - [x] **`llms.txt` Standard:** Deployed to guide AI crawlers.
-- [ ] **Tavily RAG Research Layer:** (Priority: High)
-  - **Objective:** Give the AI "eyes" to read primary sources and cross-reference headlines.
-  - **Mechanic:** Trigger deep search for whitepapers/docs when a "High Signal" model release is detected.
-  - **Value:** Reduces hallucination, increases "Deep Intelligence" density, and enables self-healing URL discovery.
-- [ ] **Answer-Engine API:** A dedicated JSON endpoint for other AI agents to consume our news (B2B Intelligence).
-- [ ] **"The Signal" Newsletter:** Automated weekly curation of top 1% stories (Backend ready, frontend pending).
+- [x] **Tavily RAG Research Layer:** (Implemented as DuckDuckGo Deep Research — free, no API key)
+  - Deep web enrichment for high-signal articles during fetch pipeline.
+  - Finds primary sources, whitepapers, and official docs to cross-reference headlines.
+- [x] **Answer-Engine API:** `GET /api/intelligence` + `/api/intelligence/<slug>` JSON endpoints for AI agents (Perplexity, SearchGPT). CORS + Cache-Control. `llms.txt` deployed.
+- [x] **"The Signal" Newsletter:** Public archive at `/signal`, web-readable past editions, `--auto` mode for `weekly_curator.py` with trend snapshot injection.
 
 ## 🛡️ Phase 4: Administrative Supremacy
 
@@ -51,7 +50,7 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [x] **Source Management UI:** Add/Ban sources directly from the dashboard without SQL scripts.
 - [x] **Admin Panel Redesign:** Standalone light-mode interface, fully responsive, decoupled from public site.
 - [x] **Trend Intelligence Engine:** SQL-driven trend detection (surging categories, trending hashtags, emerging keywords).
-- [ ] **Manual Override Mode:** "Emergency Button" to kill a story globally (CDN purge) from the Admin UI.
+- [x] **Manual Override Mode:** "Emergency Override" — global site kill switch from Admin UI with maintenance page (503), confirmation safety, and Google deindex/re-crawl signals.
 
 ## 🏗️ Phase 5: Architectural Refactoring
 
@@ -60,8 +59,8 @@ To transition from a "News Aggregator" to an **"Autonomous Intelligence Refinery
 - [x] **R2: Blueprint Split:** `app.py` split from 1,967 lines to 275-line factory + 8 Blueprint modules.
 - [x] **R4: Shared DB Layer:** Single `db.py` module with `get_db_connection()`.
 - [x] **R5: Cleanup:** Deploy script fixed, test audio removed, requirements deduped.
-- [ ] **R1: Safety Net:** Add pytest + smoke tests (currently 0% test coverage).
-- [ ] **R3: Fetcher Decomposition:** Split `fetcher.py` (1,349 lines) into focused modules.
+- [x] **R1: Safety Net:** pytest + 62 smoke tests covering all route groups (public, admin, API, SEO) and helpers. 0% → baseline coverage.
+- [x] **R3: Fetcher Decomposition:** Split `fetcher.py` (1,341 lines) into 7 focused modules under `fetcher/` package, with backward-compat shim.
 
 ## 🔮 Phase 6: Future Architecture & AdCP
 

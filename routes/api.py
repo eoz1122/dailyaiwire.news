@@ -102,3 +102,116 @@ def track_newsletter_open(newsletter_id, recipient_email):
 
     pixel_data = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
     return Response(pixel_data, mimetype='image/gif')
+
+
+# ── Answer-Engine API (Phase 3: GEO) ────────────────────────────────
+
+@api_bp.route('/api/intelligence')
+def api_intelligence():
+    """
+    Structured intelligence feed for AI agents (Perplexity, SearchGPT, custom RAG).
+    Returns articles as structured JSON with filtering and pagination.
+    """
+    import json as _json
+    from datetime import datetime
+
+    limit = min(request.args.get('limit', 10, type=int), 50)
+    category = request.args.get('category')
+    min_score = request.args.get('min_score', 50, type=int)
+    since = request.args.get('since')  # ISO date string
+
+    conn = get_db_connection()
+
+    query_parts = ["SELECT id, slug, title, category, gist, why_it_matters, key_details, "
+                   "importance_score, source, source_url, published_at, hashtags "
+                   "FROM articles WHERE is_published = 1"]
+    params = []
+
+    if category:
+        query_parts.append("AND category = ?")
+        params.append(category)
+
+    if min_score:
+        query_parts.append("AND importance_score >= ?")
+        params.append(min_score)
+
+    if since:
+        query_parts.append("AND published_at >= ?")
+        params.append(since)
+
+    query_parts.append("ORDER BY published_at DESC LIMIT ?")
+    params.append(limit)
+
+    rows = conn.execute(" ".join(query_parts), params).fetchall()
+    total = conn.execute("SELECT COUNT(*) FROM articles WHERE is_published = 1").fetchone()[0]
+    conn.close()
+
+    articles = []
+    for r in rows:
+        d = dict(r)
+        try:
+            d['key_details'] = _json.loads(d['key_details'])
+        except Exception:
+            d['key_details'] = []
+        try:
+            d['hashtags'] = _json.loads(d['hashtags'])
+        except Exception:
+            d['hashtags'] = []
+        d['url'] = f"https://dailyaiwire.news/article/{d['slug']}"
+        articles.append(d)
+
+    resp = {
+        "articles": articles,
+        "meta": {
+            "total_articles": total,
+            "returned": len(articles),
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "api_version": "1.0",
+            "documentation": "https://dailyaiwire.news/llms.txt"
+        }
+    }
+
+    response = Response(
+        _json.dumps(resp, ensure_ascii=False, default=str),
+        mimetype='application/json'
+    )
+    response.headers['Cache-Control'] = 'public, max-age=300'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@api_bp.route('/api/intelligence/<slug>')
+def api_intelligence_detail(slug):
+    """Full article detail for AI agent consumption."""
+    import json as _json
+
+    conn = get_db_connection()
+    art = conn.execute('SELECT * FROM articles WHERE slug = ? AND is_published = 1', (slug,)).fetchone()
+    conn.close()
+
+    if not art:
+        return {"error": "Article not found", "slug": slug}, 404
+
+    d = dict(art)
+
+    # Parse JSON fields
+    for field in ['key_details', 'hashtags', 'design_tokens']:
+        try:
+            d[field] = _json.loads(d.get(field) or '[]')
+        except Exception:
+            d[field] = [] if field != 'design_tokens' else {}
+
+    # Remove internal fields
+    for internal in ['full_json', 'shared_on_x', 'shared_at', 'audio_male', 'audio_female']:
+        d.pop(internal, None)
+
+    d['url'] = f"https://dailyaiwire.news/article/{d['slug']}"
+
+    response = Response(
+        _json.dumps(d, ensure_ascii=False, default=str),
+        mimetype='application/json'
+    )
+    response.headers['Cache-Control'] = 'public, max-age=300'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response

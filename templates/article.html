@@ -399,7 +399,7 @@
                     <div class="flex items-center justify-between relative z-10">
                         <div class="flex gap-3">
                             {% if article.audio_male %}
-                            <button onclick="playAudio('male')"
+                            <button onclick="toggleAudio('male')"
                                 class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
                                 id="btn-play-male" data-src="{{ article.audio_male }}">
                                 <svg id="icon-play-male" class="w-3 h-3 play-icon" fill="currentColor"
@@ -414,7 +414,7 @@
                             </button>
                             {% endif %}
                             {% if article.audio_female %}
-                            <button onclick="playAudio('female')"
+                            <button onclick="toggleAudio('female')"
                                 class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
                                 id="btn-play-female" data-src="{{ article.audio_female }}">
                                 <svg id="icon-play-female" class="w-3 h-3 play-icon" fill="currentColor"
@@ -746,38 +746,7 @@
             </section>
             {% endif %}
 
-            <!-- GenUI Dynamic Component: Market Ticker -->
-            {% if 'market_ticker' in triggers and article.key_details %}
-            <div class="mb-8 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/50">
-                <div class="flex items-center gap-2 px-4 py-2 border-b border-zinc-800">
-                    <span class="relative flex h-1.5 w-1.5">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full genui-ping opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 genui-ping"></span>
-                    </span>
-                    <span class="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-600">Key Data Points</span>
-                </div>
-                <div class="overflow-hidden">
-                    <div class="flex whitespace-nowrap genui-ticker-track">
-                        {% for detail in article.key_details %}
-                        <span
-                            class="inline-flex items-center gap-2 px-6 py-3 text-xs font-bold text-zinc-400 border-r border-zinc-800/50">
-                            <span class="genui-accent-text">▸</span> {{ detail[:80] }}{% if detail|length > 80 %}…{%
-                            endif %}
-                        </span>
-                        {% endfor %}
-                        <!-- Duplicate for seamless loop -->
-                        {% for detail in article.key_details %}
-                        <span
-                            class="inline-flex items-center gap-2 px-6 py-3 text-xs font-bold text-zinc-400 border-r border-zinc-800/50">
-                            <span class="genui-accent-text">▸</span> {{ detail[:80] }}{% if detail|length > 80 %}…{%
-                            endif %}
-                        </span>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+            <!-- Key Data Points ticker removed -->
 
             <!-- Analysis Grid: Optimistic vs Pessimistic -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
@@ -844,7 +813,7 @@
 
                     <!-- Form -->
                     <form action="/subscribe" method="POST" class="w-full max-w-md flex flex-col md:flex-row gap-4">
-                        <input type="email" name="email" placeholder="Enter your email..." required
+                        <input type="email" name="email" placeholder="Enter your email..." required autocomplete="email"
                             aria-label="Email address"
                             class="flex-grow bg-[#090909] light-mode-bg-zinc-50 border border-zinc-800 light-mode-border-zinc-300 text-white light-mode-text-black px-6 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-zinc-700 text-sm font-bold">
                         <button type="submit"
@@ -918,7 +887,7 @@
 
                     <form action="/subscribe" method="POST" class="w-full relative z-10">
                         <div class="flex flex-col gap-3">
-                            <input type="email" name="email" placeholder="Email address" required
+                            <input type="email" name="email" placeholder="Email address" required autocomplete="email"
                                 class="w-full bg-zinc-100 border border-zinc-200 text-zinc-900 px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-bold placeholder:text-zinc-400">
                             <button type="submit"
                                 class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">

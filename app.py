@@ -72,6 +72,17 @@ def init_db_migrations():
             print("MIGRATION: Adding 'audio_plays' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN audio_plays INTEGER DEFAULT 0')
 
+        # 4. Carousel Slots Table (Manual editorial pinning)
+        conn.execute('''CREATE TABLE IF NOT EXISTS carousel_slots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id INTEGER NOT NULL UNIQUE,
+            position INTEGER NOT NULL DEFAULT 0,
+            pinned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP,
+            pinned_by TEXT,
+            FOREIGN KEY (article_id) REFERENCES articles(id)
+        )''')
+
         conn.commit()
     except Exception as e:
         print(f"Migration failed: {e}")
@@ -155,7 +166,19 @@ class MyAdminIndexView(AdminIndexView):
             app.logger.error(f"Failed to fetch leads for dashboard: {e}")
             leads = []
 
-        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total, leads=leads)
+        # Fetch carousel pinned article IDs
+        try:
+            conn3 = get_db_connection()
+            pinned_rows = conn3.execute('''
+                SELECT article_id FROM carousel_slots
+                WHERE expires_at IS NULL OR expires_at > datetime('now')
+            ''').fetchall()
+            carousel_pinned_ids = [r['article_id'] for r in pinned_rows]
+            conn3.close()
+        except Exception:
+            carousel_pinned_ids = []
+
+        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total, leads=leads, carousel_pinned_ids=carousel_pinned_ids, emergency_mode=is_emergency_mode())
 
 
 admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
@@ -260,6 +283,9 @@ from routes.lab import lab_bp
 from routes.admin_core import admin_core_bp
 from routes.admin_content import admin_content_bp
 from routes.admin_ops import admin_ops_bp
+from routes.admin_carousel import admin_carousel_bp
+from routes.admin_emergency import admin_emergency_bp, is_emergency_mode
+from routes.signal import signal_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(public_bp)
@@ -269,6 +295,25 @@ app.register_blueprint(lab_bp)
 app.register_blueprint(admin_core_bp)
 app.register_blueprint(admin_content_bp)
 app.register_blueprint(admin_ops_bp)
+app.register_blueprint(admin_carousel_bp)
+app.register_blueprint(admin_emergency_bp)
+app.register_blueprint(signal_bp)
+
+
+# --- Emergency Override Middleware ---
+@app.before_request
+def check_emergency_mode():
+    """If emergency mode is active, serve maintenance page for all public routes."""
+    # Allow admin routes, static files, and login through
+    safe_prefixes = ('/admin', '/login', '/logout', '/static')
+    if request.path.startswith(safe_prefixes):
+        return None
+
+    if is_emergency_mode():
+        from flask import render_template, make_response
+        resp = make_response(render_template('maintenance.html'), 503)
+        resp.headers['Retry-After'] = '3600'
+        return resp
 
 
 if __name__ == '__main__':

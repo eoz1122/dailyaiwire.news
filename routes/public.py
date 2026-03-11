@@ -26,7 +26,12 @@ def index():
         conn.execute("ALTER TABLE articles ADD COLUMN compass_score REAL DEFAULT 0.7")
         conn.commit()
 
-    cats = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category LIMIT 12').fetchall()
+    cats = conn.execute('''
+        SELECT category, COUNT(*) as cnt FROM articles
+        WHERE category IS NOT NULL AND is_published = 1
+        GROUP BY category HAVING cnt > 0
+        LIMIT 12
+    ''').fetchall()
     categories = sorted([c['category'] for c in cats])
 
     page = request.args.get('page', 1, type=int)
@@ -82,10 +87,62 @@ def index():
         published_condition = 'is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
 
         if page == 1:
-            carousel = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT 10').fetchall()
-            grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
+            # --- Carousel: Pinned-first hybrid logic ---
+            # 1. Manually pinned articles (not expired)
+            try:
+                pinned = conn.execute('''
+                    SELECT a.* FROM carousel_slots cs
+                    JOIN articles a ON cs.article_id = a.id
+                    WHERE a.is_published = 1
+                      AND (cs.expires_at IS NULL OR cs.expires_at > datetime('now'))
+                    ORDER BY cs.position ASC
+                ''').fetchall()
+            except Exception:
+                pinned = []
+
+            pinned_ids = [dict(r)['id'] for r in pinned]
+
+            # 2. Fill remaining carousel slots with auto-selected articles
+            remaining = 10 - len(pinned_ids)
+            if remaining > 0:
+                if pinned_ids:
+                    exclude_placeholders = ','.join('?' * len(pinned_ids))
+                    auto = conn.execute(f'''
+                        SELECT * FROM articles
+                        WHERE {published_condition} AND id NOT IN ({exclude_placeholders})
+                        ORDER BY DATE(published_at) DESC,
+                                 (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
+                        LIMIT ?
+                    ''', pinned_ids + [remaining]).fetchall()
+                else:
+                    auto = conn.execute(f'''
+                        SELECT * FROM articles
+                        WHERE {published_condition}
+                        ORDER BY DATE(published_at) DESC,
+                                 (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
+                        LIMIT ?
+                    ''', (remaining,)).fetchall()
+            else:
+                auto = []
+
+            carousel = list(pinned) + list(auto)
+
+            # Grid: everything after carousel
+            all_carousel_ids = [dict(r)['id'] for r in carousel]
+            if all_carousel_ids:
+                grid_exclude = ','.join('?' * len(all_carousel_ids))
+                grid = conn.execute(f'''
+                    SELECT * FROM articles
+                    WHERE {published_condition} AND id NOT IN ({grid_exclude})
+                    ORDER BY DATE(published_at) DESC,
+                             (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
+                    LIMIT ?
+                ''', all_carousel_ids + [ITEMS_PER_PAGE]).fetchall()
+            else:
+                grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
+
             total_arts_count = conn.execute(f'SELECT COUNT(*) FROM articles WHERE {published_condition}').fetchone()[0]
-            total_arts = max(0, total_arts_count - 10)
+            total_arts = max(0, total_arts_count - len(carousel))
         else:
             db_offset = 10 + ((page - 1) * ITEMS_PER_PAGE)
             grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()

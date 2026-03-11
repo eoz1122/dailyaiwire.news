@@ -1,0 +1,234 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Carousel Control | DailyAIWire Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <h1
+                class="text-2xl md:text-3xl font-black tracking-tighter text-[#0c0c0c] uppercase flex items-center gap-2">
+                📌 CAROUSEL <span class="text-[#2563eb]">CONTROL</span>
+            </h1>
+            <p class="text-zinc-400 text-sm font-medium mt-1">
+                Pin articles, set display order, and manage stay timers
+            </p>
+        </div>
+        <a href="{{ url_for('admin.index') }}"
+            class="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm min-h-[44px] flex items-center">
+            ← Dashboard
+        </a>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for category, message in messages %}
+        <div class="px-4 py-3 rounded-xl text-sm font-bold
+            {% if category == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-200
+            {% elif category == 'error' %}bg-red-50 text-red-700 border border-red-200
+            {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- COLUMN 1-2: Active Carousel Slots -->
+        <div class="lg:col-span-2">
+            <div class="bg-white border border-zinc-100 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-4 sm:p-6 border-b border-zinc-100 flex items-center justify-between">
+                    <h2 class="text-lg font-black text-[#1a1a1a] uppercase tracking-tighter flex items-center gap-2">
+                        🎠 Active Slots
+                        <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{{
+                            slots|length }}/10</span>
+                    </h2>
+                    {% if slots|length > 1 %}
+                    <form action="{{ url_for('admin_carousel.reorder_carousel') }}" method="POST" id="reorder-form">
+                        <button type="submit"
+                            class="text-[10px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg border border-blue-200 transition-colors min-h-[44px]">
+                            Save Order
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                {% if slots %}
+                <div class="divide-y divide-zinc-100" id="carousel-slots">
+                    {% for slot in slots %}
+                    <div class="p-4 sm:p-5 hover:bg-zinc-50 transition-all group"
+                        data-article-id="{{ slot.article_id }}">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <!-- Position + Drag Handle -->
+                            <div class="flex sm:flex-col items-center justify-center gap-2 sm:gap-1 shrink-0">
+                                <span class="text-xl font-black text-blue-600 w-8 text-center">{{ loop.index }}</span>
+                                <svg class="w-5 h-5 text-zinc-300 cursor-grab hidden sm:block" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 8h16M4 16h16" />
+                                </svg>
+                            </div>
+
+                            <!-- Thumbnail -->
+                            {% if slot.image %}
+                            <img src="{{ slot.image }}" alt=""
+                                class="w-full sm:w-20 h-32 sm:h-14 object-cover rounded-lg shrink-0"
+                                onerror="this.src='/static/fallbacks/tools_0.jpg'">
+                            {% endif %}
+
+                            <!-- Info -->
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-bold text-sm text-[#1a1a1a] line-clamp-2 mb-1">{{ slot.title }}</h3>
+                                <div class="flex flex-wrap items-center gap-2 text-[10px]">
+                                    <span
+                                        class="font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{{
+                                        slot.category }}</span>
+                                    {% if slot.source %}
+                                    <span class="font-bold text-zinc-400">{{ slot.source }}</span>
+                                    {% endif %}
+                                    <span class="font-mono text-zinc-400">{{ slot.published_at[:16] if slot.published_at
+                                        else '' }}</span>
+                                </div>
+
+                                <!-- Timer Display -->
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    {% if slot.expires_at %}
+                                    <span
+                                        class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                                        ⏱️ Expires: {{ slot.expires_at[:16] }}
+                                    </span>
+                                    {% else %}
+                                    <span
+                                        class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                                        ∞ No expiry
+                                    </span>
+                                    {% endif %}
+                                    <span class="text-[10px] font-mono text-zinc-400">by {{ slot.pinned_by or 'system'
+                                        }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex sm:flex-col gap-2 shrink-0">
+                                <!-- Timer Update -->
+                                <details class="relative">
+                                    <summary
+                                        class="text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-lg border border-zinc-200 transition-colors cursor-pointer min-h-[44px] flex items-center gap-1">
+                                        ⏱️ Timer
+                                    </summary>
+                                    <div
+                                        class="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl p-3 z-50 w-56">
+                                        <form
+                                            action="{{ url_for('admin_carousel.update_timer', article_id=slot.article_id) }}"
+                                            method="POST" class="space-y-2">
+                                            <p
+                                                class="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">
+                                                Set Duration</p>
+                                            <div class="grid grid-cols-3 gap-1">
+                                                {% for key, hours in presets.items() %}
+                                                <button type="submit" name="duration" value="{{ key }}"
+                                                    class="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-2 rounded-lg border border-blue-200 transition-colors min-h-[44px]">
+                                                    {{ key }}
+                                                </button>
+                                                {% endfor %}
+                                            </div>
+                                            <button type="submit" name="duration" value="infinite"
+                                                class="w-full text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-2 rounded-lg border border-emerald-200 transition-colors min-h-[44px]">
+                                                ∞ No Expiry
+                                            </button>
+                                            <div class="pt-1">
+                                                <input type="datetime-local" name="custom_expiry"
+                                                    class="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <button type="submit"
+                                                    class="w-full mt-1 text-[10px] font-bold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 px-2 py-2 rounded-lg border border-zinc-200 transition-colors min-h-[44px]">
+                                                    Set Custom
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </details>
+
+                                <!-- Unpin -->
+                                <form action="{{ url_for('admin_carousel.unpin_article', article_id=slot.article_id) }}"
+                                    method="POST">
+                                    <button type="submit"
+                                        class="w-full text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-white bg-red-50 hover:bg-red-600 px-3 py-2 rounded-lg border border-red-200 hover:border-red-600 transition-colors min-h-[44px]"
+                                        onclick="return confirm('Remove from carousel?')">
+                                        ✕ Unpin
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Hidden input for reorder form -->
+                        <input type="hidden" name="order[]" value="{{ slot.article_id }}" form="reorder-form">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-8 text-center">
+                    <p class="text-zinc-400 text-sm font-bold uppercase tracking-widest">No pinned articles</p>
+                    <p class="text-zinc-300 text-xs mt-1">Pin articles from the list on the right or from the dashboard.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- COLUMN 3: Quick Pin -->
+        <div>
+            <div class="bg-white border border-zinc-100 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-4 sm:p-6 border-b border-zinc-100">
+                    <h2 class="text-lg font-black text-[#1a1a1a] uppercase tracking-tighter flex items-center gap-2">
+                        ⚡ Quick Pin
+                    </h2>
+                    <p class="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">Recent unpinned
+                        articles</p>
+                </div>
+
+                <div class="divide-y divide-zinc-100 max-h-[600px] overflow-y-auto">
+                    {% for art in recent_articles %}
+                    <div class="p-4 hover:bg-zinc-50 transition-all">
+                        <h4 class="font-bold text-xs text-[#1a1a1a] line-clamp-2 mb-2">{{ art.title }}</h4>
+                        <div class="flex items-center gap-2 text-[10px] mb-3">
+                            <span
+                                class="font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{{
+                                art.category }}</span>
+                            <span class="font-mono text-zinc-400">{{ art.published_at[:10] if art.published_at else ''
+                                }}</span>
+                        </div>
+
+                        <form action="{{ url_for('admin_carousel.pin_article', article_id=art.id) }}" method="POST"
+                            class="flex flex-wrap gap-2">
+                            <!-- Quick pin with preset durations -->
+                            <select name="duration"
+                                class="text-[10px] bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]">
+                                <option value="">∞ No expiry</option>
+                                {% for key, hours in presets.items() %}
+                                <option value="{{ key }}">{{ key }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit"
+                                class="flex-1 text-[10px] font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg transition-colors min-h-[44px]">
+                                📌 Pin
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center">
+                        <p class="text-zinc-400 text-xs font-bold uppercase tracking-widest">All recent articles are
+                            pinned</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

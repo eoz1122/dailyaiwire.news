@@ -74,10 +74,10 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
             <h2 class="text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">📈 Trending Intelligence</h2>
             <span class="text-zinc-700 text-[10px] font-mono">{{ trends.total_articles }} articles analyzed</span>
         </div>
-        <div class="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+        <div class="flex flex-wrap gap-3 pb-2">
             {% for cat in trends.hot_categories[:4] %}
             <a href="/?category={{ cat.category }}"
-                class="glass-card rounded-xl p-4 min-w-[180px] flex-shrink-0 group cursor-pointer hover:border-blue-500/40 transition-all">
+                class="glass-card rounded-xl p-4 min-w-[140px] flex-1 group cursor-pointer hover:border-blue-500/40 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-black uppercase tracking-widest
                         {% if cat.direction == 'surging' %}text-emerald-400
@@ -100,7 +100,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
             {% for tag in trends.hot_hashtags[:4] %}
             <a href="/?q={{ tag.hashtag|replace('#', '') }}"
-                class="glass-card rounded-xl p-4 min-w-[160px] flex-shrink-0 group cursor-pointer hover:border-purple-500/40 transition-all">
+                class="glass-card rounded-xl p-4 min-w-[140px] flex-1 group cursor-pointer hover:border-purple-500/40 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-black uppercase tracking-widest
                         {% if tag.direction == 'surging' %}text-purple-400
@@ -122,7 +122,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
             {% for kw in trends.hot_keywords[:3] %}
             <a href="/?q={{ kw.keyword }}"
-                class="glass-card rounded-xl p-4 min-w-[150px] flex-shrink-0 group cursor-pointer hover:border-amber-500/40 transition-all">
+                class="glass-card rounded-xl p-4 min-w-[140px] flex-1 group cursor-pointer hover:border-amber-500/40 transition-all">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[10px] font-black uppercase tracking-widest text-amber-400">
                         {{ kw.emoji }} keyword
@@ -304,7 +304,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
                     <form action="/subscribe" method="POST" class="w-full">
                         <div class="flex flex-col gap-3">
-                            <input type="email" name="email" placeholder="Enter your email" required
+                            <input type="email" name="email" placeholder="Enter your email" required autocomplete="email"
                                 class="w-full bg-zinc-100 border border-zinc-200 text-zinc-900 px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm font-bold text-center placeholder:text-zinc-400">
                             <button type="submit"
                                 class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">Join

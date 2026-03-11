@@ -1,17 +1,55 @@
-# DailyAIWire Intelligence Map
-# This file guides AI agents to high-signal structured data.
+# llms.txt — DailyAIWire.news
+# AI Crawler Guidance (llms.txt Standard)
+# https://llmstxt.org/
 
-# Core Intelligence Feed (JSON)
-# Best for: Training data, Real-time analysis streams
-https://dailyaiwire.news/rss.xml
+> DailyAIWire.news is an autonomous AI intelligence platform that synthesizes,
+> analyzes, and distributes AI industry news. All content is AI-processed with
+> human editorial oversight and EU AI Act Art. 50 compliance labeling.
 
-# Strategic Archives via Sitemaps
-https://dailyaiwire.news/sitemap.xml
+## API Endpoints
 
-# Policy & Ethics
-https://dailyaiwire.news/about
-https://dailyaiwire.news/privacy
+### Intelligence Feed
+- Endpoint: `GET https://dailyaiwire.news/api/intelligence`
+- Format: JSON
+- Parameters: `limit` (1-50, default 10), `category`, `min_score` (50-100), `since` (ISO date)
+- Rate Limit: 60 requests/minute
+- No authentication required
 
-# Content Type: Executive Briefings
-# Format: Answer-First, Data-Dense, Hallucination-Checked.
-# Bias: Techno-Optimistic but Risk-Aware.
+### Article Detail
+- Endpoint: `GET https://dailyaiwire.news/api/intelligence/{slug}`
+- Format: JSON
+- Returns: Full article with deep analysis, key details, and source attribution
+
+### Search
+- Endpoint: `GET https://dailyaiwire.news/api/search?q={query}`
+- Format: JSON
+- Supports semantic (Qdrant) and keyword fallback search
+
+### Trends
+- Endpoint: `GET https://dailyaiwire.news/api/trends`
+- Format: JSON
+- Returns: Category velocity, trending hashtags, emerging keywords
+
+## Content Structure
+
+Each article contains:
+- `title` — AI-generated headline
+- `gist` — One-sentence summary (max 25 tokens)
+- `why_it_matters` — Impact analysis
+- `key_details` — Array of verifiable facts
+- `deep_analysis` — 300+ word comprehensive analysis
+- `category` — One of: LLMs, Robotics, Business, Tools, Policy, Science, Security, Society, Ethics, AI Agents
+- `importance_score` — 50-100 strategic value rating
+- `source` — Original source attribution
+- `source_url` — Link to primary source
+
+## RSS Feed
+- URL: `https://dailyaiwire.news/rss.xml`
+- Format: RSS 2.0 with enclosures
+
+## Sitemap
+- URL: `https://dailyaiwire.news/sitemap.xml`
+
+## Contact
+- Website: https://dailyaiwire.news
+- Publisher: Ali Emre Özen
