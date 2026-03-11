@@ -98,20 +98,21 @@
     <link rel="alternate" type="application/rss+xml" title="DailyAIWire.news RSS Feed"
         href="https://dailyaiwire.news/rss">
 
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5494088572540096"
-        crossorigin="anonymous"></script>
-
-    <!-- Preconnect to external domains -->
     <!-- Preconnect to external domains -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://www.googletagmanager.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
+
+    <!-- Non-blocking Google Fonts (preload + swap) -->
+    <link rel="preload" as="style"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap"
-        rel="stylesheet">
+        onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap"></noscript>
 
     {% block head_extra %}{% endblock %}
     <style>
@@ -780,6 +781,10 @@
             if (backdrop) backdrop.addEventListener('click', closeModal);
         });
     </script>
+
+    <!-- AdSense (deferred to after paint) -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5494088572540096"
+        crossorigin="anonymous"></script>
 </body>
 
 </html>

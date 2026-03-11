@@ -145,7 +145,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
             <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100 z-10{% else %}opacity-0 z-0 pointer-events-none{% endif %}"
                 data-index="{{ loop.index0 }}">
                 <a href="/article/{{ art.slug }}" class="block h-full relative">
-                    <img src="{{ art.image }}" alt="{{ art.title }}" class="w-full h-full object-cover object-center" {%
+                    <img src="{{ art.image }}" alt="{{ art.title }}" decoding="async" class="w-full h-full object-cover object-center" {%
                         if loop.index0> 0
                     %}loading="lazy"{% else %}fetchpriority="high"{% endif %}
                     onerror="this.src='/static/fallbacks/tools_0.jpg'">
@@ -365,7 +365,7 @@ category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
 
                 <!-- Article Image Link -->
                 <a href="/article/{{ art.slug }}" class="relative h-48 overflow-hidden block">
-                    <img src="{{ art.image }}" alt="{{ art.title }}" loading="lazy"
+                    <img src="{{ art.image }}" alt="{{ art.title }}" loading="lazy" decoding="async"
                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onerror="this.src='/static/fallbacks/tools_0.jpg'">
                     <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent"></div>
