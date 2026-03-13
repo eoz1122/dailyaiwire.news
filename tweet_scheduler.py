@@ -107,6 +107,13 @@ def mark_as_shared_ig(slug):
     conn.commit()
     conn.close()
 
+def mark_as_shared_fb(slug):
+    """Mark article as shared on Facebook."""
+    conn = get_db_connection()
+    conn.execute('UPDATE articles SET shared_on_fb = 1 WHERE slug = ?', (slug,))
+    conn.commit()
+    conn.close()
+
 def main_loop():
     print(f"🚀 Starting Tweet Scheduler v{VERSION}")
     print(f"📡 Config: Interval 2h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
@@ -188,7 +195,16 @@ def main_loop():
                         mark_as_shared_ig(article['slug'])
                         print(f"✅ Successfully shared on Instagram.")
                     else:
-                        print(f"⚠️ [IG SKIP] Instagram post failed or skipped.") 
+                        print(f"⚠️ [IG SKIP] Instagram post failed or skipped.")
+                
+                # --- FACEBOOK DISTRIBUTION ---
+                if not article.get('shared_on_fb'):
+                    print(f"📘 Attempting to post to Facebook...")
+                    if distributor.post_to_facebook(article_for_dist):
+                        mark_as_shared_fb(article['slug'])
+                        print(f"✅ Successfully shared on Facebook.")
+                    else:
+                        print(f"⚠️ [FB SKIP] Facebook post failed or skipped.") 
             else:
                 print("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
                 time.sleep(600)

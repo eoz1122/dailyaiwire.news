@@ -56,12 +56,16 @@
 
             <!-- Platform Tabs -->
             <div class="flex border-b border-zinc-200 mb-4">
-                <button onclick="switchTab('twitter-{{ article['id'] }}', 'linkedin-{{ article['id'] }}', this)"
-                    class="px-4 py-2 text-sm font-bold text-[#1da1f2] border-b-2 border-[#1da1f2] transition-colors focus:outline-none bg-white hover:bg-zinc-50 rounded-t-lg">
+                <button onclick="switchSocialTab({{ article['id'] }}, 'twitter')"
+                    class="social-tab social-tab-active px-4 py-2 text-sm font-bold text-[#1da1f2] border-b-2 border-[#1da1f2] transition-colors focus:outline-none bg-white hover:bg-zinc-50 rounded-t-lg" data-article="{{ article['id'] }}" data-platform="twitter">
                     Twitter (X)
                 </button>
-                <button onclick="switchTab('linkedin-{{ article['id'] }}', 'twitter-{{ article['id'] }}', this)"
-                    class="px-4 py-2 text-sm font-bold text-zinc-400 hover:text-[#0a66c2] border-b-2 border-transparent hover:border-[#0a66c2] transition-colors focus:outline-none bg-white hover:bg-zinc-50 rounded-t-lg">
+                <button onclick="switchSocialTab({{ article['id'] }}, 'facebook')"
+                    class="social-tab px-4 py-2 text-sm font-bold text-zinc-400 hover:text-[#1877f2] border-b-2 border-transparent hover:border-[#1877f2] transition-colors focus:outline-none bg-white hover:bg-zinc-50 rounded-t-lg" data-article="{{ article['id'] }}" data-platform="facebook">
+                    Facebook
+                </button>
+                <button onclick="switchSocialTab({{ article['id'] }}, 'linkedin')"
+                    class="social-tab px-4 py-2 text-sm font-bold text-zinc-400 hover:text-[#0a66c2] border-b-2 border-transparent hover:border-[#0a66c2] transition-colors focus:outline-none bg-white hover:bg-zinc-50 rounded-t-lg" data-article="{{ article['id'] }}" data-platform="linkedin">
                     LinkedIn
                 </button>
             </div>
@@ -88,6 +92,32 @@ https://dailyaiwire.news/article/{{ article['slug'] }}</textarea>
                             d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
                     </svg>
                     Copy for X
+                </button>
+            </div>
+
+            <!-- Facebook Content -->
+            <div id="wrapper-facebook-{{ article['id'] }}" class="hidden">
+                <textarea id="facebook-{{ article['id'] }}" rows="10"
+                    class="w-full bg-[#f0f2f5] border border-zinc-200 rounded-xl p-4 font-sans text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#1877f2] focus:border-transparent resize-y">📡 {{ article['title'] }}
+
+{{ article['gist']|replace("**", "") }}
+
+🤔 {{ article['thought_provoking_question'] }}
+
+{% if article['hashtags'] %}
+{% for tag in article['hashtags'] %}{{ tag }} {% endfor %}
+{% endif %}
+
+#DailyAIWire #AINews #HybridIntelligence
+
+https://dailyaiwire.news/article/{{ article['slug'] }}</textarea>
+
+                <button onclick="copyToClipboard('facebook-{{ article['id'] }}')"
+                    class="mt-2 w-full bg-[#1877f2] hover:bg-[#166fe5] text-white py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385h-3.047v-3.47h3.047v-2.642c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953h-1.514c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385c5.737-.9 10.125-5.864 10.125-11.854z" />
+                    </svg>
+                    Copy for Facebook
                 </button>
             </div>
 
@@ -133,31 +163,40 @@ https://dailyaiwire.news/article/{{ article['slug'] }}</textarea>
 
 <script>
     function copyToClipboard(elementId) {
-        const text = document.getElementById(elementId).value; // Use .value for textareas
+        const text = document.getElementById(elementId).value;
         navigator.clipboard.writeText(text).then(() => {
-            // Optional: show a small toast or visual feedback instead of alert
             alert("Content copied to clipboard!");
         });
     }
 
-    function switchTab(showId, hideId, btn) {
-        document.getElementById('wrapper-' + showId).classList.remove('hidden');
-        document.getElementById('wrapper-' + hideId).classList.add('hidden');
+    const platformColors = {
+        twitter: '#1da1f2',
+        facebook: '#1877f2',
+        linkedin: '#0a66c2'
+    };
 
-        // Simple Tab Styling Toggle
-        const tabs = btn.parentElement.children;
-        for (let t of tabs) {
-            t.classList.remove('text-[#1da1f2]', 'border-[#1da1f2]', 'text-[#0a66c2]', 'border-[#0a66c2]');
-            t.classList.add('text-zinc-400', 'border-transparent');
-        }
-
-        // Activate clicked tab style
-        btn.classList.remove('text-zinc-400', 'border-transparent');
-        if (showId.includes('twitter')) {
-            btn.classList.add('text-[#1da1f2]', 'border-[#1da1f2]');
-        } else {
-            btn.classList.add('text-[#0a66c2]', 'border-[#0a66c2]');
-        }
+    function switchSocialTab(articleId, platform) {
+        const platforms = ['twitter', 'facebook', 'linkedin'];
+        // Hide all, show selected
+        platforms.forEach(p => {
+            const wrapper = document.getElementById('wrapper-' + p + '-' + articleId);
+            if (wrapper) wrapper.classList.toggle('hidden', p !== platform);
+        });
+        // Reset all tab styles for this article
+        const tabs = document.querySelectorAll('.social-tab[data-article="' + articleId + '"]');
+        tabs.forEach(t => {
+            const tabPlatform = t.getAttribute('data-platform');
+            const color = platformColors[tabPlatform];
+            if (tabPlatform === platform) {
+                t.style.color = color;
+                t.style.borderBottomColor = color;
+                t.classList.remove('text-zinc-400');
+            } else {
+                t.style.color = '';
+                t.style.borderBottomColor = 'transparent';
+                t.classList.add('text-zinc-400');
+            }
+        });
     }
 </script>
 {% endblock %}

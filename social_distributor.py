@@ -31,6 +31,10 @@ class SocialDistributor:
         # LinkedIn Credentials (Optional/Planned)
         self.linkedin_access_token = os.getenv("LINKEDIN_ACCESS_TOKEN")
         
+        # Facebook Page API Credentials
+        self.fb_page_id = os.getenv("FB_PAGE_ID")
+        self.fb_page_access_token = os.getenv("FB_PAGE_ACCESS_TOKEN")
+        
         # Base URL for links
         self.base_url = "https://dailyaiwire.news"
 
@@ -249,6 +253,84 @@ class SocialDistributor:
             print(f"❌ Error posting to Instagram: {e}")
             return False
 
+    def post_to_facebook(self, article):
+        """Posts article link with message to Facebook Page via Graph API.
+        
+        Single-step: POST /{page-id}/feed with message + link
+        """
+        if not all([self.fb_page_id, self.fb_page_access_token]):
+            print("⚠️ Facebook Page credentials missing. Skipping post.")
+            return False
+
+        try:
+            slug = article.get('seo_slug')
+            headline = article.get('headline', 'New Intelligence')
+            gist = article.get('gist', '')
+            question = article.get('thought_provoking_question', '')
+            hashtags = article.get('hashtags', [])
+            link = f"{self.base_url}/article/{slug}"
+
+            # Clean markdown formatting
+            gist_clean = gist.replace('**', '')
+
+            # Build Facebook post message
+            msg_parts = [
+                f"📡 {headline}",
+                "",
+                gist_clean,
+            ]
+
+            if question:
+                msg_parts.extend(["", f"🤔 {question}"])
+
+            if hashtags:
+                tags_str = " ".join(hashtags[:30])
+                msg_parts.extend(["", tags_str])
+
+            msg_parts.extend(["", "#DailyAIWire #AINews #HybridIntelligence"])
+
+            message = "\n".join(msg_parts)
+
+            print("📘 Facebook Preview:")
+            print("-" * 30)
+            print(message[:200] + "..." if len(message) > 200 else message)
+            print(f"Link: {link}")
+            print("-" * 30)
+
+            api_base = "https://graph.facebook.com/v22.0"
+
+            resp = requests.post(
+                f"{api_base}/{self.fb_page_id}/feed",
+                data={
+                    "message": message,
+                    "link": link,
+                    "access_token": self.fb_page_access_token,
+                },
+                timeout=30,
+            )
+            resp_data = resp.json()
+
+            if "error" in resp_data:
+                err = resp_data["error"]
+                print(f"❌ Facebook Post Error: {err.get('message', err)}")
+                # Re-raise rate limit errors for scheduler backoff
+                if err.get("code") in (4, 32, 368):
+                    raise Exception(f"Facebook Rate Limit: {err.get('message')}")
+                return False
+
+            post_id = resp_data.get("id")
+            print(f"✅ Posted to Facebook! Post ID: {post_id}")
+            return True
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Facebook network error: {e}")
+            return False
+        except Exception as e:
+            if "Rate Limit" in str(e):
+                raise e
+            print(f"❌ Error posting to Facebook: {e}")
+            return False
+
     def post_to_linkedin(self, article):
         """Posts deep analysis summary to LinkedIn (Placeholder for API integration)."""
         headline = article.get('headline', 'Intelligence Update')
@@ -275,6 +357,7 @@ class SocialDistributor:
         """Run all active distribution channels."""
         self.post_to_x(article)
         self.post_to_instagram(article)
+        self.post_to_facebook(article)
         self.post_to_linkedin(article)
 
 if __name__ == "__main__":
