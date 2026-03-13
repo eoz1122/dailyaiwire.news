@@ -451,52 +451,46 @@ def get_collection_stats() -> Dict:
 # ── Ad / Promotional Content Detection ──────────────────────────────
 
 # Reference texts representing promotional content patterns.
-# These are generic templates — not targeting any specific company.
+# IMPORTANT: These must sound like PR copy / marketing language, NOT news headlines.
+# Neutral phrasing like "Company launches X" is too close to legitimate news.
+# Use obviously promotional, sales-y, or press-release tone instead.
 _AD_REFERENCE_TEXTS = [
-    # Product launch announcements
-    "Company launches new feature that lets users protect their data and privacy with advanced tools",
-    "New product release allows customers to seamlessly manage their accounts and subscriptions",
-    "Company unveils revolutionary new tool designed to help businesses streamline their workflow",
-    "Tech company rolls out new service that gives users more control over their digital experience",
-    "Startup introduces innovative platform that transforms how people interact with technology",
+    # Press release / PR wire tone (corporate self-promotion)
+    "We are thrilled to announce our groundbreaking new feature that empowers users to take control of their digital safety and protect loved ones",
+    "Today we are proud to unveil our latest innovation that revolutionizes the way millions of people stay safe and connected",
+    "Our team has been working tirelessly to deliver this exciting new capability that our customers have been asking for",
+    "We are excited to share that our platform now offers an industry-first solution that sets a new standard for user protection",
+    "This milestone release reflects our unwavering commitment to delivering cutting-edge technology that makes a real difference in people's lives",
 
-    # Feature promotion / product PR
-    "New feature now available for free lets you remotely manage and protect family members",
-    "The app now lets users block unwanted calls and messages with a single tap",
-    "Users can now upgrade to premium for enhanced features including advanced analytics",
-    "Company announces free tier expansion giving all users access to previously paid features",
-    "New update brings faster performance and improved user interface to millions of users",
+    # Marketing copy / sales push
+    "Download our award-winning app today and discover why over 450 million users trust us to keep their family safe from scammers",
+    "Sign up now for a free trial and experience the future of personal digital security with our premium protection suite",
+    "Get started in seconds with our easy-to-use platform and unlock powerful features designed to simplify your life",
+    "Upgrade to our premium plan today and enjoy unlimited access to advanced protection features for your entire family",
+    "Join the millions who have already made the switch and see the difference our innovative solution can make",
 
-    # Download / signup CTAs
-    "Download the app today and start protecting your family from online threats",
-    "Sign up now to get early access to the latest features and exclusive benefits",
-    "Get started for free and discover how our platform can transform your business",
-    "Try the new premium plan free for 30 days with no credit card required",
-    "Join millions of satisfied users who trust our platform for their daily needs",
+    # Feature promotion with product-centric breathless enthusiasm
+    "Our all-new family protection feature lets any family member act as a security admin to remotely block scam calls and shield vulnerable loved ones",
+    "With just one tap you can now block unwanted callers, filter spam messages, and protect everyone in your household",
+    "Our redesigned dashboard puts you in complete control with real-time alerts and one-click protection for the people who matter most",
+    "Experience seamless call blocking and intelligent spam detection powered by our proprietary AI that learns and adapts to new threats",
 
-    # Corporate PR / earnings disguised as news
-    "Company reports record growth with over 450 million active users worldwide",
-    "Platform reaches new milestone with expansion to 50 new countries and regions",
-    "Company CEO announces ambitious roadmap including AI integration and global expansion",
-    "Quarterly earnings exceed expectations as company doubles down on new product offerings",
-    "Company secures major partnership to bring its services to enterprise customers globally",
+    # Pricing / commercial conversion copy
+    "Starting at just $9.99 per month our comprehensive plan gives you and your family unlimited protection with no hidden fees",
+    "Limited time offer for new subscribers: get 50 percent off your first year of our premium protection service",
+    "Free for all users with optional premium tier for power users who want advanced analytics and priority support",
+    "Enterprise pricing available with volume discounts custom deployment options and dedicated account management",
 
-    # Pricing / commercial push
-    "Starting at just $9.99 per month the new plan includes unlimited access to all features",
-    "Enterprise pricing now available with custom solutions for businesses of all sizes",
-    "Limited time offer gives new subscribers 50 percent off their first year of service",
-    "Free version available with optional premium upgrade for power users and teams",
+    # Puff piece / sponsored review tone
+    "This game-changing app is the must-have tool for anyone serious about protecting their family from the growing epidemic of phone scams",
+    "We tested the new family protection feature and were blown away by how easy it makes keeping elderly parents safe from scammers",
+    "If you are not using this incredible new security feature yet you are leaving your family exposed to increasingly sophisticated fraud",
+    "This is hands down the best call protection solution we have ever used and the free tier alone makes it worth downloading immediately",
 
-    # Single-product puff pieces
-    "This new app is a game changer for anyone looking to improve their productivity",
-    "The tool every professional needs to stay ahead in today's competitive landscape",
-    "Why this startup's approach to solving everyday problems is winning over millions",
-    "How one company's innovative feature is reshaping the way families stay safe online",
-    "Review: this new service delivers on its promise of simplicity and power for all users",
-
-    # Telecom/app-specific promo patterns
-    "Caller ID app adds family protection feature allowing admin control over scam blocking",
-    "Messaging platform launches new safety features to protect vulnerable users from fraud",
+    # App store description / product page copy
+    "The number one trusted caller ID and spam blocking app now with family protection. Download free for iOS and Android",
+    "Protect your family from scam calls with our award-winning AI-powered caller identification and smart blocking technology",
+    "Rated 4.8 stars by millions of users worldwide. The most comprehensive call protection and family safety app available today",
 ]
 
 
@@ -531,7 +525,8 @@ def score_ad_likelihood(title: str, gist: str, why_it_matters: str = "") -> floa
 
     Embeds the article text and queries the ad-reference collection.
     Returns max cosine similarity (0.0–1.0).
-    Score >= 0.72 → likely ad/promotional content.
+    Score >= 0.76 → likely ad/promotional content.
+    Score 0.65–0.76 → borderline, logged for review.
 
     Never raises — returns 0.0 on any failure (fail-open, no blocking).
     """
