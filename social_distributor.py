@@ -24,6 +24,10 @@ class SocialDistributor:
         self.x_access_secret = os.getenv("X_ACCESS_SECRET")
         self.x_bearer_token = os.getenv("X_BEARER_TOKEN")
         
+        # Instagram Graph API Credentials
+        self.ig_user_id = os.getenv("IG_USER_ID")
+        self.ig_access_token = os.getenv("IG_ACCESS_TOKEN")
+        
         # LinkedIn Credentials (Optional/Planned)
         self.linkedin_access_token = os.getenv("LINKEDIN_ACCESS_TOKEN")
         
@@ -97,6 +101,154 @@ class SocialDistributor:
             print(f"❌ Error posting to X: {e}")
             return False
 
+    def post_to_instagram(self, article):
+        """Posts article image with caption to Instagram via Graph API.
+        
+        Two-step flow:
+        1. POST /{ig-user-id}/media → creates a media container
+        2. POST /{ig-user-id}/media_publish → publishes the container
+        """
+        if not all([self.ig_user_id, self.ig_access_token]):
+            print("⚠️ Instagram credentials missing. Skipping post.")
+            return False
+
+        try:
+            slug = article.get('seo_slug')
+            headline = article.get('headline', 'New Intelligence')
+            gist = article.get('gist', '')
+            question = article.get('thought_provoking_question', '')
+            hashtags = article.get('hashtags', [])
+            image_path = article.get('image', '')
+            link = f"{self.base_url}/article/{slug}"
+
+            # Instagram requires a publicly accessible image URL (JPEG)
+            if image_path and not image_path.startswith('http'):
+                image_url = f"{self.base_url}{image_path}"
+            elif image_path:
+                image_url = image_path
+            else:
+                print("⚠️ No image found for article. Instagram requires an image. Skipping.")
+                return False
+
+            # Clean markdown formatting
+            gist_clean = gist.replace('**', '')
+
+            # Build caption (Instagram limit: 2,200 chars, 30 hashtags)
+            caption_parts = [
+                f"📡 {headline}",
+                "",
+                gist_clean,
+            ]
+
+            if question:
+                caption_parts.extend(["", f"🤔 {question}"])
+
+            caption_parts.extend(["", f"🔗 Full Analysis: {link}"])
+
+            if hashtags:
+                tags_str = " ".join(hashtags[:30])  # Instagram max 30 hashtags
+                caption_parts.extend(["", tags_str])
+
+            caption_parts.extend(["", "#DailyAIWire #AINews #HybridIntelligence"])
+
+            caption = "\n".join(caption_parts)
+
+            # Trim to Instagram's 2,200 char limit
+            if len(caption) > 2200:
+                caption = caption[:2197] + "..."
+
+            print("📸 Instagram Preview:")
+            print("-" * 30)
+            print(f"Image: {image_url}")
+            print(caption[:200] + "..." if len(caption) > 200 else caption)
+            print("-" * 30)
+
+            api_base = "https://graph.instagram.com/v22.0"
+
+            # Step 1: Create media container
+            container_resp = requests.post(
+                f"{api_base}/{self.ig_user_id}/media",
+                data={
+                    "image_url": image_url,
+                    "caption": caption,
+                    "access_token": self.ig_access_token,
+                },
+                timeout=30,
+            )
+            container_data = container_resp.json()
+
+            if "error" in container_data:
+                err = container_data["error"]
+                print(f"❌ Instagram Container Error: {err.get('message', err)}")
+                # Re-raise rate limit errors for scheduler backoff
+                if err.get("code") == 4 or err.get("code") == 32:
+                    raise Exception(f"Instagram Rate Limit: {err.get('message')}")
+                return False
+
+            creation_id = container_data.get("id")
+            if not creation_id:
+                print(f"❌ No container ID returned: {container_data}")
+                return False
+
+            print(f"📦 Container created: {creation_id}")
+
+            # Step 2: Wait for container to be ready (poll status)
+            import time as _time
+            for attempt in range(10):
+                status_resp = requests.get(
+                    f"{api_base}/{creation_id}",
+                    params={
+                        "fields": "status_code",
+                        "access_token": self.ig_access_token,
+                    },
+                    timeout=15,
+                )
+                status_data = status_resp.json()
+                status_code = status_data.get("status_code", "UNKNOWN")
+
+                if status_code == "FINISHED":
+                    break
+                elif status_code == "ERROR":
+                    print(f"❌ Container processing failed: {status_data}")
+                    return False
+                else:
+                    print(f"⏳ Container status: {status_code} (attempt {attempt + 1}/10)")
+                    _time.sleep(3)
+            else:
+                print("❌ Container processing timed out after 30s.")
+                return False
+
+            # Step 3: Publish the container
+            publish_resp = requests.post(
+                f"{api_base}/{self.ig_user_id}/media_publish",
+                data={
+                    "creation_id": creation_id,
+                    "access_token": self.ig_access_token,
+                },
+                timeout=30,
+            )
+            publish_data = publish_resp.json()
+
+            if "error" in publish_data:
+                err = publish_data["error"]
+                print(f"❌ Instagram Publish Error: {err.get('message', err)}")
+                if err.get("code") == 4 or err.get("code") == 32:
+                    raise Exception(f"Instagram Rate Limit: {err.get('message')}")
+                return False
+
+            media_id = publish_data.get("id")
+            print(f"✅ Posted to Instagram! Media ID: {media_id}")
+            return True
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Instagram network error: {e}")
+            return False
+        except Exception as e:
+            if "Rate Limit" in str(e):
+                raise e
+            print(f"❌ Error posting to Instagram: {e}")
+            return False
+
     def post_to_linkedin(self, article):
         """Posts deep analysis summary to LinkedIn (Placeholder for API integration)."""
         headline = article.get('headline', 'Intelligence Update')
@@ -122,6 +274,7 @@ class SocialDistributor:
     def distribute(self, article):
         """Run all active distribution channels."""
         self.post_to_x(article)
+        self.post_to_instagram(article)
         self.post_to_linkedin(article)
 
 if __name__ == "__main__":

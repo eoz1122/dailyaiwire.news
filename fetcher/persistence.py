@@ -65,10 +65,22 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             print(f"Skipping '{art.get('headline')}' due to content blocker signal (JS/Access Denied).")
             continue
 
-        # 2.5 EDITORIAL COMPASS — Semantic Scoring & Dedup (Phase 0)
+        # 2.5 EDITORIAL COMPASS — Semantic Scoring, Dedup & Ad Detection
         compass_score = 0.7  # Default for articles where compass unavailable
         try:
-            from embedding_service import score_article, find_duplicates, index_article
+            from embedding_service import score_article, find_duplicates, index_article, score_ad_likelihood
+
+            # AD SHIELD: Semantic ad/promotional content detection
+            ad_score = score_ad_likelihood(
+                art.get('headline', ''),
+                art.get('gist', ''),
+                art.get('why_it_matters', '')
+            )
+            if ad_score >= 0.72:
+                print(f"🛡️ AD SHIELD: Blocked '{art.get('headline')}' — ad-likelihood {ad_score} (threshold: 0.72)")
+                continue
+            elif ad_score >= 0.60:
+                print(f"🛡️ AD SHIELD: REVIEW '{art.get('headline')}' — ad-likelihood {ad_score} (borderline)")
 
             # Semantic Dedup: Check if near-duplicate exists (>0.92 cosine)
             dup = find_duplicates(

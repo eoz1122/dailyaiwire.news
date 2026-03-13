@@ -20,6 +20,7 @@ Analyze the input to produce structured JSON. Follow the 'Pure Signal' philosoph
 - HALLUCINATION PREVENTION: Base all analysis exclusively on the provided input. If data is unclear, omit it.
 - STEP-BY-STEP REASONING: For 'Outlook', logically link predictions to specific source facts.
 - ADVERSARIAL FILTERING (SPAM): Reject low-effort content farming. If the source is a 'Single-Product Microsite' (e.g., 'wan2-6.org', 'gpt-5-news.net') or a thin affiliate wrapper, return EMPTY JSON. Do not dignify it with coverage.
+- PROMOTIONAL CONTENT FILTER: If the source is primarily announcing a single company's new product, feature, or service with no broader industry analysis, competitive context, or critical assessment, set importance_score to 30 or below. Single-company product announcements, feature releases, and corporate PR are press releases — NOT intelligence. This applies even if the source is a reputable outlet (e.g., TechCrunch reporting a company's new feature).
 - EU ART. 50 COMPLIANCE: The 'deep_analysis' must include the transparency footer (handled by code injection, but AI must generate compliant content).
 
 ## TOKEN & PERFORMANCE OPTIMIZATION

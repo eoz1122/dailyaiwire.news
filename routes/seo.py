@@ -142,6 +142,102 @@ def rss_feed():
     return Response(xml, mimetype='application/xml')
 
 
+@seo_bp.route('/rss/linkedin')
+def linkedin_rss_feed():
+    """Curated, quality-filtered RSS feed for the n8n → LinkedIn pipeline.
+
+    Filters:
+    - importance_score >= 80 (top-quality signals only)
+    - Max 3 articles per category (diversity)
+    - Hard cap of 20 articles (prevents feed flooding)
+    - Excludes articles published during 02:00-08:00 CET dead zone
+      (focuses on EU+US active hours)
+    """
+    conn = get_db_connection()
+
+    # Use a window function to rank within each category,
+    # then filter to top 3 per category for diversity.
+    # The time filter excludes the 02:00-08:00 CET dead zone.
+    query = '''
+        SELECT * FROM (
+            SELECT *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY category
+                    ORDER BY importance_score DESC, published_at DESC
+                ) as cat_rank
+            FROM articles
+            WHERE is_published = 1
+              AND importance_score >= 80
+              AND published_at IS NOT NULL
+              AND replace(published_at, 'T', ' ') <= datetime('now')
+              AND CAST(strftime('%H', replace(published_at, 'T', ' ')) AS INTEGER)
+                  NOT BETWEEN 2 AND 7
+        )
+        WHERE cat_rank <= 3
+        ORDER BY importance_score DESC, published_at DESC
+        LIMIT 20
+    '''
+    articles_db = conn.execute(query).fetchall()
+    conn.close()
+
+    articles = []
+    for art in articles_db:
+        a = dict(art)
+        try:
+            clean_date = a['published_at'].replace('T', ' ').split('.')[0]
+            try:
+                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
+
+            a['pub_date_obj'] = dt
+            a['pub_date_rss'] = formatdate(float(dt.timestamp()))
+        except Exception:
+            a['pub_date_obj'] = datetime.now()
+            a['pub_date_rss'] = formatdate()
+
+        # Enclosure
+        img_url = a.get('image') or "https://dailyaiwire.news/static/fallbacks/tools_0.jpg"
+        if img_url.startswith('/'):
+            img_url = f"https://dailyaiwire.news{img_url}"
+        a['enclosure_url'] = img_url
+        a['enclosure_type'] = "image/jpeg" if "png" not in img_url.lower() else "image/png"
+
+        # Social Copy (same format as main RSS)
+        question = a.get('thought_provoking_question', '')
+        gist = a.get('gist', '') or a.get('title', '')
+
+        hashtags_str = ""
+        if a.get('hashtags'):
+            try:
+                hashtags = json.loads(a['hashtags']) if isinstance(a['hashtags'], str) else a['hashtags']
+                if hashtags:
+                    hashtags_str = " ".join(hashtags)
+            except Exception:
+                pass
+
+        social_parts = []
+        if gist:
+            social_parts.append(gist)
+
+        wim = a.get('why_it_matters', '')
+        if wim:
+            social_parts.append(f"Why it matters: {wim}")
+
+        if question:
+            social_parts.append(f"🤔 {question}")
+
+        if hashtags_str:
+            social_parts.append(hashtags_str)
+
+        a['clean_summary'] = "\n\n".join(social_parts)
+        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
+        articles.append(a)
+
+    xml = render_template('rss.xml', articles=articles, build_date=formatdate())
+    return Response(xml, mimetype='application/xml')
+
+
 @seo_bp.route('/sitemap.xml', methods=['GET'])
 def sitemap():
     """Generates a dynamic XML sitemap for Google Indexing."""

@@ -5,6 +5,48 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-12T14:51:00+01:00 — Curated LinkedIn RSS Feed (`/rss/linkedin`)
+
+**Decision**: Created a separate, quality-filtered RSS feed endpoint for the n8n → LinkedIn pipeline. Rather than posting all ~48 articles/day, the LinkedIn feed serves ≤20 top-signal articles with category diversity and time-window filtering.
+
+**Filters applied**:
+- `importance_score >= 80` (quality gate)
+- `ROW_NUMBER() OVER (PARTITION BY category)` with max 3 per category (diversity)
+- `LIMIT 20` (hard cap)
+- Excludes articles published between 02:00-08:00 CET (EU+US dead zone)
+
+**Changes**:
+- `routes/seo.py`: New `linkedin_rss_feed()` route at `/rss/linkedin`. Reuses existing `rss.xml` template and `clean_summary` builder logic. No Lab posts — news-only.
+- `tests/conftest.py`: Added third seed article (`importance_score=90`, category `Research`) for LinkedIn feed test coverage.
+- `tests/test_smoke.py`: New `test_linkedin_rss_feed` in `TestSEORoutes`.
+
+**Tests**: 84/84 passing (83 existing + 1 new).
+
+**Next step**: Deploy to VPS and update n8n workflow to point from `/rss` → `/rss/linkedin`.
+
+**Rollback**: Remove `linkedin_rss_feed()` from `routes/seo.py`. Remove seed article and test from `tests/`. Original `/rss` feed is completely untouched.
+
+---
+
+## 2026-03-11T22:07:00+01:00 — Instagram Distribution Worker
+
+**Decision**: Added Instagram Graph API publishing to the social distribution pipeline. Follows the same architecture as the existing X/Twitter poster (two-step container → publish flow). Worker is "credential-gated" — gracefully skips when `IG_USER_ID` / `IG_ACCESS_TOKEN` are not set, so deployment is safe before Meta App Review is approved.
+
+**Changes**:
+- `social_distributor.py`: New `post_to_instagram()` method — image URL normalization (relative→absolute), caption builder (headline + gist + question + hashtags + link, 2,200 char limit), container status polling with retry, rate-limit re-raise for scheduler backoff. Added to `distribute()` chain.
+- `tweet_scheduler.py`: Passes `image` field in article dict, calls `post_to_instagram()` independently with `shared_on_ig` tracking, new `mark_as_shared_ig()` helper.
+- `scripts/migrate_instagram.py` [NEW]: Idempotent migration adding `shared_on_ig BOOLEAN DEFAULT 0` to articles table.
+- `.env.example`: Added `IG_USER_ID` and `IG_ACCESS_TOKEN` placeholders.
+- `tests/test_instagram.py` [NEW]: 6 unit tests (credential skip, no-image skip, relative→absolute URL, absolute URL passthrough, caption content validation, 2,200 char limit enforcement).
+
+**Prerequisites** (manual, human-only): Instagram Business/Creator account, Facebook Page link, Meta Developer App with `instagram_business_content_publish` permission, long-lived access token.
+
+**Tests**: 83/83 passing (77 existing + 6 new). Migration verified on local DB.
+
+**Rollback**: Remove `post_to_instagram()` from `social_distributor.py` and `distribute()` chain. Remove IG block from `tweet_scheduler.py`. Delete `scripts/migrate_instagram.py` and `tests/test_instagram.py`. Run `ALTER TABLE articles DROP COLUMN shared_on_ig` (SQLite 3.35+).
+
+---
+
 ## 2026-03-11T10:30:00+01:00 — Bare Except Cleanup (19 fixes across 12 files)
 
 **Decision**: Replaced all 19 remaining bare `except:` statements with specific exception types. Routes were cleaned in the previous session; this pass covers scripts/, services/, fetcher/, and utility files. All replacements are behavior-preserving (catches the same runtime errors) but now properly propagate `SystemExit`, `KeyboardInterrupt`, and `GeneratorExit`.

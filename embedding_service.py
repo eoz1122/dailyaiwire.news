@@ -19,6 +19,7 @@ _model = None
 _qdrant_client = None
 
 COLLECTION_NAME = "dailyaiwire_articles"
+AD_COLLECTION_NAME = "ad_reference_vectors"
 QDRANT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qdrant_data")
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "news.db")
 EMBEDDING_DIM = 1024
@@ -45,7 +46,7 @@ def get_qdrant():
         os.makedirs(QDRANT_PATH, exist_ok=True)
         _qdrant_client = QdrantClient(path=QDRANT_PATH)
 
-        # Create collection if it doesn't exist
+        # Create collections if they don't exist
         collections = [c.name for c in _qdrant_client.get_collections().collections]
         if COLLECTION_NAME not in collections:
             _qdrant_client.create_collection(
@@ -59,6 +60,20 @@ def get_qdrant():
         else:
             count = _qdrant_client.count(COLLECTION_NAME).count
             print(f"📦 Qdrant collection exists: {count} vectors")
+
+        # Ad-reference collection (separate from editorial corpus)
+        if AD_COLLECTION_NAME not in collections:
+            _qdrant_client.create_collection(
+                collection_name=AD_COLLECTION_NAME,
+                vectors_config=VectorParams(
+                    size=EMBEDDING_DIM,
+                    distance=Distance.COSINE
+                )
+            )
+            print(f"✅ Created ad-reference collection: {AD_COLLECTION_NAME}")
+        else:
+            ad_count = _qdrant_client.count(AD_COLLECTION_NAME).count
+            print(f"🛡️ Ad-reference collection exists: {ad_count} vectors")
 
     return _qdrant_client
 
@@ -423,9 +438,128 @@ def get_collection_stats() -> Dict:
     """Get stats about the vector collection."""
     client = get_qdrant()
     count = client.count(COLLECTION_NAME).count
+    ad_count = client.count(AD_COLLECTION_NAME).count
     return {
         "collection": COLLECTION_NAME,
         "total_vectors": count,
+        "ad_reference_vectors": ad_count,
         "embedding_dim": EMBEDDING_DIM,
         "model": "bge-large-en-v1.5"
     }
+
+
+# ── Ad / Promotional Content Detection ──────────────────────────────
+
+# Reference texts representing promotional content patterns.
+# These are generic templates — not targeting any specific company.
+_AD_REFERENCE_TEXTS = [
+    # Product launch announcements
+    "Company launches new feature that lets users protect their data and privacy with advanced tools",
+    "New product release allows customers to seamlessly manage their accounts and subscriptions",
+    "Company unveils revolutionary new tool designed to help businesses streamline their workflow",
+    "Tech company rolls out new service that gives users more control over their digital experience",
+    "Startup introduces innovative platform that transforms how people interact with technology",
+
+    # Feature promotion / product PR
+    "New feature now available for free lets you remotely manage and protect family members",
+    "The app now lets users block unwanted calls and messages with a single tap",
+    "Users can now upgrade to premium for enhanced features including advanced analytics",
+    "Company announces free tier expansion giving all users access to previously paid features",
+    "New update brings faster performance and improved user interface to millions of users",
+
+    # Download / signup CTAs
+    "Download the app today and start protecting your family from online threats",
+    "Sign up now to get early access to the latest features and exclusive benefits",
+    "Get started for free and discover how our platform can transform your business",
+    "Try the new premium plan free for 30 days with no credit card required",
+    "Join millions of satisfied users who trust our platform for their daily needs",
+
+    # Corporate PR / earnings disguised as news
+    "Company reports record growth with over 450 million active users worldwide",
+    "Platform reaches new milestone with expansion to 50 new countries and regions",
+    "Company CEO announces ambitious roadmap including AI integration and global expansion",
+    "Quarterly earnings exceed expectations as company doubles down on new product offerings",
+    "Company secures major partnership to bring its services to enterprise customers globally",
+
+    # Pricing / commercial push
+    "Starting at just $9.99 per month the new plan includes unlimited access to all features",
+    "Enterprise pricing now available with custom solutions for businesses of all sizes",
+    "Limited time offer gives new subscribers 50 percent off their first year of service",
+    "Free version available with optional premium upgrade for power users and teams",
+
+    # Single-product puff pieces
+    "This new app is a game changer for anyone looking to improve their productivity",
+    "The tool every professional needs to stay ahead in today's competitive landscape",
+    "Why this startup's approach to solving everyday problems is winning over millions",
+    "How one company's innovative feature is reshaping the way families stay safe online",
+    "Review: this new service delivers on its promise of simplicity and power for all users",
+
+    # Telecom/app-specific promo patterns
+    "Caller ID app adds family protection feature allowing admin control over scam blocking",
+    "Messaging platform launches new safety features to protect vulnerable users from fraud",
+]
+
+
+def seed_ad_references() -> int:
+    """
+    Populate the ad-reference Qdrant collection with promotional content vectors.
+    Safe to re-run (uses upsert). Returns count of indexed references.
+    """
+    from qdrant_client.models import PointStruct
+
+    client = get_qdrant()
+    embeddings = embed_texts(_AD_REFERENCE_TEXTS)
+
+    points = [
+        PointStruct(
+            id=i + 1,  # 1-indexed IDs
+            vector=embeddings[i].tolist(),
+            payload={"text": text, "category": "ad_reference"}
+        )
+        for i, text in enumerate(_AD_REFERENCE_TEXTS)
+    ]
+
+    client.upsert(collection_name=AD_COLLECTION_NAME, points=points)
+    count = client.count(AD_COLLECTION_NAME).count
+    print(f"🛡️ Seeded {count} ad-reference vectors into '{AD_COLLECTION_NAME}'.")
+    return count
+
+
+def score_ad_likelihood(title: str, gist: str, why_it_matters: str = "") -> float:
+    """
+    Score how likely an article is promotional/ad content.
+
+    Embeds the article text and queries the ad-reference collection.
+    Returns max cosine similarity (0.0–1.0).
+    Score >= 0.72 → likely ad/promotional content.
+
+    Never raises — returns 0.0 on any failure (fail-open, no blocking).
+    """
+    try:
+        client = get_qdrant()
+
+        # Check if ad collection has vectors
+        ad_count = client.count(AD_COLLECTION_NAME).count
+        if ad_count == 0:
+            return 0.0
+
+        text = build_article_text(title, gist, why_it_matters)
+        embedding = embed_texts([text])[0]
+
+        results = client.search(
+            collection_name=AD_COLLECTION_NAME,
+            query_vector=embedding.tolist(),
+            limit=3,
+            score_threshold=0.5
+        )
+
+        if not results:
+            return 0.0
+
+        # Return max similarity to any ad-reference vector
+        max_score = max(r.score for r in results)
+        return round(max_score, 3)
+
+    except Exception as e:
+        print(f"⚠️ Ad-likelihood scoring failed (non-blocking): {e}")
+        return 0.0

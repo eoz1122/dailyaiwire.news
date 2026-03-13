@@ -256,19 +256,17 @@
                 </button>
             </form>
             {% endif %}
-            <form action="{{ url_for('admin_ops.admin_kill_article', id=article.id) }}" method="POST" class="flex-1">
-                {% if article.is_published == 0 %}
-                <button type="submit"
-                    class="w-full text-center text-xs font-black uppercase text-emerald-500 bg-emerald-50 hover:bg-emerald-500 hover:text-white py-2.5 rounded-lg border border-emerald-200 transition-colors min-h-[44px]">
-                    RESTORE
-                </button>
-                {% else %}
-                <button type="submit"
-                    class="w-full text-center text-xs font-black uppercase text-red-400 bg-red-50 hover:bg-red-500 hover:text-white py-2.5 rounded-lg border border-red-200 transition-colors min-h-[44px]">
-                    KILL
-                </button>
-                {% endif %}
-            </form>
+            {% if article.is_published == 0 %}
+            <button type="button" onclick="killArticle({{ article.id }}, this)"
+                class="flex-1 w-full text-center text-xs font-black uppercase text-emerald-500 bg-emerald-50 hover:bg-emerald-500 hover:text-white py-2.5 rounded-lg border border-emerald-200 transition-colors min-h-[44px]">
+                RESTORE
+            </button>
+            {% else %}
+            <button type="button" onclick="killArticle({{ article.id }}, this)"
+                class="flex-1 w-full text-center text-xs font-black uppercase text-red-400 bg-red-50 hover:bg-red-500 hover:text-white py-2.5 rounded-lg border border-red-200 transition-colors min-h-[44px]">
+                KILL
+            </button>
+            {% endif %}
         </div>
     </div>
     {% else %}
@@ -420,21 +418,18 @@
                                 </button>
                             </form>
                             {% endif %}
-                            <form action="{{ url_for('admin_ops.admin_kill_article', id=article.id) }}" method="POST"
-                                class="inline">
-                                {% if article.is_published == 0 %}
-                                <button type="submit"
-                                    class="text-[9px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-colors">
-                                    RESTORE
-                                </button>
-                                {% else %}
-                                <button type="submit"
-                                    class="text-[9px] font-black uppercase text-red-400 bg-red-50 px-2 py-1 rounded border border-red-200 hover:bg-red-500 hover:text-white transition-colors"
-                                    title="Kill Article">
-                                    KILL
-                                </button>
-                                {% endif %}
-                            </form>
+                            {% if article.is_published == 0 %}
+                            <button type="button" onclick="killArticle({{ article.id }}, this)"
+                                class="text-[9px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-colors">
+                                RESTORE
+                            </button>
+                            {% else %}
+                            <button type="button" onclick="killArticle({{ article.id }}, this)"
+                                class="text-[9px] font-black uppercase text-red-400 bg-red-50 px-2 py-1 rounded border border-red-200 hover:bg-red-500 hover:text-white transition-colors"
+                                title="Kill Article">
+                                KILL
+                            </button>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -470,4 +465,44 @@
         </div>
     </div>
 </div>
+
+<script>
+function killArticle(articleId, btn) {
+    const action = btn.textContent.trim();
+    const confirmMsg = action === 'KILL'
+        ? 'Kill this article? It will go OFFLINE and be copied to Leads.'
+        : 'Restore this article? It will go back LIVE.';
+
+    if (!confirm(confirmMsg)) return;
+
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '...';
+    btn.classList.add('opacity-50', 'cursor-wait');
+
+    fetch('/admin/kill/' + articleId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'same-origin'
+    })
+    .then(function(response) {
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Error: ' + response.status + '. Session may have expired — please log in again.');
+            btn.disabled = false;
+            btn.textContent = originalText;
+            btn.classList.remove('opacity-50', 'cursor-wait');
+        }
+    })
+    .catch(function(err) {
+        alert('Network error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
+        btn.classList.remove('opacity-50', 'cursor-wait');
+    });
+}
+</script>
 {% endblock %}

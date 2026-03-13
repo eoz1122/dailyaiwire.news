@@ -174,6 +174,36 @@ def _patch_db(tmp_path_factory):
         1,
         '{"intensity": "high", "sentiment_pallet": "techno-optimist", "component_triggers": []}'
     ))
+
+    # Seed a third article with high importance_score for LinkedIn RSS tests
+    conn.execute('''
+        INSERT INTO articles (slug, title, image, category, gist, why_it_matters,
+            bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url,
+            full_json, published_at, importance_score, is_published, design_tokens,
+            thought_provoking_question, hashtags)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        'test-linkedin-high-score',
+        'High-Score LinkedIn Test Article',
+        '/static/fallbacks/tools_0.jpg',
+        'Research',
+        'A high-importance gist for LinkedIn.',
+        'Major research breakthrough.',
+        'Massive upside.',
+        'Some risk.',
+        '["Fact X", "Fact Y"]',
+        'Big news explained simply.',
+        'Deep analysis of the research.',
+        'Test Source',
+        'https://example.com/test-linkedin-article',
+        '{}',
+        '2026-03-10T12:00:00',
+        90,
+        1,
+        '{}',
+        'What does this mean for the industry?',
+        '["#AI", "#Research"]'
+    ))
     conn.commit()
     conn.close()
 

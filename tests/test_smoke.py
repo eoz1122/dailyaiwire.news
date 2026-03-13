@@ -203,6 +203,11 @@ class TestSEORoutes:
         assert resp.status_code == 200
         assert b'dailyaiwire.news' in resp.data
 
+    def test_linkedin_rss_feed(self, client):
+        resp = client.get('/rss/linkedin')
+        assert resp.status_code == 200
+        assert b'<rss' in resp.data
+
 
 # ── Phase 3: Answer-Engine API ──────────────────────────────────────
 

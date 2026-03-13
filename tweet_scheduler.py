@@ -100,6 +100,13 @@ def mark_as_shared(slug):
     conn.commit()
     conn.close()
 
+def mark_as_shared_ig(slug):
+    """Mark article as shared on Instagram."""
+    conn = get_db_connection()
+    conn.execute('UPDATE articles SET shared_on_ig = 1 WHERE slug = ?', (slug,))
+    conn.commit()
+    conn.close()
+
 def main_loop():
     print(f"🚀 Starting Tweet Scheduler v{VERSION}")
     print(f"📡 Config: Interval 2h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
@@ -161,17 +168,27 @@ def main_loop():
                     'seo_slug': article['slug'],
                     'source': article.get('source', ''),
                     'hashtags': json.loads(article['hashtags']) if article.get('hashtags') else [],
-                    'thought_provoking_question': article.get('thought_provoking_question', '')
+                    'thought_provoking_question': article.get('thought_provoking_question', ''),
+                    'image': article.get('image', ''),
                 }
                 
                 print(f"🚀 Attempting to post to X...")
                 if distributor.post_to_x(article_for_dist):
                     mark_as_shared(article['slug'])
-                    print(f"✅ Successfully shared. Waiting {INTERVAL_SECONDS/60:.0f} mins.")
+                    print(f"✅ Successfully shared on X. Waiting {INTERVAL_SECONDS/60:.0f} mins.")
                     time.sleep(4) # Rate Limit Safety
                 else:
                     print(f"⚠️ [X ERROR] Post failed. Cooling down for 1 hour...")
-                    time.sleep(3600) 
+                    time.sleep(3600)
+                
+                # --- INSTAGRAM DISTRIBUTION ---
+                if not article.get('shared_on_ig'):
+                    print(f"📸 Attempting to post to Instagram...")
+                    if distributor.post_to_instagram(article_for_dist):
+                        mark_as_shared_ig(article['slug'])
+                        print(f"✅ Successfully shared on Instagram.")
+                    else:
+                        print(f"⚠️ [IG SKIP] Instagram post failed or skipped.") 
             else:
                 print("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
                 time.sleep(600)
