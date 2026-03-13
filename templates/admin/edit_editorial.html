@@ -1,58 +1,142 @@
 {% extends "admin/base_admin.html" %}
 
 {% block admin_content %}
-<div class="glass-card rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-hidden shadow-2xl p-8">
-    <div class="flex justify-between items-center mb-8 border-b border-zinc-800 pb-4">
-        <h2 class="text-2xl font-bold text-white">{% if id == 'new' %}Create New{% else %}Edit{% endif %} Editorial</h2>
-        <a href="{{ url_for('admin_content.admin_editorials') }}" class="text-zinc-500 hover:text-white">Cancel</a>
+<div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <!-- Header -->
+    <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+            <h2 class="text-lg font-bold text-gray-900">
+                {% if id == 'new' %}New Editorial{% else %}Edit Editorial{% endif %}
+            </h2>
+            {% if post.author_name %}
+            <span class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">By {{ post.author_name }}</span>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+            {% if id != 'new' and (post.published_at or post.is_published) %}
+            <a href="{{ url_for('lab.lab_post', slug=post.slug) }}" target="_blank"
+                class="text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 px-4 py-2.5 rounded-lg border border-gray-200 transition-colors min-h-[44px] flex items-center gap-1.5">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Preview Live
+            </a>
+            {% endif %}
+            <a href="{{ url_for('admin_content.admin_editorials') }}"
+                class="text-xs font-bold text-gray-500 hover:text-gray-900 px-3 py-2.5 min-h-[44px] flex items-center">← Back</a>
+        </div>
     </div>
 
-    <form method="POST" class="space-y-6">
+    <!-- Status Badge -->
+    {% if id != 'new' %}
+    <div class="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+        {% if post.is_published or post.published_at %}
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Published</span>
+            <span class="text-[10px] text-gray-400 font-mono">{{ post.published_at }}</span>
+        </div>
+        {% else %}
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Draft — Not Published</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <form method="POST" class="p-5 space-y-5">
+        <!-- Title -->
         <div>
-            <label for="title"
-                class="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Title</label>
+            <label for="title" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Title</label>
             <input id="title" type="text" name="title" value="{{ post.title or '' }}" required
-                class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg">
+                class="w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg transition-all">
         </div>
 
+        <!-- Subtitle -->
         <div>
-            <label for="subtitle" class="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Subtitle
-                / Hook</label>
+            <label for="subtitle" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Subtitle / Hook</label>
             <textarea id="subtitle" name="subtitle" rows="2"
-                class="w-full bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ post.subtitle or '' }}</textarea>
+                class="w-full bg-white border border-gray-300 text-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">{{ post.subtitle or '' }}</textarea>
         </div>
 
-        <div class="grid grid-cols-2 gap-6">
+        <!-- Slug + Meta -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label for="slug" class="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Slug
-                    (Auto-generated if empty)</label>
+                <label for="slug" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Slug
+                    <span class="text-gray-300">(auto if empty)</span></label>
                 <input id="slug" type="text" name="slug" value="{{ post.slug or '' }}"
-                    class="w-full bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-lg px-4 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    class="w-full bg-gray-50 border border-gray-300 text-gray-500 rounded-lg px-4 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
             </div>
             <div>
-                <label for="pub_date"
-                    class="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Publish Date</label>
-                <input id="pub_date" type="text" disabled value="{{ post.published_at or 'Now on Save' }}"
-                    class="w-full bg-zinc-900 border border-zinc-800 text-zinc-500 rounded-lg px-4 py-2 text-sm">
+                <label for="meta_description" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Meta Description
+                    <span class="text-gray-300">(SEO)</span></label>
+                <input id="meta_description" type="text" name="meta_description"
+                    value="{{ post.meta_description or '' }}" maxlength="160"
+                    class="w-full bg-gray-50 border border-gray-300 text-gray-500 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    placeholder="150 characters max">
             </div>
         </div>
 
-        <div>
-            <label for="content" class="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Content
-                (HTML Supported)</label>
-            <textarea id="content" name="content" rows="15" required
-                class="w-full bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm leading-relaxed">{{ post.content or '' }}</textarea>
-            <p class="text-xs text-zinc-600 mt-2">Use &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt; tags for formatting.</p>
+        <!-- Author Fields -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="author_name" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Author Name</label>
+                <input id="author_name" type="text" name="author_name"
+                    value="{{ post.author_name or 'Aaron Azadi' }}"
+                    class="w-full bg-white border border-gray-300 text-gray-900 rounded-lg px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+            </div>
+            <div>
+                <label for="author_title" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Author Title</label>
+                <input id="author_title" type="text" name="author_title"
+                    value="{{ post.author_title or 'The Architect' }}"
+                    class="w-full bg-white border border-gray-300 text-gray-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+            </div>
         </div>
 
-        <div class="pt-6 border-t border-zinc-800 flex justify-end gap-4">
-            {% if id != 'new' %}
-            <!-- Add Delete Button Logic Here Later -->
-            {% endif %}
-            <button type="submit"
-                class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-blue-500/20 transition-all">
-                {% if id == 'new' %}Publish Post{% else %}Save Changes{% endif %}
-            </button>
+        <!-- Content -->
+        <div>
+            <label for="content" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Content
+                <span class="text-gray-300">(HTML Supported)</span></label>
+            <textarea id="content" name="content" rows="20" required
+                class="w-full bg-white border border-gray-300 text-gray-800 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm leading-relaxed transition-all">{{ post.content or '' }}</textarea>
+            <p class="text-[10px] text-gray-400 mt-1.5">Use &lt;h2&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;ul&gt;, &lt;li&gt; tags for formatting.</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <!-- Left: Unpublish (if currently published) -->
+            <div>
+                {% if id != 'new' and (post.is_published or post.published_at) %}
+                <button type="submit" name="action" value="unpublish"
+                    class="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-4 py-2.5 rounded-lg border border-amber-200 transition-colors min-h-[44px]"
+                    onclick="return confirm('Unpublish this post? It will become a draft.')">
+                    ↩ Unpublish (Draft)
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Right: Save + Publish -->
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <button type="submit" name="action" value="save"
+                    class="flex-1 sm:flex-none bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2.5 rounded-lg font-bold text-sm border border-gray-300 transition-all min-h-[44px]">
+                    💾 Save Draft
+                </button>
+                {% if not post.is_published and not post.published_at %}
+                <button type="submit" name="action" value="publish"
+                    class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all min-h-[44px]"
+                    onclick="return confirm('Publish this post? It will be live at /lab/{{ post.slug or 'auto-slug' }}')">
+                    🚀 Publish
+                </button>
+                {% else %}
+                <button type="submit" name="action" value="save"
+                    class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-blue-500/20 transition-all min-h-[44px]">
+                    ✅ Save & Update Live
+                </button>
+                {% endif %}
+            </div>
         </div>
     </form>
 </div>

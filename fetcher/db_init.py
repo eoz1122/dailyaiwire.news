@@ -59,6 +59,12 @@ def init_db():
             published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Lazy migration: add is_published to blog_posts
+    try:
+        cursor.execute("SELECT is_published FROM blog_posts LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE blog_posts ADD COLUMN is_published BOOLEAN DEFAULT 0")
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS social_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

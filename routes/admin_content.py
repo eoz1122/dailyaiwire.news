@@ -186,17 +186,38 @@ def admin_newsletter_preview():
 def admin_editorials():
     conn = get_db_connection()
     try:
-        posts = conn.execute('SELECT * FROM blog_posts ORDER BY published_at DESC').fetchall()
+        posts = conn.execute('SELECT * FROM blog_posts ORDER BY published_at DESC, id DESC').fetchall()
     except Exception:
         posts = []
     conn.close()
     return render_template('admin/editorials.html', posts=posts)
 
 
+@admin_content_bp.route('/admin/editorial/generate')
+@login_required
+def admin_generate_opinion():
+    """Spawns opinion_generator.py to create a draft opinion piece."""
+    import subprocess
+    import sys
+    try:
+        subprocess.Popen([sys.executable, 'opinion_generator.py'], cwd=os.getcwd())
+        flash("🧠 Opinion piece generation started. A new DRAFT will appear in ~30 seconds.", "success")
+    except Exception as e:
+        flash(f"Failed to start opinion generator: {e}", "error")
+    return redirect(url_for('admin_content.admin_editorials'))
+
+
 @admin_content_bp.route('/admin/editorial/edit/<id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_editorial(id):
     conn = get_db_connection()
+
+    # Ensure is_published column exists
+    try:
+        conn.execute('SELECT is_published FROM blog_posts LIMIT 1')
+    except Exception:
+        conn.execute('ALTER TABLE blog_posts ADD COLUMN is_published BOOLEAN DEFAULT 0')
+        conn.commit()
 
     if request.method == 'POST':
         title = request.form.get('title')
@@ -206,33 +227,48 @@ def admin_edit_editorial(id):
 
         content = request.form.get('content')
         subtitle = request.form.get('subtitle')
-
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS blog_posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slug TEXT UNIQUE,
-                title TEXT,
-                subtitle TEXT,
-                content TEXT,
-                image TEXT,
-                author_name TEXT,
-                author_title TEXT,
-                author_image TEXT,
-                author_linkedin TEXT,
-                meta_description TEXT,
-                published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+        author_name = request.form.get('author_name', 'Aaron Azadi')
+        author_title = request.form.get('author_title', 'The Architect')
+        meta_description = request.form.get('meta_description', '')
+        action = request.form.get('action', 'save')
 
         if id == 'new':
-            conn.execute('INSERT INTO blog_posts (title, slug, content, subtitle, published_at) VALUES (?, ?, ?, ?, ?)',
-                         (title, slug, content, subtitle, datetime.now()))
+            is_published = 1 if action == 'publish' else 0
+            pub_at = datetime.now() if is_published else None
+            conn.execute('''INSERT INTO blog_posts
+                (title, slug, content, subtitle, author_name, author_title,
+                 author_linkedin, meta_description, is_published, published_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (title, slug, content, subtitle, author_name, author_title,
+                 'https://www.linkedin.com/in/aliemreozen/',
+                 meta_description, is_published, pub_at))
         else:
-            conn.execute('UPDATE blog_posts SET title=?, slug=?, content=?, subtitle=? WHERE id=?',
-                         (title, slug, content, subtitle, id))
+            if action == 'publish':
+                conn.execute('''UPDATE blog_posts SET title=?, slug=?, content=?, subtitle=?,
+                    author_name=?, author_title=?, meta_description=?,
+                    is_published=1, published_at=COALESCE(published_at, ?) WHERE id=?''',
+                    (title, slug, content, subtitle, author_name, author_title,
+                     meta_description, datetime.now(), id))
+            elif action == 'unpublish':
+                conn.execute('''UPDATE blog_posts SET title=?, slug=?, content=?, subtitle=?,
+                    author_name=?, author_title=?, meta_description=?,
+                    is_published=0, published_at=NULL WHERE id=?''',
+                    (title, slug, content, subtitle, author_name, author_title,
+                     meta_description, id))
+            else:
+                conn.execute('''UPDATE blog_posts SET title=?, slug=?, content=?, subtitle=?,
+                    author_name=?, author_title=?, meta_description=? WHERE id=?''',
+                    (title, slug, content, subtitle, author_name, author_title,
+                     meta_description, id))
         conn.commit()
         conn.close()
-        flash('Post saved successfully.')
+
+        if action == 'publish':
+            flash('✅ Post published successfully!', 'success')
+        elif action == 'unpublish':
+            flash('Post unpublished (back to DRAFT).', 'warning')
+        else:
+            flash('Post saved successfully.')
         return redirect(url_for('admin_content.admin_editorials'))
 
     post = {}

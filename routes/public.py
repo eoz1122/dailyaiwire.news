@@ -39,6 +39,8 @@ def index():
     q = request.args.get('q', '')
 
     ITEMS_PER_PAGE = 9
+    # Homepage page 1 has a newsletter card injected, so 8 + 1 = 9 = 3 clean rows
+    HOMEPAGE_GRID_SIZE = 8
 
     search_mode = 'none'
 
@@ -137,9 +139,9 @@ def index():
                     ORDER BY DATE(published_at) DESC,
                              (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
                     LIMIT ?
-                ''', all_carousel_ids + [ITEMS_PER_PAGE]).fetchall()
+                ''', all_carousel_ids + [HOMEPAGE_GRID_SIZE]).fetchall()
             else:
-                grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (ITEMS_PER_PAGE,)).fetchall()
+                grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (HOMEPAGE_GRID_SIZE,)).fetchall()
 
             total_arts_count = conn.execute(f'SELECT COUNT(*) FROM articles WHERE {published_condition}').fetchone()[0]
             total_arts = max(0, total_arts_count - len(carousel))
