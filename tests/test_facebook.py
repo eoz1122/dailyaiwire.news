@@ -11,7 +11,10 @@ class TestFacebookDistributor:
 
     def _make_distributor(self, with_creds=False):
         """Create a SocialDistributor with optional FB credentials."""
-        env_vars = {}
+        env_vars = {
+            "FB_PAGE_ID": "",
+            "FB_PAGE_ACCESS_TOKEN": "",
+        }
         if with_creds:
             env_vars = {
                 "FB_PAGE_ID": "123456789012345",
