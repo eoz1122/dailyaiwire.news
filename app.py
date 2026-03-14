@@ -273,7 +273,7 @@ def add_security_headers(response):
 def add_header(r):
     ct = r.content_type or ''
     if 'text/html' in ct:
-        r.headers['Cache-Control'] = 'no-store'
+        r.headers['Cache-Control'] = 'public, max-age=60, s-maxage=300'
     elif any(t in ct for t in ['image/', 'font/', 'css', 'javascript', 'audio/']):
         r.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     else:

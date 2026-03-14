@@ -5,6 +5,31 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-14T18:42:00+01:00 — SEO Indexing Crisis Recovery (127→1,900+ target)
+
+**Context**: Google Search Console showed indexed pages dropped from ~1,200 to 127 (of 3,863 discovered), with 1,310+ pages in "Crawled - currently not indexed" status. Traffic dropped massively since late Jan 2026.
+
+**Root Causes Identified**:
+1. **www/non-www duplication** (Critical): Nginx served identical content on both `dailyaiwire.news` and `www.dailyaiwire.news`, doubling perceived content and triggering duplicate content penalties.
+2. **`Cache-Control: no-store` on all HTML** (Critical): Told Google content was ephemeral/not worth caching.
+3. **Category URLs in sitemap** (High): `/?category=AI Agents` (with unescaped spaces) created invalid XML and wasted crawl budget on thin filter pages.
+4. **Paginated canonicals** (Medium): `/?category=X&page=2` canonicals diluted link equity.
+
+**Changes**:
+- `nginx_optimized.conf`: New HTTPS server block for `www.dailyaiwire.news` → 301 redirect to `dailyaiwire.news`. HTTP block simplified to always redirect to non-www HTTPS.
+- `app.py`: HTML `Cache-Control` changed from `no-store` → `public, max-age=60, s-maxage=300`.
+- `routes/public.py`: Removed explicit `no-cache, no-store, must-revalidate` override on homepage.
+- `routes/seo.py`: Removed 12+ `/?category=X` URLs from sitemap. Added `/signal` to static pages.
+- `templates/index.html`: Canonical always points to `https://dailyaiwire.news/`. Added `<meta name="robots" content="noindex, follow">` for paginated + category-filtered pages.
+
+**Tests**: 52/52 passing. No regressions.
+
+**Required manual steps**: Deploy to VPS, reload nginx (`sudo nginx -t && sudo systemctl reload nginx`), resubmit sitemap in GSC, click "Validate Fix" on "Crawled - currently not indexed" issue.
+
+**Rollback**: Revert `nginx_optimized.conf` to include `www.dailyaiwire.news` in main server block. Restore `no-store` in `app.py` and `public.py`. Restore category URLs in `seo.py` sitemap. Restore pagination canonicals in `index.html`.
+
+---
+
 ## 2026-03-12T14:51:00+01:00 — Curated LinkedIn RSS Feed (`/rss/linkedin`)
 
 **Decision**: Created a separate, quality-filtered RSS feed endpoint for the n8n → LinkedIn pipeline. Rather than posting all ~48 articles/day, the LinkedIn feed serves ≤20 top-signal articles with category diversity and time-window filtering.

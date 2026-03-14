@@ -11,8 +11,13 @@ breakthroughs, industry impact, and strategic insights for {{ category }} enthus
 intelligence curated daily. Get deep analysis on LLMs, robotics, automation tools, and business AI trends. Powered by
 Google Gemini.{% endif %}{% endblock %}
 
-{% block canonical %}https://dailyaiwire.news/{% if category %}?category={{ category }}{% endif %}{% if page > 1 %}{% if
-category %}&{% else %}?{% endif %}page={{ page }}{% endif %}{% endblock %}
+{% block canonical %}https://dailyaiwire.news/{% endblock %}
+
+{% block head_extra %}
+{% if page > 1 or category %}
+<meta name="robots" content="noindex, follow">
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">

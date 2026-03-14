@@ -238,7 +238,11 @@ def linkedin_rss_feed():
 
 @seo_bp.route('/sitemap.xml', methods=['GET'])
 def sitemap():
-    """Generates a dynamic XML sitemap for Google Indexing."""
+    """Generates a dynamic XML sitemap for Google Indexing.
+    
+    SEO Fix (2026-03-14): Removed category query-string URLs (thin pages
+    that dilute crawl budget) and ensured all URLs are properly encoded.
+    """
     base_url = "https://dailyaiwire.news"
     pages = []
     now_str = datetime.now().strftime('%Y-%m-%d')
@@ -249,19 +253,15 @@ def sitemap():
     pages.append([base_url + "/contact", 0.5, "monthly", now_str])
     pages.append([base_url + "/privacy", 0.5, "yearly", now_str])
     pages.append([base_url + "/lab", 0.8, "weekly", now_str])
+    pages.append([base_url + "/signal", 0.7, "weekly", now_str])
 
     conn = get_db_connection()
 
-    # 1. Categories
-    try:
-        categories = conn.execute('SELECT category FROM articles WHERE category IS NOT NULL GROUP BY category').fetchall()
-        for cat in categories:
-            url = f"{base_url}/?category={cat['category']}"
-            pages.append([url, 0.8, "daily", now_str])
-    except Exception as e:
-        print(f"Sitemap Error (Categories): {e}")
+    # NOTE: Category query-string URLs (/?category=X) intentionally excluded.
+    # They are thin filter views of the same content — not unique pages.
+    # Including them wastes crawl budget and creates near-duplicate signals.
 
-    # 2. Dynamic Articles
+    # Dynamic Articles (canonical article URLs only)
     try:
         query = """
             SELECT slug, published_at FROM articles
@@ -285,7 +285,7 @@ def sitemap():
 
     conn.close()
 
-    # 3. Lab Posts
+    # Lab Posts
     try:
         lab_posts = get_combined_lab_posts()
         for post in lab_posts:

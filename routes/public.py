@@ -183,9 +183,7 @@ def index():
         except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
         processed_carousel.append(d)
 
-    resp = make_response(render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow(), search_mode=search_mode, trends=trends))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return resp
+    return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow(), search_mode=search_mode, trends=trends)
 
 
 @public_bp.route('/how-it-works')
