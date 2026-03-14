@@ -163,18 +163,16 @@ def linkedin_rss_feed():
             SELECT *,
                 ROW_NUMBER() OVER (
                     PARTITION BY category
-                    ORDER BY importance_score DESC, published_at DESC
+                    ORDER BY published_at DESC
                 ) as cat_rank
             FROM articles
             WHERE is_published = 1
-              AND importance_score >= 80
+              AND importance_score >= 75
               AND published_at IS NOT NULL
               AND replace(published_at, 'T', ' ') <= datetime('now')
-              AND CAST(strftime('%H', replace(published_at, 'T', ' ')) AS INTEGER)
-                  NOT BETWEEN 2 AND 7
         )
         WHERE cat_rank <= 3
-        ORDER BY importance_score DESC, published_at DESC
+        ORDER BY published_at DESC
         LIMIT 20
     '''
     articles_db = conn.execute(query).fetchall()
