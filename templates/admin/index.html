@@ -468,13 +468,6 @@
 
 <script>
 function killArticle(articleId, btn) {
-    const action = btn.textContent.trim();
-    const confirmMsg = action === 'KILL'
-        ? 'Kill this article? It will go OFFLINE and be copied to Leads.'
-        : 'Restore this article? It will go back LIVE.';
-
-    if (!confirm(confirmMsg)) return;
-
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = '...';
