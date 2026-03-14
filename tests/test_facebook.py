@@ -42,53 +42,54 @@ class TestFacebookDistributor:
         captured = capsys.readouterr()
         assert "credentials missing" in captured.out.lower()
 
-    def test_correct_api_endpoint_called(self):
-        """Should POST to the correct Graph API endpoint."""
+    @patch("social_distributor.requests.post")
+    def test_correct_api_endpoint_called(self, mock_post):
+        """Should POST to the Graph API photos or feed endpoint."""
         dist = self._make_distributor(with_creds=True)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"id": "123456789012345_987654321"}
+        mock_post.return_value = mock_resp
 
-        with patch("social_distributor.requests.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = {"id": "123456789012345_987654321"}
-            mock_post.return_value = mock_resp
-
+        with patch("ig_card_generator.generate_card", return_value="/tmp/test.png"):
             dist.post_to_facebook(self._dummy_article())
 
-            call_args = mock_post.call_args
-            assert "graph.facebook.com/v22.0/123456789012345/feed" in call_args[0][0]
+        call_url = mock_post.call_args[0][0]
+        assert "graph.facebook.com/v22.0/123456789012345/" in call_url
 
-    def test_message_contains_required_fields(self):
-        """Message should include headline, gist (cleaned), and link."""
+    @patch("social_distributor.requests.post")
+    def test_message_contains_required_fields(self, mock_post):
+        """Message should include headline, gist (cleaned), and UTM link."""
         dist = self._make_distributor(with_creds=True)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"id": "123_456"}
+        mock_post.return_value = mock_resp
 
-        with patch("social_distributor.requests.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = {"id": "123_456"}
-            mock_post.return_value = mock_resp
-
+        with patch("ig_card_generator.generate_card", return_value="/tmp/test.png"):
             dist.post_to_facebook(self._dummy_article())
 
-            call_data = mock_post.call_args.kwargs.get("data", {})
-            message = call_data.get("message", "")
-            link = call_data.get("link", "")
+        call_data = mock_post.call_args.kwargs.get("data", {})
+        # Check caption (photo post) or message (link post)
+        text = call_data.get("caption", call_data.get("message", ""))
 
-            assert "GPT-5 Released" in message
-            assert "**" not in message  # Markdown should be cleaned
-            assert "gpt-5-released" in link
-            assert "#DailyAIWire" in message
+        assert "GPT-5 Released" in text
+        assert "**" not in text  # Markdown should be cleaned
+        assert "#DailyAIWire" in text
 
-    def test_link_param_sent_separately(self):
-        """Facebook link should be passed as a separate 'link' param for rich preview."""
+    @patch("social_distributor.requests.post")
+    def test_utm_params_in_link(self, mock_post):
+        """Facebook links should include UTM tracking parameters."""
         dist = self._make_distributor(with_creds=True)
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"id": "123_456"}
+        mock_post.return_value = mock_resp
 
-        with patch("social_distributor.requests.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.json.return_value = {"id": "123_456"}
-            mock_post.return_value = mock_resp
-
+        with patch("ig_card_generator.generate_card", return_value="/tmp/test.png"):
             dist.post_to_facebook(self._dummy_article())
 
-            call_data = mock_post.call_args.kwargs.get("data", {})
-            assert call_data.get("link") == "https://dailyaiwire.news/article/gpt-5-released"
+        call_data = mock_post.call_args.kwargs.get("data", {})
+        text = call_data.get("caption", call_data.get("message", ""))
+        link = call_data.get("link", text)
+        assert "utm_source=facebook" in link
 
     def test_error_response_returns_false(self):
         """Should return False when API returns an error."""
@@ -101,7 +102,8 @@ class TestFacebookDistributor:
             }
             mock_post.return_value = mock_resp
 
-            result = dist.post_to_facebook(self._dummy_article())
+            with patch("ig_card_generator.generate_card", return_value="/tmp/test.png"):
+                result = dist.post_to_facebook(self._dummy_article())
             assert result is False
 
     def test_rate_limit_error_is_reraised(self):
@@ -116,8 +118,9 @@ class TestFacebookDistributor:
             }
             mock_post.return_value = mock_resp
 
-            with pytest.raises(Exception, match="Facebook Rate Limit"):
-                dist.post_to_facebook(self._dummy_article())
+            with patch("ig_card_generator.generate_card", return_value="/tmp/test.png"):
+                with pytest.raises(Exception, match="Facebook Rate Limit"):
+                    dist.post_to_facebook(self._dummy_article())
 
     def test_successful_post_returns_true(self):
         """Should return True when post succeeds."""
@@ -128,5 +131,6 @@ class TestFacebookDistributor:
             mock_resp.json.return_value = {"id": "123456789012345_987654321"}
             mock_post.return_value = mock_resp
 
-            result = dist.post_to_facebook(self._dummy_article())
+            with patch("ig_card_generator.generate_card", return_value="/tmp/test.png"):
+                result = dist.post_to_facebook(self._dummy_article())
             assert result is True

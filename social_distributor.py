@@ -57,7 +57,7 @@ class SocialDistributor:
             gist = article.get('gist', '')
             question = article.get('thought_provoking_question', '')
             slug = article.get('seo_slug')
-            link = f"{self.base_url}/article/{slug}"
+            link = f"{self.base_url}/article/{slug}?utm_source=twitter&utm_medium=social&utm_campaign=auto_post"
             hashtags = article.get('hashtags', [])
             
             # Use provided hashtags only - NO generic fallbacks
@@ -122,17 +122,24 @@ class SocialDistributor:
             gist = article.get('gist', '')
             question = article.get('thought_provoking_question', '')
             hashtags = article.get('hashtags', [])
-            image_path = article.get('image', '')
-            link = f"{self.base_url}/article/{slug}"
+            link = f"{self.base_url}/article/{slug}?utm_source=instagram&utm_medium=social&utm_campaign=auto_post"
 
-            # Instagram requires a publicly accessible image URL (JPEG)
-            if image_path and not image_path.startswith('http'):
-                image_url = f"{self.base_url}{image_path}"
-            elif image_path:
-                image_url = image_path
-            else:
-                print("⚠️ No image found for article. Instagram requires an image. Skipping.")
-                return False
+            # Generate branded card image
+            try:
+                from ig_card_generator import generate_card
+                card_path = generate_card(headline=headline, slug=slug, gist=gist)
+                image_url = f"{self.base_url}/static/img/social/{slug}.png"
+                print(f"🎨 Using branded card: {image_url}")
+            except Exception as card_err:
+                print(f"⚠️ Card generation failed: {card_err}, falling back to article image")
+                image_path = article.get('image', '')
+                if image_path and not image_path.startswith('http'):
+                    image_url = f"{self.base_url}{image_path}"
+                elif image_path:
+                    image_url = image_path
+                else:
+                    print("⚠️ No image found for article. Instagram requires an image. Skipping.")
+                    return False
 
             # Clean markdown formatting
             gist_clean = gist.replace('**', '')
@@ -268,7 +275,7 @@ class SocialDistributor:
             gist = article.get('gist', '')
             question = article.get('thought_provoking_question', '')
             hashtags = article.get('hashtags', [])
-            link = f"{self.base_url}/article/{slug}"
+            link = f"{self.base_url}/article/{slug}?utm_source=facebook&utm_medium=social&utm_campaign=auto_post"
 
             # Clean markdown formatting
             gist_clean = gist.replace('**', '')
@@ -299,15 +306,37 @@ class SocialDistributor:
 
             api_base = "https://graph.facebook.com/v22.0"
 
-            resp = requests.post(
-                f"{api_base}/{self.fb_page_id}/feed",
-                data={
-                    "message": message,
-                    "link": link,
-                    "access_token": self.fb_page_access_token,
-                },
-                timeout=30,
-            )
+            # Generate branded card for Facebook photo post
+            image_url = None
+            try:
+                from ig_card_generator import generate_card
+                card_path = generate_card(headline=headline, slug=slug, gist=gist)
+                image_url = f"{self.base_url}/static/img/social/{slug}.png"
+                print(f"🎨 Using branded card for FB: {image_url}")
+            except Exception as card_err:
+                print(f"⚠️ Card generation failed: {card_err}, posting without image")
+
+            # Post as photo if card available, otherwise as link
+            if image_url:
+                resp = requests.post(
+                    f"{api_base}/{self.fb_page_id}/photos",
+                    data={
+                        "url": image_url,
+                        "caption": message + f"\n\n🔗 {link}",
+                        "access_token": self.fb_page_access_token,
+                    },
+                    timeout=30,
+                )
+            else:
+                resp = requests.post(
+                    f"{api_base}/{self.fb_page_id}/feed",
+                    data={
+                        "message": message,
+                        "link": link,
+                        "access_token": self.fb_page_access_token,
+                    },
+                    timeout=30,
+                )
             resp_data = resp.json()
 
             if "error" in resp_data:
