@@ -167,7 +167,7 @@ class SocialDistributor:
             print(caption[:200] + "..." if len(caption) > 200 else caption)
             print("-" * 30)
 
-            api_base = "https://graph.instagram.com/v22.0"
+            api_base = "https://graph.facebook.com/v22.0"
 
             # Step 1: Create media container
             container_resp = requests.post(
