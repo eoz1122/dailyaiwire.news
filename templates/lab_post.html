@@ -29,15 +29,16 @@
     <!-- Global Premium Author Block for Lab Reports -->
     <!-- Global Premium Author Block for Lab Reports -->
     <div class="flex items-center gap-4 py-8 border-y border-zinc-800/50 mb-12">
-        <img src="{{ emre.image }}" alt="{{ emre.name }}"
+        <img src="{% if not post.author_name or post.author_name == emre.name %}{{ emre.image }}{% else %}https://ui-avatars.com/api/?name={{ post.author_name|urlencode }}&size=96&background=2563eb&color=fff{% endif %}" alt="{{ post.author_name or emre.name }}"
             class="w-12 h-12 rounded-full ring-2 ring-zinc-800 object-cover">
         <div>
             <div class="flex items-center gap-2 mb-1">
-                <span class="text-white font-bold text-sm">{{ emre.name }}</span>
-                <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">{{ emre.title }}</span>
+                <span class="text-white font-bold text-sm">{{ post.author_name or emre.name }}</span>
+                <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">{{ post.author_title or emre.title }}</span>
             </div>
             <div class="flex items-center gap-3 text-xs text-zinc-500 font-bold uppercase tracking-wide">
                 <span>{{ post.date }}</span>
+                {% if not post.author_name or post.author_name == emre.name %}
                 <span class="text-zinc-700">•</span>
                 <a href="{{ emre.linkedin }}" target="_blank"
                     class="inline-flex items-center space-x-2 text-white bg-blue-700 hover:bg-blue-600 px-6 py-2 rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 font-bold uppercase text-[10px] tracking-widest">
@@ -47,6 +48,7 @@
                     </svg>
                     <span>Connect via LinkedIn</span>
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
