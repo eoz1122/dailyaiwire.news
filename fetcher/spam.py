@@ -4,8 +4,11 @@ Keyword filtering, heuristic microsites detection, and dynamic blocklist checks.
 """
 import re
 import sqlite3
+import logging
 
 from db import get_db_connection, DB_PATH
+
+logger = logging.getLogger('fetcher.spam')
 
 
 def is_spam(title: str) -> bool:
@@ -57,10 +60,10 @@ def is_spam_source(url, title):
     try:
         blocked = conn.execute("SELECT 1 FROM blocked_sources WHERE domain = ?", (domain,)).fetchone()
         if blocked:
-            print(f"🛡️ Blocked Source (DB): {domain}")
+            logger.info("🛡️ Blocked Source (DB): %s", domain)
             return True
     except Exception as e:
-        print(f"Error checking blocked sources DB: {e}")
+        logger.error("Error checking blocked sources DB: %s", e)
     finally:
         conn.close()
 
@@ -73,7 +76,7 @@ def is_spam_source(url, title):
 
     for pattern in spam_patterns:
         if re.search(pattern, domain):
-            print(f"🛡️ Blocked Source (Heuristic): {domain} matches spam pattern.")
+            logger.info("🛡️ Blocked Source (Heuristic): %s matches spam pattern.", domain)
             return True
 
     return False

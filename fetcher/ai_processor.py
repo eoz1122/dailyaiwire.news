@@ -6,6 +6,8 @@ import os
 import re
 import json
 import time
+import hashlib
+import logging
 from typing import List, Dict
 
 import google.generativeai as genai
@@ -17,6 +19,8 @@ from fetcher.spam import is_spam_source
 from fetcher.db_init import log_processing_attempt
 
 load_dotenv()
+
+logger = logging.getLogger('fetcher.ai')
 
 # Budget Tracker
 from budget_tracker import BudgetTracker
@@ -32,7 +36,7 @@ def process_batch(batch: List[Dict]):
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        print("❌ Error: GEMINI_API_KEY not found in environment variables.")
+        logger.error("❌ GEMINI_API_KEY not found in environment variables.")
         return []
 
     # Initialize Gemini Client
@@ -57,11 +61,11 @@ def process_batch(batch: List[Dict]):
             log_processing_attempt(item['link'], status="REDIRECT_TO_LEAD_GEN")
 
             # --- IRON JUDO LOGIC ---
-            print(f"🥋 Iron Judo: Redirecting potential spam to Lead Extractor: {item['title']}")
+            logger.info("🥋 Iron Judo: Redirecting potential spam to Lead Extractor: %s", item['title'])
             try:
                 lead_extractor.extract_and_log(item['link'], item['title'])
             except Exception as e:
-                print(f"   ⚠️ Lead Extraction Failed: {e}")
+                logger.warning("   ⚠️ Lead Extraction Failed: %s", e)
             # -----------------------
 
             continue
@@ -72,12 +76,16 @@ def process_batch(batch: List[Dict]):
 
         # QUALITY CONTROL: If scraper got nothing (<300 chars), SKIP IT.
         if not content or len(content) < 300:
-            print(f"📉 Low Content Signal ({len(content) if content else 0} chars). Skipping: {item['title']}")
+            logger.info("📉 Low Content Signal (%d chars). Skipping: %s", len(content) if content else 0, item['title'])
             log_processing_attempt(item['link'], status="SKIPPED_LOW_CONTENT")
             skipped_low_quality += 1
             continue
 
         analysis_context = content[:3500]
+
+        # PROVENANCE: Compute content hash for audit trail
+        item['source_content_hash'] = hashlib.sha256(content.encode('utf-8', errors='replace')).hexdigest()
+        item['ai_model_used'] = model_name
 
         # DEEP RESEARCH ENRICHMENT (Phase 3: GEO)
         # For high-signal articles, enrich with web research
@@ -94,9 +102,9 @@ def process_batch(batch: List[Dict]):
                 research = deep_research(item['title'], content[:500])
                 if research and research.get('context'):
                     research_block = f"\n\nSUPPLEMENTARY RESEARCH (Cross-referenced from primary sources):\n{research['context']}"
-                    print(f"🔬 Enriched '{item['title'][:50]}...' with {research['source_count']} research sources")
+                    logger.info("🔬 Enriched '%s...' with %d research sources", item['title'][:50], research['source_count'])
         except Exception as e:
-            print(f"⚠️ Deep research skipped (non-blocking): {e}")
+            logger.warning("⚠️ Deep research skipped (non-blocking): %s", e)
 
         batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']} (Ensure Output is English)\nSOURCE CONTENT: {analysis_context}{research_block}")
 
@@ -104,7 +112,7 @@ def process_batch(batch: List[Dict]):
         log_processing_attempt(item['link'], status="SENT_TO_API")
 
     if not batch_input:
-        print("⚠️ All articles in this batch were skipped due to low content.")
+        logger.warning("⚠️ All articles in this batch were skipped due to low content.")
         return []
 
     prompt = (
@@ -145,7 +153,7 @@ def process_batch(batch: List[Dict]):
         # Budget check before making API call
         estimated_tokens = len(prompt) // 4 + 2000
         if not budget.can_make_request(estimated_tokens):
-            print("Skipping batch due to budget cap. Run will resume next month.")
+            logger.warning("Skipping batch due to budget cap. Run will resume next month.")
             return []
 
         # Retry logic for quota issues (429)
@@ -170,19 +178,28 @@ def process_batch(batch: List[Dict]):
                     raw_json = re.sub(r'\s*```$', '', raw_json, flags=re.MULTILINE)
 
                 clean_json_str = raw_json.replace('**', '')
-                return json.loads(clean_json_str, strict=False)
+                processed = json.loads(clean_json_str, strict=False)
+
+                # PROVENANCE: Attach source_content_hash and ai_model_used to each result
+                for art in processed:
+                    batch_id = art.get('batch_id')
+                    if isinstance(batch_id, int) and 0 <= batch_id < len(batch):
+                        art['source_content_hash'] = batch[batch_id].get('source_content_hash')
+                        art['ai_model_used'] = batch[batch_id].get('ai_model_used', model_name)
+
+                return processed
             except Exception as e:
                 if "429" in str(e):
                     wait_time = (attempt + 1) * 45
-                    print(f"Quota hit! Waiting {wait_time}s and retrying...")
+                    logger.warning("Quota hit! Waiting %ds and retrying...", wait_time)
                     time.sleep(wait_time)
                     continue
-                print(f"API Error ({attempt+1}/5): {e}")
+                logger.error("API Error (%d/5): %s", attempt + 1, e)
                 if "JSON" in str(e) or "control character" in str(e).lower():
-                    print(f"Problematic JSON snippet: {raw_json[:200]}...")
+                    logger.debug("Problematic JSON snippet: %s...", raw_json[:200])
                 time.sleep(10)
                 continue
         return []
     except Exception as e:
-        print(f"Error processing batch: {e}")
+        logger.error("Error processing batch: %s", e)
         return []

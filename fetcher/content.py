@@ -2,8 +2,12 @@
 Fetcher — Content Extraction
 URL content extraction with SSRF protection and image fallback logic.
 """
+import logging
+
 import trafilatura
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger('fetcher.content')
 
 
 def extract_content(url: str):
@@ -35,14 +39,14 @@ def extract_content(url: str):
                 ip = sockaddr[0]
                 ip_obj = ipaddress.ip_address(ip)
                 if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
-                    print(f"🚫 Blocked SSRF Attempt: {target_url} resolves to {ip}")
+                    logger.warning("🚫 Blocked SSRF Attempt: %s resolves to %s", target_url, ip)
                     return False
             return True
         except Exception:
             return False
 
     if not is_safe_url(url):
-        print(f"⚠️ Unsafe URL blocked: {url}")
+        logger.warning("⚠️ Unsafe URL blocked: %s", url)
         return None, None
 
     downloaded = trafilatura.fetch_url(url)
@@ -55,7 +59,7 @@ def extract_content(url: str):
             response.raise_for_status()
             downloaded = response.text
         except Exception as e:
-            print(f"⚠️ Request failed for {url}: {e}")
+            logger.warning("⚠️ Request failed for %s: %s", url, e)
             downloaded = None
 
     if downloaded:

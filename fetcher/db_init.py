@@ -4,10 +4,13 @@ Schema creation, lazy migrations, and scan tracking.
 """
 import os
 import sqlite3
+import logging
 from datetime import datetime, timedelta
 from typing import List
 
 from db import DB_PATH
+
+logger = logging.getLogger('fetcher.db')
 
 
 def init_db():
@@ -178,7 +181,20 @@ def init_db():
         cursor.execute("SELECT compass_score FROM articles LIMIT 1")
     except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE articles ADD COLUMN compass_score REAL DEFAULT 0.7")
-        print("📐 Added compass_score column to articles table.")
+        logger.info("📐 Added compass_score column to articles table.")
+
+    # Lazy migration: Add provenance columns if missing
+    try:
+        cursor.execute("SELECT source_content_hash FROM articles LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE articles ADD COLUMN source_content_hash TEXT")
+        logger.info("🔗 Added source_content_hash column to articles table.")
+
+    try:
+        cursor.execute("SELECT ai_model_used FROM articles LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE articles ADD COLUMN ai_model_used TEXT")
+        logger.info("🤖 Added ai_model_used column to articles table.")
 
     conn.commit()
     conn.close()
@@ -235,4 +251,4 @@ def log_processing_attempt(url: str, status="PROCESSING"):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"⚠️ Failed to log attempt: {e}")
+        logger.warning("⚠️ Failed to log attempt: %s", e)

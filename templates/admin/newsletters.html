@@ -49,8 +49,8 @@
                         Scheduled: <span class="text-zinc-300">{{ nl.scheduled_date }}</span>
                     </span>
 
-                    {% if nl.status == 'SENT' %}
-                    <!-- Delivery Stats -->
+                    {% if nl.sent_count %}
+                    <!-- Delivery Stats (show regardless of status) -->
                     <span class="text-sm font-semibold text-blue-400">
                         📨 {{ nl.sent_count }} sent
                     </span>
@@ -63,7 +63,7 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                {% if nl.status == 'DRAFT' %}
+                {% if nl.status in ['DRAFT', 'PARTIAL'] %}
                 <a href="/admin/newsletter/send/{{ nl.id }}"
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors min-h-[40px] flex items-center">
                     Send Now

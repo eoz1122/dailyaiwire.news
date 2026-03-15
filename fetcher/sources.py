@@ -6,6 +6,7 @@ import os
 import time
 import sqlite3
 import difflib
+import logging
 import feedparser
 import requests
 from datetime import datetime, timedelta
@@ -17,6 +18,8 @@ from dotenv import load_dotenv
 from db import DB_PATH
 from fetcher.db_init import get_last_scan_timestamp, get_recent_published_titles, log_processing_attempt
 from fetcher.spam import is_spam, is_ignored_source
+
+logger = logging.getLogger('fetcher.sources')
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -32,11 +35,11 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     if not articles:
         return []
 
-    print(f"AI Pre-Filtering {len(articles)} headlines for signal quality and deduplication...")
+    logger.info("AI Pre-Filtering %d headlines for signal quality and deduplication...", len(articles))
 
     # OPTIMIZATION: If we have very few articles, don't waste an AI call filtering them.
     if len(articles) <= 5:
-        print(f"Skipping AI filter (Small batch: {len(articles)} articles). processing all.")
+        logger.info("Skipping AI filter (Small batch: %d articles). processing all.", len(articles))
         return articles
 
     # Bundle headlines for efficient batch checking
@@ -80,12 +83,12 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     try:
         from ai_config import DEFAULT_MODEL
         model_name = DEFAULT_MODEL
-        print(f"⚡ using AI Model (Filter): {model_name}")
+        logger.info("⚡ using AI Model (Filter): %s", model_name)
 
         # Budget Check
         estimated_tokens = len(prompt) // 4 + 500
         if not budget.can_make_request(estimated_tokens):
-             print("Skipping filter due to budget.")
+             logger.warning("Skipping filter due to budget.")
              return articles[:8]  # Fallback
 
         model = genai.GenerativeModel(model_name)
@@ -103,10 +106,10 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
         indices = [int(i.strip()) for i in text.split(',') if i.strip().isdigit()]
 
         filtered = [articles[i] for i in indices if i < len(articles)]
-        print(f"Filtered down to {len(filtered)} high-signal articles.")
+        logger.info("Filtered down to %d high-signal articles.", len(filtered))
         return filtered
     except Exception as e:
-        print(f"Headline filtering failed: {e}. Proceeding with first 10 articles as fallback.")
+        logger.error("Headline filtering failed: %s. Proceeding with first 10 articles as fallback.", e)
         return articles[:10]
 
 
@@ -119,7 +122,7 @@ def fetch_all_sources() -> List[Dict]:
         cursor.execute("SELECT name, url FROM sources WHERE is_active = 1")
         sources = cursor.fetchall()
     except sqlite3.OperationalError:
-        print("⚠️ 'sources' table not found. Using fallback list.")
+        logger.warning("⚠️ 'sources' table not found. Using fallback list.")
         sources = [
             ("The Verge", "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"),
             ("OpenAI", "https://openai.com/news/rss.xml")
@@ -128,7 +131,7 @@ def fetch_all_sources() -> List[Dict]:
         conn.close()
 
     if not sources:
-        print("⚠️ No active sources found in DB.")
+        logger.warning("⚠️ No active sources found in DB.")
         return []
 
     unique_articles = {}
@@ -142,10 +145,10 @@ def fetch_all_sources() -> List[Dict]:
 
     # GET STATE: Only fetch articles after last scan
     last_scan = get_last_scan_timestamp()
-    print(f"📡 Only scanning news published since: {last_scan.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("📡 Only scanning news published since: %s", last_scan.strftime('%Y-%m-%d %H:%M:%S'))
 
     for source_name, url in sources:
-        print(f"Fetching from {source_name}...")
+        logger.info("Fetching from %s...", source_name)
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -159,7 +162,7 @@ def fetch_all_sources() -> List[Dict]:
                 resp.raise_for_status()
                 feed = feedparser.parse(resp.content)
             except Exception as req_err:
-                print(f"   ⚠️ Connection error for {source_name}: {req_err}")
+                logger.warning("   ⚠️ Connection error for %s: %s", source_name, req_err)
                 continue
 
             entries = feed.entries[:30] if source_name == "Google News" else feed.entries
@@ -225,18 +228,18 @@ def fetch_all_sources() -> List[Dict]:
                     }
                     added_count += 1
 
-            print(f"   ↳ {len(entries)} entries found. {added_count} new, {skipped_count} skipped (old).")
+            logger.info("   ↳ %d entries found. %d new, %d skipped (old).", len(entries), added_count, skipped_count)
 
         except Exception as e:
-            print(f"Error fetching {source_name}: {e}")
+            logger.error("Error fetching %s: %s", source_name, e)
 
     all_articles = list(unique_articles.values())
 
     if not all_articles:
-        print("📭 No new articles found since last scan.")
+        logger.info("📭 No new articles found since last scan.")
         return []
 
-    print(f"Found {len(all_articles)} candidates for filtering.")
+    logger.info("Found %d candidates for filtering.", len(all_articles))
 
     # HARD LIMIT: Cap at 100 headlines to save tokens
     if len(all_articles) > 100:
@@ -259,7 +262,7 @@ def fetch_all_sources() -> List[Dict]:
     # Filter candidates with Local Fuzzy Deduplication (Cost: $0)
     candidates = []
 
-    print(f"🔎 Scanning {len(all_articles)} raw headlines against {len(recent_titles)} recent titles...")
+    logger.info("🔎 Scanning %d raw headlines against %d recent titles...", len(all_articles), len(recent_titles))
 
     for art in all_articles:
         # 1. Check if URL attempted
@@ -290,12 +293,12 @@ def fetch_all_sources() -> List[Dict]:
         candidates.append(art)
 
     if not candidates:
-        print("All candidates have already been attempted or matched recently. Skipping.")
+        logger.info("All candidates have already been attempted or matched recently. Skipping.")
         return []
 
     # CAP: Limit to top 40 candidates to prevent massive bills on "catch-up" runs
     if len(candidates) > 40:
-        print(f"⚠️ High Volume Warning: Capping {len(candidates)} candidates to 40 to protect budget.")
+        logger.warning("⚠️ High Volume Warning: Capping %d candidates to 40 to protect budget.", len(candidates))
         candidates = candidates[:40]
 
     return filter_high_signal_headlines(candidates, recent_titles)

@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 
 # Patch for Python 3.13+ where imghdr was removed (tweepy depends on it)
 if sys.version_info >= (3, 13):
@@ -14,6 +15,8 @@ from dotenv import load_dotenv
 from google_indexer import notify_google_index
 
 load_dotenv()
+
+logger = logging.getLogger('social')
 
 class SocialDistributor:
     def __init__(self):
@@ -41,7 +44,7 @@ class SocialDistributor:
     def post_to_x(self, article):
         """Posts article gist, question, and link to X (Twitter)."""
         if not all([self.x_api_key, self.x_api_secret, self.x_access_token, self.x_access_secret]):
-            print("⚠️ X (Twitter) credentials missing. Skipping post.")
+            logger.warning("⚠️ X (Twitter) credentials missing. Skipping post.")
             return
 
         try:
@@ -85,14 +88,14 @@ class SocialDistributor:
                 
             tweet_text += link
             
-            print("🐦 X (Twitter) Preview:")
-            print("-" * 30)
-            print(tweet_text)
-            print("-" * 30)
+            logger.info("🐦 X (Twitter) Preview:")
+            logger.info("-" * 30)
+            logger.info(tweet_text)
+            logger.info("-" * 30)
             
             # Send the tweet
             response = client.create_tweet(text=tweet_text)
-            print(f"✅ Posted to X! ID: {response.data['id']}")
+            logger.info("✅ Posted to X! ID: %s", response.data['id'])
             
             # TRIGGER GOOGLE INDEXING (Instant Crawl)
             notify_google_index(link)
@@ -102,7 +105,7 @@ class SocialDistributor:
             # CRITICAL LOOP FIX: Re-raise "Too Many Requests" so the scheduler knows to sleep
             if "429" in str(e) or "Too Many Requests" in str(e):
                 raise e
-            print(f"❌ Error posting to X: {e}")
+            logger.error("❌ Error posting to X: %s", e)
             return False
 
     def post_to_instagram(self, article):
@@ -113,7 +116,7 @@ class SocialDistributor:
         2. POST /{ig-user-id}/media_publish → publishes the container
         """
         if not all([self.ig_user_id, self.ig_access_token]):
-            print("⚠️ Instagram credentials missing. Skipping post.")
+            logger.warning("⚠️ Instagram credentials missing. Skipping post.")
             return False
 
         try:
@@ -129,16 +132,16 @@ class SocialDistributor:
                 from ig_card_generator import generate_card
                 card_path = generate_card(headline=headline, slug=slug, gist=gist)
                 image_url = f"{self.base_url}/static/img/social/{slug}.png"
-                print(f"🎨 Using branded card: {image_url}")
+                logger.info("🎨 Using branded card: %s", image_url)
             except Exception as card_err:
-                print(f"⚠️ Card generation failed: {card_err}, falling back to article image")
+                logger.warning("⚠️ Card generation failed: %s, falling back to article image", card_err)
                 image_path = article.get('image', '')
                 if image_path and not image_path.startswith('http'):
                     image_url = f"{self.base_url}{image_path}"
                 elif image_path:
                     image_url = image_path
                 else:
-                    print("⚠️ No image found for article. Instagram requires an image. Skipping.")
+                    logger.warning("⚠️ No image found for article. Instagram requires an image. Skipping.")
                     return False
 
             # Clean markdown formatting
@@ -168,11 +171,11 @@ class SocialDistributor:
             if len(caption) > 2200:
                 caption = caption[:2197] + "..."
 
-            print("📸 Instagram Preview:")
-            print("-" * 30)
-            print(f"Image: {image_url}")
-            print(caption[:200] + "..." if len(caption) > 200 else caption)
-            print("-" * 30)
+            logger.info("📸 Instagram Preview:")
+            logger.info("-" * 30)
+            logger.info("Image: %s", image_url)
+            logger.info(caption[:200] + "..." if len(caption) > 200 else caption)
+            logger.info("-" * 30)
 
             api_base = "https://graph.facebook.com/v22.0"
 
@@ -190,7 +193,7 @@ class SocialDistributor:
 
             if "error" in container_data:
                 err = container_data["error"]
-                print(f"❌ Instagram Container Error: {err.get('message', err)}")
+                logger.error("❌ Instagram Container Error: %s", err.get('message', err))
                 # Re-raise rate limit errors for scheduler backoff
                 if err.get("code") == 4 or err.get("code") == 32:
                     raise Exception(f"Instagram Rate Limit: {err.get('message')}")
@@ -198,10 +201,10 @@ class SocialDistributor:
 
             creation_id = container_data.get("id")
             if not creation_id:
-                print(f"❌ No container ID returned: {container_data}")
+                logger.error("❌ No container ID returned: %s", container_data)
                 return False
 
-            print(f"📦 Container created: {creation_id}")
+            logger.info("📦 Container created: %s", creation_id)
 
             # Step 2: Wait for container to be ready (poll status)
             import time as _time
@@ -220,13 +223,13 @@ class SocialDistributor:
                 if status_code == "FINISHED":
                     break
                 elif status_code == "ERROR":
-                    print(f"❌ Container processing failed: {status_data}")
+                    logger.error("❌ Container processing failed: %s", status_data)
                     return False
                 else:
-                    print(f"⏳ Container status: {status_code} (attempt {attempt + 1}/10)")
+                    logger.info("⏳ Container status: %s (attempt %d/10)", status_code, attempt + 1)
                     _time.sleep(3)
             else:
-                print("❌ Container processing timed out after 30s.")
+                logger.error("❌ Container processing timed out after 30s.")
                 return False
 
             # Step 3: Publish the container
@@ -242,22 +245,22 @@ class SocialDistributor:
 
             if "error" in publish_data:
                 err = publish_data["error"]
-                print(f"❌ Instagram Publish Error: {err.get('message', err)}")
+                logger.error("❌ Instagram Publish Error: %s", err.get('message', err))
                 if err.get("code") == 4 or err.get("code") == 32:
                     raise Exception(f"Instagram Rate Limit: {err.get('message')}")
                 return False
 
             media_id = publish_data.get("id")
-            print(f"✅ Posted to Instagram! Media ID: {media_id}")
+            logger.info("✅ Posted to Instagram! Media ID: %s", media_id)
             return True
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Instagram network error: {e}")
+            logger.error("❌ Instagram network error: %s", e)
             return False
         except Exception as e:
             if "Rate Limit" in str(e):
                 raise e
-            print(f"❌ Error posting to Instagram: {e}")
+            logger.error("❌ Error posting to Instagram: %s", e)
             return False
 
     def post_to_facebook(self, article):
@@ -266,7 +269,7 @@ class SocialDistributor:
         Single-step: POST /{page-id}/feed with message + link
         """
         if not all([self.fb_page_id, self.fb_page_access_token]):
-            print("⚠️ Facebook Page credentials missing. Skipping post.")
+            logger.warning("⚠️ Facebook Page credentials missing. Skipping post.")
             return False
 
         try:
@@ -298,11 +301,11 @@ class SocialDistributor:
 
             message = "\n".join(msg_parts)
 
-            print("📘 Facebook Preview:")
-            print("-" * 30)
-            print(message[:200] + "..." if len(message) > 200 else message)
-            print(f"Link: {link}")
-            print("-" * 30)
+            logger.info("📘 Facebook Preview:")
+            logger.info("-" * 30)
+            logger.info(message[:200] + "..." if len(message) > 200 else message)
+            logger.info("Link: %s", link)
+            logger.info("-" * 30)
 
             api_base = "https://graph.facebook.com/v22.0"
 
@@ -312,9 +315,9 @@ class SocialDistributor:
                 from ig_card_generator import generate_card
                 card_path = generate_card(headline=headline, slug=slug, gist=gist)
                 image_url = f"{self.base_url}/static/img/social/{slug}.png"
-                print(f"🎨 Using branded card for FB: {image_url}")
+                logger.info("🎨 Using branded card for FB: %s", image_url)
             except Exception as card_err:
-                print(f"⚠️ Card generation failed: {card_err}, posting without image")
+                logger.warning("⚠️ Card generation failed: %s, posting without image", card_err)
 
             # Post as photo if card available, otherwise as link
             if image_url:
@@ -341,23 +344,23 @@ class SocialDistributor:
 
             if "error" in resp_data:
                 err = resp_data["error"]
-                print(f"❌ Facebook Post Error: {err.get('message', err)}")
+                logger.error("❌ Facebook Post Error: %s", err.get('message', err))
                 # Re-raise rate limit errors for scheduler backoff
                 if err.get("code") in (4, 32, 368):
                     raise Exception(f"Facebook Rate Limit: {err.get('message')}")
                 return False
 
             post_id = resp_data.get("id")
-            print(f"✅ Posted to Facebook! Post ID: {post_id}")
+            logger.info("✅ Posted to Facebook! Post ID: %s", post_id)
             return True
 
         except requests.exceptions.RequestException as e:
-            print(f"❌ Facebook network error: {e}")
+            logger.error("❌ Facebook network error: %s", e)
             return False
         except Exception as e:
             if "Rate Limit" in str(e):
                 raise e
-            print(f"❌ Error posting to Facebook: {e}")
+            logger.error("❌ Error posting to Facebook: %s", e)
             return False
 
     def post_to_linkedin(self, article):
@@ -373,13 +376,13 @@ class SocialDistributor:
         li_text = f"📢 AI-First Intelligence Analysis: {headline}\n\n{analysis_clean[:400]}...\n\nFull Investigation: {link}\n\n#AI #DailyAIWire #HybridIntelligence #Innovation"
         
         if not self.linkedin_access_token:
-            print("📝 LinkedIn Preview (Token missing):")
-            print("-" * 30)
-            print(li_text)
-            print("-" * 30)
+            logger.info("📝 LinkedIn Preview (Token missing):")
+            logger.info("-" * 30)
+            logger.info(li_text)
+            logger.info("-" * 30)
             return
             
-        print(f"✅ LinkedIn Automation: Sent analysis for '{headline}'")
+        logger.info("✅ LinkedIn Automation: Sent analysis for '%s'", headline)
         # Logic for LinkedIn API (POST /ugcPosts) would go here
         
     def distribute(self, article):

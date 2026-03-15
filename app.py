@@ -16,16 +16,22 @@ from werkzeug.security import generate_password_hash
 
 from db import get_db_connection, DB_PATH
 from helpers import register_filters
+from logging_config import setup_logging
+
+import logging
 
 # --- App Setup ---
 load_dotenv()
+setup_logging()
+
+logger = logging.getLogger('app')
 app = Flask(__name__)
-print(f"✅ APP BOOT: Blueprint Architecture Loaded at {datetime.utcnow()}")
+logger.info("✅ APP BOOT: Blueprint Architecture Loaded at %s", datetime.utcnow())
 
 # SECURITY: Force secure secret key
 secret = os.getenv('SECRET_KEY')
 if not secret:
-    print("WARNING: SECRET_KEY not set in environment. Generating temporary secure key.")
+    logger.warning("WARNING: SECRET_KEY not set in environment. Generating temporary secure key.")
     secret = os.urandom(24).hex()
 app.config['SECRET_KEY'] = secret
 
@@ -39,7 +45,7 @@ def init_db_migrations():
         try:
             conn.execute('SELECT is_published FROM articles LIMIT 1')
         except sqlite3.OperationalError:
-            print("RUNNING DISASTER RECOVERY: Adding 'is_published' column...")
+            logger.info("RUNNING DISASTER RECOVERY: Adding 'is_published' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN is_published INTEGER DEFAULT 1')
 
         # 2. Admins Table
@@ -47,29 +53,29 @@ def init_db_migrations():
             conn.execute('CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, created_at TEXT)')
 
             if not conn.execute('SELECT id FROM admins LIMIT 1').fetchone():
-                print("MIGRATION: Moving ENV Admin to Database...")
+                logger.info("MIGRATION: Moving ENV Admin to Database...")
                 env_user = os.getenv('ADMIN_USERNAME', 'admin')
                 env_pass = os.getenv('ADMIN_PASSWORD', 'admin')
                 p_hash = generate_password_hash(env_pass)
                 conn.execute('INSERT INTO admins (username, password_hash, created_at) VALUES (?, ?, ?)',
                              (env_user, p_hash, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
                 conn.commit()
-                print("MIGRATION: Admin migrated successfully!")
+                logger.info("MIGRATION: Admin migrated successfully!")
 
         except sqlite3.Error as e:
-            print(f"Admin migration error: {e}")
+            logger.error("Admin migration error: %s", e)
 
         # 3. Analytics Columns
         try:
             conn.execute('SELECT views FROM articles LIMIT 1')
         except sqlite3.OperationalError:
-            print("MIGRATION: Adding 'views' column...")
+            logger.info("MIGRATION: Adding 'views' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN views INTEGER DEFAULT 0')
 
         try:
             conn.execute('SELECT audio_plays FROM articles LIMIT 1')
         except sqlite3.OperationalError:
-            print("MIGRATION: Adding 'audio_plays' column...")
+            logger.info("MIGRATION: Adding 'audio_plays' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN audio_plays INTEGER DEFAULT 0')
 
         # 4. Carousel Slots Table (Manual editorial pinning)
@@ -85,7 +91,7 @@ def init_db_migrations():
 
         conn.commit()
     except Exception as e:
-        print(f"Migration failed: {e}")
+        logger.error("Migration failed: %s", e)
     finally:
         if conn:
             conn.close()

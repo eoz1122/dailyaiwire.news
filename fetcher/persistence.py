@@ -7,6 +7,7 @@ import uuid
 import time
 import random
 import sqlite3
+import logging
 from datetime import datetime
 from typing import List, Dict
 
@@ -17,6 +18,8 @@ from social_distributor import SocialDistributor
 from google_indexer import notify_google_index
 from qa_monitor import run_post_publication_audit
 
+logger = logging.getLogger('fetcher.persistence')
+
 
 def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0, audio_gen=None):
     """Persist processed articles to the database with all post-save hooks."""
@@ -26,13 +29,13 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
     for art in processed_articles:
         # 1. Status Check (New 2026 Guardrail)
         if art.get('status') == "INSUFFICIENT_DATA":
-            print(f"Skipping '{art.get('headline')}' - AI flagged as Insufficient Data.")
+            logger.info("Skipping '%s' - AI flagged as Insufficient Data.", art.get('headline'))
             continue
 
         # 1.5 Score Filter (New 2026 Guardrail)
         imp_score = int(art.get('importance_score', 0) or 0)
         if imp_score < 50:
-            print(f"Skipping '{art.get('headline')}' - Score {imp_score} < 50.")
+            logger.info("Skipping '%s' - Score %d < 50.", art.get('headline'), imp_score)
             continue
 
         # Skip articles where AI failed to find content or hit a paywall/blocker
@@ -62,7 +65,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
            any(b in impact for b in blacklist) or \
            any(b in headline for b in blacklist) or \
            any(b in analysis for b in blacklist):
-            print(f"Skipping '{art.get('headline')}' due to content blocker signal (JS/Access Denied).")
+            logger.info("Skipping '%s' due to content blocker signal (JS/Access Denied).", art.get('headline'))
             continue
 
         # 2.5 EDITORIAL COMPASS — Semantic Scoring, Dedup & Ad Detection
@@ -77,10 +80,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 art.get('why_it_matters', '')
             )
             if ad_score >= 0.76:
-                print(f"🛡️ AD SHIELD: Blocked '{art.get('headline')}' — ad-likelihood {ad_score} (threshold: 0.76)")
+                logger.info("🛡️ AD SHIELD: Blocked '%s' — ad-likelihood %s (threshold: 0.76)", art.get('headline'), ad_score)
                 continue
             elif ad_score >= 0.65:
-                print(f"🛡️ AD SHIELD: REVIEW '{art.get('headline')}' — ad-likelihood {ad_score} (borderline)")
+                logger.warning("🛡️ AD SHIELD: REVIEW '%s' — ad-likelihood %s (borderline)", art.get('headline'), ad_score)
 
             # Semantic Dedup: Check if near-duplicate exists (>0.92 cosine)
             dup = find_duplicates(
@@ -89,7 +92,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 threshold=0.92
             )
             if dup:
-                print(f"🧬 Semantic Duplicate Detected: '{art.get('headline')}' matches '{dup['title']}' (score: {dup['score']})")
+                logger.info("🧬 Semantic Duplicate Detected: '%s' matches '%s' (score: %s)", art.get('headline'), dup['title'], dup['score'])
                 continue
 
             # Editorial Compass: Score relevance to existing corpus
@@ -101,23 +104,23 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             if compass_score > 0:
                 if compass_score >= 0.75:
-                    print(f"🧭 Compass: HIGH MATCH ({compass_score}) — '{art.get('headline')}'")
+                    logger.info("🧭 Compass: HIGH MATCH (%s) — '%s'", compass_score, art.get('headline'))
                 elif compass_score >= 0.55:
-                    print(f"🧭 Compass: REVIEW ({compass_score}) — '{art.get('headline')}'")
+                    logger.info("🧭 Compass: REVIEW (%s) — '%s'", compass_score, art.get('headline'))
                 else:
-                    print(f"🧭 Compass: LOW MATCH ({compass_score}) — '{art.get('headline')}' → Auto-kill candidate")
+                    logger.info("🧭 Compass: LOW MATCH (%s) — '%s' → Auto-kill candidate", compass_score, art.get('headline'))
                     try:
                         from services.lead_extractor import LeadExtractor
                         lead_extractor = LeadExtractor()
                         lead_extractor.extract_and_log(original.get('link', ''), art.get('headline', ''))
-                        print(f"🥋 Iron Judo: Low-compass article routed to leads.")
+                        logger.info("🥋 Iron Judo: Low-compass article routed to leads.")
                     except Exception as le:
-                        print(f"   ⚠️ Lead extraction failed: {le}")
+                        logger.warning("   ⚠️ Lead extraction failed: %s", le)
                     continue
         except ImportError:
             pass  # Compass not installed, skip gracefully
         except Exception as compass_err:
-            print(f"⚠️ Editorial Compass error (non-blocking): {compass_err}")
+            logger.warning("⚠️ Editorial Compass error (non-blocking): %s", compass_err)
 
         # Determine the article identifier
         lookup_slug = art.get('seo_slug') or slugify(art.get('headline', ''))
@@ -141,7 +144,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         is_generic = not image_url or not image_url.startswith('http') or any(x in image_url.lower() for x in ["google", "placeholder", "logo", "icon", "pixel"])
 
         if source_name == "Google News" and is_generic:
-            print(f"⚠️ Google News article '{art.get('headline')}' has no unique image. Using AI fallback.")
+            logger.info("⚠️ Google News article '%s' has no unique image. Using AI fallback.", art.get('headline'))
 
         if is_generic:
             cat = art.get('category', 'Tools')
@@ -268,8 +271,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens, compass_score)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens, compass_score, source_content_hash, ai_model_used)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
@@ -294,7 +297,9 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 art.get('thought_provoking_question'),
                 int(art.get('importance_score', 50) or 50),
                 json.dumps(art.get('design_tokens', {})),
-                round(compass_score, 3)
+                round(compass_score, 3),
+                art.get('source_content_hash'),
+                art.get('ai_model_used'),
             ))
 
             # TRIGGER GOOGLE INDEXING (Instant Crawl)
@@ -318,17 +323,17 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                         source=original.get('source', ''),
                         importance_score=imp_score
                     )
-                    print(f"📦 Indexed into Qdrant: {art.get('headline')}")
+                    logger.info("📦 Indexed into Qdrant: %s", art.get('headline'))
             except ImportError:
                 pass  # Compass not installed
             except Exception as idx_err:
-                print(f"⚠️ Qdrant indexing error (non-blocking): {idx_err}")
+                logger.warning("⚠️ Qdrant indexing error (non-blocking): %s", idx_err)
 
             # STAGGERED SOCIAL QUEUING - DISABLED
             pass
 
         except Exception as e:
-            print(f"Error saving article {art.get('headline')}: {e}")
+            logger.error("Error saving article %s: %s", art.get('headline'), e)
 
     conn.commit()
     conn.close()
@@ -355,7 +360,7 @@ def process_social_queue():
 
     for row in pending:
         queue_id, slug, headline = row
-        print(f"🚀 Processing scheduled post: {headline}")
+        logger.info("🚀 Processing scheduled post: %s", headline)
 
         cursor.execute('''
             SELECT a.full_json, a.source FROM articles a
@@ -373,12 +378,12 @@ def process_social_queue():
 
                 cursor.execute("UPDATE social_queue SET status='SENT' WHERE id=?", (queue_id,))
                 cursor.execute("UPDATE articles SET shared_on_x=1, shared_at=? WHERE slug=?", (datetime.utcnow().isoformat(), slug))
-                print(f"✅ Successfully posted: {headline}")
+                logger.info("✅ Successfully posted: %s", headline)
             except Exception as e:
-                print(f"❌ Failed to post {headline}: {e}")
+                logger.error("❌ Failed to post %s: %s", headline, e)
                 cursor.execute("UPDATE social_queue SET status='FAILED' WHERE id=?", (queue_id,))
         else:
-            print(f"⚠️ Article data missing for slug: {slug}")
+            logger.warning("⚠️ Article data missing for slug: %s", slug)
             cursor.execute("UPDATE social_queue SET status='FAILED_MISSING_DATA' WHERE id=?", (queue_id,))
 
     conn.commit()

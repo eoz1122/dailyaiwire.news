@@ -34,13 +34,12 @@ class TestInstagramDistributor:
             "image": image,
         }
 
-    def test_skips_when_no_credentials(self, capsys):
+    def test_skips_when_no_credentials(self, caplog):
         """Should gracefully skip when IG credentials are missing."""
         dist = self._make_distributor(with_creds=False)
         result = dist.post_to_instagram(self._dummy_article())
         assert result is False
-        captured = capsys.readouterr()
-        assert "credentials missing" in captured.out.lower()
+        assert "credentials missing" in caplog.text.lower()
 
     @patch("social_distributor.requests.post")
     def test_uses_branded_card_by_default(self, mock_post):

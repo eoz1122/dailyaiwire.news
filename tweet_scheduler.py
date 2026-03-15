@@ -1,39 +1,44 @@
 import sys
 import os
-
-# 1. Force Output Immediately
-sys.stdout.reconfigure(line_buffering=True)
-sys.stderr.reconfigure(line_buffering=True)
-print(f"DEBUG: [1/6] Core imports started (sys, os) - PID: {os.getpid()}")
-
 import time
 import json
 import sqlite3
-print("DEBUG: [2/6] Standard libraries imported")
+import logging
 
 from datetime import datetime, timedelta, timezone
 import pytz
-print("DEBUG: [3/6] Date/Time libraries imported")
 
 from dotenv import load_dotenv
 load_dotenv()
-print("DEBUG: [4/6] Dotenv loaded")
 
-# Import Local Modules (suspected hang spots)
-print("DEBUG: [5/6] Importing SocialDistributor...")
+from logging_config import setup_logging
+setup_logging()
+
+logger = logging.getLogger('scheduler')
+
+# Force unbuffered output for supervisor logs
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
+logger.debug("[1/6] Core imports started (sys, os) - PID: %d", os.getpid())
+logger.debug("[2/6] Standard libraries imported")
+logger.debug("[3/6] Date/Time libraries imported")
+logger.debug("[4/6] Dotenv loaded")
+
+logger.debug("[5/6] Importing SocialDistributor...")
 from social_distributor import SocialDistributor
-print("DEBUG: [5.5/6] SocialDistributor imported.")
+logger.debug("[5.5/6] SocialDistributor imported.")
 
-print("DEBUG: [6/6] Importing Remove Duplicates...")
+logger.debug("[6/6] Importing Remove Duplicates...")
 from remove_duplicates import remove_duplicates
-print("DEBUG: [6.5/6] Remove Duplicates imported.")
+logger.debug("[6.5/6] Remove Duplicates imported.")
 
 DB_PATH = "news.db"
 INTERVAL_SECONDS = 7200  # 2 hours
 QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
-VERSION = "2.2.1-DEBUG"
+VERSION = "2.3.0"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -69,7 +74,7 @@ def clear_stale_queue():
     limit_time = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
     count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND published_at < ?", (limit_time,)).rowcount
     if count > 0:
-        print(f"🧹 Queue Maintenance: Cleared {count} stale articles.")
+        logger.info("🧹 Queue Maintenance: Cleared %d stale articles.", count)
     conn.commit()
     conn.close()
 
@@ -115,13 +120,13 @@ def mark_as_shared_fb(slug):
     conn.close()
 
 def main_loop():
-    print(f"🚀 Starting Tweet Scheduler v{VERSION}")
-    print(f"📡 Config: Interval 2h | Quiet Window {QUIET_START}-{QUIET_END} AM DE")
+    logger.info("🚀 Starting Tweet Scheduler v%s", VERSION)
+    logger.info("📡 Config: Interval 2h | Quiet Window %d-%d AM DE", QUIET_START, QUIET_END)
     distributor = SocialDistributor()
 
     while True:
         try:
-            print(f"💓 [Heartbeat] Scheduler Alive at {datetime.now().strftime('%H:%M:%S')}")
+            logger.info("💓 [Heartbeat] Scheduler Alive at %s", datetime.now().strftime('%H:%M:%S'))
 
             # 0. Daily Reset: Clear anything from previous days
             clear_stale_queue()
@@ -138,12 +143,12 @@ def main_loop():
                 conn.close()
                 
                 if not row:
-                    print(f"🗞️ It's Sunday Evening! Triggering Weekly Wrap Synthesis...")
+                    logger.info("🗞️ It's Sunday Evening! Triggering Weekly Wrap Synthesis...")
                     try:
                         import weekly_curator
                         weekly_curator.generate_newsletter_draft()
                     except Exception as e:
-                        print(f"❌ Failed to auto-generate weekly wrap: {e}")
+                        logger.error("❌ Failed to auto-generate weekly wrap: %s", e)
             # -------------------------------
 
             # 2. Check 2-hour gap (Verified against Database)
@@ -152,7 +157,7 @@ def main_loop():
             
             if time_since_last < INTERVAL_SECONDS:
                 remaining = INTERVAL_SECONDS - time_since_last
-                print(f"⏳ GAP CONTROL: {remaining/60:.0f} mins remaining until next allowed post.")
+                logger.info("⏳ GAP CONTROL: %.0f mins remaining until next allowed post.", remaining/60)
                 time.sleep(min(remaining, 600)) 
                 continue
 
@@ -161,13 +166,13 @@ def main_loop():
             try:
                 remove_duplicates(seq_threshold=0.8, word_threshold=0.6)
             except Exception as e:
-                print(f"⚠️ [Non-Critical] Deduplication error: {e}")
+                logger.warning("⚠️ [Non-Critical] Deduplication error: %s", e)
             
             article = get_next_article_to_share()
             
             if article:
-                print(f"📡 Found unshared article: {article['title']}")
-                print(f"⏰ Article published at: {article['published_at']}")
+                logger.info("📡 Found unshared article: %s", article['title'])
+                logger.info("⏰ Article published at: %s", article['published_at'])
                 
                 article_for_dist = {
                     'headline': article['title'],
@@ -179,38 +184,38 @@ def main_loop():
                     'image': article.get('image', ''),
                 }
                 
-                print(f"🚀 Attempting to post to X...")
+                logger.info("🚀 Attempting to post to X...")
                 if distributor.post_to_x(article_for_dist):
                     mark_as_shared(article['slug'])
-                    print(f"✅ Successfully shared on X. Waiting {INTERVAL_SECONDS/60:.0f} mins.")
+                    logger.info("✅ Successfully shared on X. Waiting %.0f mins.", INTERVAL_SECONDS/60)
                     time.sleep(4) # Rate Limit Safety
                 else:
-                    print(f"⚠️ [X ERROR] Post failed. Cooling down for 1 hour...")
+                    logger.warning("⚠️ [X ERROR] Post failed. Cooling down for 1 hour...")
                     time.sleep(3600)
                 
                 # --- INSTAGRAM DISTRIBUTION ---
                 if not article.get('shared_on_ig'):
-                    print(f"📸 Attempting to post to Instagram...")
+                    logger.info("📸 Attempting to post to Instagram...")
                     if distributor.post_to_instagram(article_for_dist):
                         mark_as_shared_ig(article['slug'])
-                        print(f"✅ Successfully shared on Instagram.")
+                        logger.info("✅ Successfully shared on Instagram.")
                     else:
-                        print(f"⚠️ [IG SKIP] Instagram post failed or skipped.")
+                        logger.warning("⚠️ [IG SKIP] Instagram post failed or skipped.")
                 
                 # --- FACEBOOK DISTRIBUTION ---
                 if not article.get('shared_on_fb'):
-                    print(f"📘 Attempting to post to Facebook...")
+                    logger.info("📘 Attempting to post to Facebook...")
                     if distributor.post_to_facebook(article_for_dist):
                         mark_as_shared_fb(article['slug'])
-                        print(f"✅ Successfully shared on Facebook.")
+                        logger.info("✅ Successfully shared on Facebook.")
                     else:
-                        print(f"⚠️ [FB SKIP] Facebook post failed or skipped.") 
+                        logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.") 
             else:
-                print("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
+                logger.info("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
                 time.sleep(600)
                 
         except Exception as e:
-            print(f"⚠️ Scheduler Critical Error: {e}")
+            logger.error("⚠️ Scheduler Critical Error: %s", e)
             time.sleep(600)
 
 if __name__ == "__main__":

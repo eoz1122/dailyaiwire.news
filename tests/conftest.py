@@ -55,7 +55,9 @@ def _patch_db(tmp_path_factory):
             views INTEGER DEFAULT 0,
             audio_plays INTEGER DEFAULT 0,
             design_tokens TEXT,
-            compass_score REAL DEFAULT 0.7
+            compass_score REAL DEFAULT 0.7,
+            source_content_hash TEXT,
+            ai_model_used TEXT
         )
     ''')
     conn.execute('''

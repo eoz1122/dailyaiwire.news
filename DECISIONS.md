@@ -5,6 +5,42 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-15T11:03:00+01:00 — Structured Logging, CI/CD Pipeline, and Content Provenance Chain
+
+**Context**: Jules' codebase analysis identified 3 still-relevant improvements: `print()` calls in production code, no CI/CD pipeline, and no audit trail for AI-processed content. This decision addresses all three.
+
+**Changes (Structured Logging)**:
+- `logging_config.py` [NEW]: Centralized logging setup with console + optional `RotatingFileHandler` (5 MB × 3 rotations, enabled via `LOG_TO_FILE=true`). Quiets noisy third-party loggers.
+- `app.py`: `print()` → `logger = logging.getLogger('app')`. Calls `setup_logging()` on boot.
+- `fetcher/__init__.py`: `print()` → `logging.getLogger('fetcher')`. Calls `setup_logging()` on boot.
+- `fetcher/ai_processor.py`: `print()` → `logging.getLogger('fetcher.ai')`.
+- `fetcher/persistence.py`: `print()` → `logging.getLogger('fetcher.persistence')`.
+- `fetcher/sources.py`: `print()` → `logging.getLogger('fetcher.sources')`.
+- `fetcher/content.py`: `print()` → `logging.getLogger('fetcher.content')`.
+- `fetcher/spam.py`: `print()` → `logging.getLogger('fetcher.spam')`.
+- `fetcher/db_init.py`: `print()` → `logging.getLogger('fetcher.db')`.
+- `tweet_scheduler.py`: `print()` → `logging.getLogger('scheduler')`. Hardcoded `DEBUG:` boot prefixes converted to `logger.debug()`. Version bumped to 2.3.0.
+- `social_distributor.py`: `print()` → `logging.getLogger('social')`.
+- `budget_tracker.py`: `print()` → `logging.getLogger('budget')`.
+- `tests/test_facebook.py`: `capsys` → `caplog` for credential-missing test.
+- `tests/test_instagram.py`: `capsys` → `caplog` for credential-missing test.
+
+**Changes (CI/CD)**:
+- `.github/workflows/ci.yml` [NEW]: GitHub Actions workflow running `pytest tests/ -v --tb=short` on every push/PR to `main`. Python 3.12, pip cache enabled, zero secrets needed.
+
+**Changes (Content Provenance Chain)**:
+- `scripts/migrate_provenance.py` [NEW]: Idempotent migration adding `source_content_hash TEXT` and `ai_model_used TEXT` to articles table.
+- `fetcher/db_init.py`: Lazy migration for provenance columns (runs on fetcher boot).
+- `fetcher/ai_processor.py`: Computes SHA-256 of scraped content, attaches `source_content_hash` and `ai_model_used` to each processed article.
+- `fetcher/persistence.py`: Stores provenance fields in INSERT statement (2 new bind params).
+- `tests/conftest.py`: Added `source_content_hash` and `ai_model_used` columns to test schema.
+
+**Tests**: 91/91 passing (89 existing + 2 fixed `capsys` → `caplog`).
+
+**Rollback**: `git revert` the commit. For provenance columns: `ALTER TABLE articles DROP COLUMN source_content_hash; ALTER TABLE articles DROP COLUMN ai_model_used;` (SQLite 3.35+). Delete `.github/workflows/ci.yml` and `logging_config.py`.
+
+---
+
 ## 2026-03-14T18:42:00+01:00 — SEO Indexing Crisis Recovery (127→1,900+ target)
 
 **Context**: Google Search Console showed indexed pages dropped from ~1,200 to 127 (of 3,863 discovered), with 1,310+ pages in "Crawled - currently not indexed" status. Traffic dropped massively since late Jan 2026.

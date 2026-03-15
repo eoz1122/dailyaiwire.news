@@ -1,11 +1,14 @@
 import sqlite3
 import json
 import os
+import logging
 import requests
 import time
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger('newsletter')
 
 DB_PATH = "news.db"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
@@ -14,10 +17,10 @@ SENDER_EMAIL = "briefing@dailyaiwire.news"  # Verified Domain Sender
 def send_welcome_email(recipient_email):
     """Sends a transactional welcome email to a new subscriber."""
     if not RESEND_API_KEY:
-        print("❌ ERROR: RESEND_API_KEY missing.")
+        logger.error("❌ ERROR: RESEND_API_KEY missing.")
         return False
         
-    print(f"🚀 Sending welcome email to {recipient_email}...")
+    logger.info("🚀 Sending welcome email to %s...", recipient_email)
     
     # Simple HTML for the welcome email (inline for reliability if file read fails, or read from file)
     # Ideally reuse template logic, but keep it robust here.
@@ -27,7 +30,7 @@ def send_welcome_email(recipient_email):
         with app.app_context():
             html_content = render_template('email/welcome.html')
     except Exception as e:
-        print(f"⚠️ Template render failed ({e}), using fallback HTML.")
+        logger.warning("⚠️ Template render failed (%s), using fallback HTML.", e)
         html_content = "<h1>Welcome to the Wire.</h1><p>You are subscribed.</p>"
 
     url = "https://api.resend.com/emails"
@@ -46,13 +49,13 @@ def send_welcome_email(recipient_email):
     try:
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code in [200, 201]:
-            print("✅ Welcome email sent successfully.")
+            logger.info("✅ Welcome email sent successfully.")
             return True
         else:
-            print(f"❌ Welcome email failed: {response.status_code} - {response.text}")
+            logger.error("❌ Welcome email failed: %s - %s", response.status_code, response.text)
             return False
     except Exception as e:
-        print(f"❌ Network error sending email: {e}")
+        logger.error("❌ Network error sending email: %s", e)
         return False
 
 def get_active_subscribers():
@@ -101,7 +104,7 @@ def build_email_html(newsletter_id, template='email/briefing.html', recipient_em
 
 def send_newsletter(newsletter_id, is_apology=False):
     if not RESEND_API_KEY:
-        print("❌ ERROR: RESEND_API_KEY not found in environment.")
+        logger.error("❌ ERROR: RESEND_API_KEY not found in environment.")
         return False
         
     conn = sqlite3.connect(DB_PATH)
@@ -111,17 +114,17 @@ def send_newsletter(newsletter_id, is_apology=False):
     nl = cursor.fetchone()
     
     if not nl:
-        print(f"⚠️ Newsletter {newsletter_id} not found.")
+        logger.warning("⚠️ Newsletter %d not found.", newsletter_id)
         conn.close()
         return False
         
     subscribers = get_active_subscribers()
     if not subscribers:
-        print("📭 No active subscribers found.")
+        logger.info("📭 No active subscribers found.")
         conn.close()
         return False
         
-    print(f"🚀 Processing broadcast for '{nl['subject']}' to {len(subscribers)} subscribers...")
+    logger.info("🚀 Processing broadcast for '%s' to %d subscribers...", nl['subject'], len(subscribers))
     
     template = 'email/apology_briefing.html' if is_apology else 'email/briefing.html'
     html_base = build_email_html(newsletter_id, template=template, recipient_email="TRACK_ME_TOKEN")
@@ -141,7 +144,7 @@ def send_newsletter(newsletter_id, is_apology=False):
         check = conn.execute("SELECT id FROM newsletter_deliveries WHERE newsletter_id = ? AND recipient_email = ?", 
                              (newsletter_id, sub_email)).fetchone()
         if check:
-            print(f"⏭️ Skipping {sub_email} (Already Delivered)")
+            logger.info("⏭️ Skipping %s (Already Delivered)", sub_email)
             skip_count += 1
             continue
             
@@ -161,33 +164,37 @@ def send_newsletter(newsletter_id, is_apology=False):
         try:
             response = requests.post(url, headers=headers, json=payload)
             if response.status_code in [200, 201]:
-                print(f"✅ Sent to {sub_email}")
+                logger.info("✅ Sent to %s", sub_email)
                 # Log success
                 conn.execute("INSERT INTO newsletter_deliveries (newsletter_id, recipient_email, status) VALUES (?, ?, ?)",
                              (newsletter_id, sub_email, 'DELIVERED'))
                 conn.commit()
                 success_count += 1
             else:
-                print(f"❌ Failed to {sub_email}: {response.status_code}")
+                logger.error("❌ Failed to %s: %s", sub_email, response.status_code)
                 fail_count += 1
             
             # Rate limit politeness to prevent 429s (especially on broadcast)
             time.sleep(2.0)
             
         except Exception as e:
-            print(f"❌ Network Error for {sub_email}: {e}")
+            logger.error("❌ Network Error for %s: %s", sub_email, e)
             fail_count += 1
             
-    print(f"🏁 Broadcast Complete. Sent: {success_count} | Skipped: {skip_count} | Failed: {fail_count}")
+    logger.info("🏁 Broadcast Complete. Sent: %d | Skipped: %d | Failed: %d", success_count, skip_count, fail_count)
     
-    # Mark as SENT only if we processed everyone successfully or mostly successfully?
-    # Actually, always mark as SENT if we finished the loop. If we crash, it stays DRAFT/resumable.
-    if success_count + skip_count == len(subscribers):
+    # Mark as SENT if we delivered to at least one subscriber (or all were already delivered/skipped).
+    # Only stays DRAFT if we literally delivered nothing new AND had failures.
+    if success_count > 0 or (skip_count > 0 and fail_count == 0):
         cursor.execute("UPDATE newsletters SET status = 'SENT' WHERE id = ?", (newsletter_id,))
         conn.commit()
-        print("✅ Newsletter marked as FULLY SENT")
+        logger.info("✅ Newsletter marked as SENT (delivered: %d, skipped: %d, failed: %d)", success_count, skip_count, fail_count)
+    elif fail_count > 0 and success_count == 0:
+        cursor.execute("UPDATE newsletters SET status = 'PARTIAL' WHERE id = ?", (newsletter_id,))
+        conn.commit()
+        logger.warning("⚠️ Newsletter marked as PARTIAL — all sends failed but loop completed.")
     else:
-        print("⚠️ Newsletter status remains DRAFT/PARTIAL (Some failures occurred)")
+        logger.warning("⚠️ Newsletter status unchanged (no subscribers processed).")
         
     conn.close()
     return True

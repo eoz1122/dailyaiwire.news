@@ -1,7 +1,10 @@
 import json
 import os
+import logging
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger('budget')
 
 class BudgetTracker:
     """Track Gemini API usage and enforce monthly budget caps"""
@@ -40,7 +43,7 @@ class BudgetTracker:
             # Atomic rename (works on Unix, on Windows requires os.replace)
             os.replace(temp_file, self.budget_file)
         except Exception as e:
-            print(f"❌ Error saving budget usage: {e}")
+            logger.error("❌ Error saving budget usage: %s", e)
             if os.path.exists(temp_file):
                 os.remove(temp_file)
     
@@ -48,8 +51,8 @@ class BudgetTracker:
         """Reset counter if it's a new month"""
         current_month = datetime.now().strftime("%Y-%m")
         if self.data["current_month"] != current_month:
-            print(f"📅 New month detected. Resetting budget tracker.")
-            print(f"📊 Previous month ({self.data['current_month']}) spent: ${self.data['total_spent']:.4f}")
+            logger.info("📅 New month detected. Resetting budget tracker.")
+            logger.info("📊 Previous month (%s) spent: $%.4f", self.data['current_month'], self.data['total_spent'])
             self.data = {
                 "current_month": current_month,
                 "total_spent": 0.0,
@@ -70,17 +73,17 @@ class BudgetTracker:
         
         # 1. Check Monthly Cap
         if projected_total > self.monthly_cap:
-            print(f"🚨 MONTHLY BUDGET CAP REACHED!")
-            print(f"   Current spend: ${self.data['total_spent']:.4f}")
-            print(f"   Monthly cap: ${self.monthly_cap:.2f}")
+            logger.warning("🚨 MONTHLY BUDGET CAP REACHED!")
+            logger.warning("   Current spend: $%.4f", self.data['total_spent'])
+            logger.warning("   Monthly cap: $%.2f", self.monthly_cap)
             return False
             
         # 2. Check Daily Safety Cap ($1.50/day hard limit)
         daily_cap = 1.50
         projected_daily = self.data.get("daily_spent", 0.0) + estimated_cost
         if projected_daily > daily_cap:
-             print(f"🚨 DAILY SPEND LIMIT REACHED (${daily_cap})!")
-             print(f"   Today's spend: ${self.data['daily_spent']:.4f}")
+             logger.warning("🚨 DAILY SPEND LIMIT REACHED ($%s)!", daily_cap)
+             logger.warning("   Today's spend: $%.4f", self.data['daily_spent'])
              return False
         
         return True
@@ -89,7 +92,7 @@ class BudgetTracker:
         """Reset daily tracking if it's a new day"""
         today = datetime.now().strftime("%Y-%m-%d")
         if self.data.get("current_day") != today:
-            print(f"📅 New day detected ({today}). Resetting daily tracker.")
+            logger.info("📅 New day detected (%s). Resetting daily tracker.", today)
             self.data["current_day"] = today
             self.data["daily_spent"] = 0.0
             self.save_usage()
@@ -129,18 +132,18 @@ class BudgetTracker:
     def print_status(self):
         """Print current budget status with breakdown"""
         percentage = (self.data["total_spent"] / self.monthly_cap) * 100
-        print(f"\n💰 Budget Status ({self.data['current_month']})")
-        print(f"   Spent: ${self.data['total_spent']:.4f} / ${self.monthly_cap:.2f} ({percentage:.1f}%)")
-        print(f"   Requests: {self.data['requests']}")
-        print(f"   Tokens: {self.data['tokens_used']:,}")
+        logger.info("💰 Budget Status (%s)", self.data['current_month'])
+        logger.info("   Spent: $%.4f / $%.2f (%.1f%%)", self.data['total_spent'], self.monthly_cap, percentage)
+        logger.info("   Requests: %d", self.data['requests'])
+        logger.info("   Tokens: %s", f"{self.data['tokens_used']:,}")
         
         if self.data.get("breakdown"):
-            print("   --- Cost Breakdown ---")
+            logger.info("   --- Cost Breakdown ---")
             # Sort by highest cost
             sorted_cats = sorted(self.data["breakdown"].items(), key=lambda x: x[1], reverse=True)
             for cat, amount in sorted_cats:
                 cat_percent = (amount / self.data['total_spent']) * 100 if self.data['total_spent'] > 0 else 0
-                print(f"   • {cat:<20}: ${amount:.4f} ({cat_percent:.1f}%)")
+                logger.info("   • %-20s: $%.4f (%.1f%%)", cat, amount, cat_percent)
 
         if percentage > 80:
-            print(f"   ⚠️  WARNING: {percentage:.1f}% of budget used!")
+            logger.warning("   ⚠️  WARNING: %.1f%% of budget used!", percentage)
