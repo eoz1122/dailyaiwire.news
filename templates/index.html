@@ -77,23 +77,23 @@ Google Gemini.{% endif %}{% endblock %}
     <div class="mb-6 hidden md:block">
         <div class="flex items-center gap-2 mb-3">
             <h2 class="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em]">📈 Trending</h2>
-            <span class="text-zinc-700 text-[9px] font-mono">{{ trends.total_articles }} analyzed</span>
+            <span class="text-zinc-400 text-[9px] font-mono">{{ trends.total_articles }} analyzed</span>
         </div>
         <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             {% for cat in trends.hot_categories[:3] %}
             <a href="/?category={{ cat.category }}"
-                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/60 border border-zinc-800 hover:border-blue-500/40 transition-all whitespace-nowrap shrink-0 group">
-                <span class="text-[9px] font-black uppercase tracking-widest {% if cat.direction == 'surging' %}text-emerald-400 {% elif cat.direction == 'rising' %}text-blue-400 {% else %}text-zinc-500{% endif %}">{{ cat.emoji }}</span>
-                <span class="text-[11px] font-bold text-zinc-300 group-hover:text-blue-400 transition-colors">{{ cat.category }}</span>
-                <span class="text-[9px] font-mono {% if cat.velocity_pct > 0 %}text-emerald-500 {% elif cat.velocity_pct < 0 %}text-red-500 {% else %}text-zinc-600{% endif %}">{% if cat.velocity_pct > 0 %}+{% endif %}{{ cat.velocity_pct|int }}%</span>
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--card-bg)] border border-[var(--border-color)] hover:border-blue-500 transition-all whitespace-nowrap shrink-0 group shadow-sm">
+                <span class="text-[9px] font-black uppercase tracking-widest {% if cat.direction == 'surging' %}text-emerald-600{% elif cat.direction == 'rising' %}text-blue-600{% else %}text-zinc-500{% endif %}">{{ cat.emoji }}</span>
+                <span class="text-[11px] font-bold text-[var(--text-primary)] group-hover:text-blue-600 transition-colors">{{ cat.category }}</span>
+                <span class="text-[9px] font-mono font-bold {% if cat.velocity_pct > 0 %}text-emerald-600{% elif cat.velocity_pct < 0 %}text-red-600{% else %}text-zinc-500{% endif %}">{% if cat.velocity_pct > 0 %}+{% endif %}{{ cat.velocity_pct|int }}%</span>
             </a>
             {% endfor %}
             {% for tag in trends.hot_hashtags[:3] %}
             <a href="/?q={{ tag.hashtag|replace('#', '') }}"
-                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/60 border border-zinc-800 hover:border-purple-500/40 transition-all whitespace-nowrap shrink-0 group">
-                <span class="text-[9px] font-black uppercase tracking-widest {% if tag.direction == 'surging' %}text-purple-400 {% else %}text-zinc-500{% endif %}">{{ tag.emoji }}</span>
-                <span class="text-[11px] font-bold text-purple-300 group-hover:text-purple-200 transition-colors">{{ tag.hashtag }}</span>
-                <span class="text-[9px] font-mono text-purple-400">{% if tag.velocity_pct > 0 %}+{% endif %}{{ tag.velocity_pct|int }}%</span>
+                class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--card-bg)] border border-[var(--border-color)] hover:border-purple-500 transition-all whitespace-nowrap shrink-0 group shadow-sm">
+                <span class="text-[9px] font-black uppercase tracking-widest {% if tag.direction == 'surging' %}text-purple-600{% else %}text-zinc-500{% endif %}">{{ tag.emoji }}</span>
+                <span class="text-[11px] font-bold text-purple-600 group-hover:text-purple-500 transition-colors">{{ tag.hashtag }}</span>
+                <span class="text-[9px] font-mono font-bold text-purple-600">{% if tag.velocity_pct > 0 %}+{% endif %}{{ tag.velocity_pct|int }}%</span>
             </a>
             {% endfor %}
         </div>
