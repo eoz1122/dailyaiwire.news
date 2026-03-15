@@ -15,6 +15,50 @@ from db import get_db_connection
 public_bp = Blueprint('public', __name__)
 
 
+def _fetch_editorials(conn):
+    """Fetch published editorials from blog_posts and map to article-like dicts."""
+    try:
+        rows = conn.execute('''
+            SELECT id, title, slug, subtitle, content, author_name, author_title,
+                   published_at, meta_description, is_published
+            FROM blog_posts
+            WHERE is_published = 1 AND published_at IS NOT NULL
+            ORDER BY published_at DESC
+            LIMIT 10
+        ''').fetchall()
+    except Exception:
+        return []
+
+    editorials = []
+    for row in rows:
+        r = dict(row)
+        editorials.append({
+            'id': f"editorial_{r['id']}",
+            'title': r['title'],
+            'slug': r['slug'],
+            'category': 'Editorial',
+            'source': r['author_name'] or 'DailyAIWire',
+            'author_name': r['author_name'] or 'DailyAIWire',
+            'author_title': r.get('author_title', ''),
+            'gist': r['subtitle'] or r.get('meta_description', '') or '',
+            'why_it_matters': r['subtitle'] or '',
+            'bull_case': None,
+            'bear_case': None,
+            'eli5': None,
+            'image': '/static/fallbacks/editorial_0.jpg',
+            'published_at': r['published_at'] or '',
+            'importance_score': 80,
+            'compass_score': 0.9,
+            'key_details': [],
+            'design_tokens': {},
+            'is_editorial': True,
+            'is_published': 1,
+            'audio_male': None,
+            'audio_female': None,
+        })
+    return editorials
+
+
 @public_bp.route('/')
 def index():
     conn = get_db_connection()
@@ -76,17 +120,28 @@ def index():
             grid = conn.execute('SELECT * FROM articles WHERE (title LIKE ? OR gist LIKE ? OR deep_analysis LIKE ?) AND is_published = 1 ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', (query, query, query, ITEMS_PER_PAGE, offset)).fetchall()
             carousel = []
     elif cat_arg:
-        offset = (page - 1) * ITEMS_PER_PAGE
-        query_base = 'FROM articles WHERE category = ? AND is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
-        query_params = (cat_arg,)
+        if cat_arg == 'Editorial':
+            # Special handling: editorial category filter shows only editorials
+            editorials = _fetch_editorials(conn)
+            offset = (page - 1) * ITEMS_PER_PAGE
+            total_arts = len(editorials)
+            grid = editorials[offset:offset + ITEMS_PER_PAGE]
+            carousel = []
+        else:
+            offset = (page - 1) * ITEMS_PER_PAGE
+            query_base = 'FROM articles WHERE category = ? AND is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
+            query_params = (cat_arg,)
 
-        offset = (page - 1) * ITEMS_PER_PAGE
-        total_arts_count = conn.execute(f'SELECT COUNT(*) {query_base}', query_params).fetchone()[0]
-        total_arts = total_arts_count
-        grid = conn.execute(f'SELECT * {query_base} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', query_params + (ITEMS_PER_PAGE, offset)).fetchall()
-        carousel = []
+            offset = (page - 1) * ITEMS_PER_PAGE
+            total_arts_count = conn.execute(f'SELECT COUNT(*) {query_base}', query_params).fetchone()[0]
+            total_arts = total_arts_count
+            grid = conn.execute(f'SELECT * {query_base} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?', query_params + (ITEMS_PER_PAGE, offset)).fetchall()
+            carousel = []
     else:
         published_condition = 'is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
+
+        # Fetch editorials to merge into the feed
+        editorials = _fetch_editorials(conn)
 
         if page == 1:
             # --- Carousel: Pinned-first hybrid logic ---
@@ -129,8 +184,12 @@ def index():
 
             carousel = list(pinned) + list(auto)
 
+            # Inject the most recent editorial into carousel (position 3) if available
+            if editorials:
+                carousel.insert(min(2, len(carousel)), editorials[0])
+
             # Grid: everything after carousel
-            all_carousel_ids = [dict(r)['id'] for r in carousel]
+            all_carousel_ids = [dict(r)['id'] for r in carousel if not isinstance(dict(r).get('id', ''), str)]
             if all_carousel_ids:
                 grid_exclude = ','.join('?' * len(all_carousel_ids))
                 grid = conn.execute(f'''
@@ -142,6 +201,11 @@ def index():
                 ''', all_carousel_ids + [HOMEPAGE_GRID_SIZE]).fetchall()
             else:
                 grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (HOMEPAGE_GRID_SIZE,)).fetchall()
+
+            # Merge remaining editorials into grid (skip first, already in carousel)
+            grid = list(grid)
+            for ed in editorials[1:3]:  # Up to 2 more editorials in grid
+                grid.insert(min(3, len(grid)), ed)
 
             total_arts_count = conn.execute(f'SELECT COUNT(*) FROM articles WHERE {published_condition}').fetchone()[0]
             total_arts = max(0, total_arts_count - len(carousel))
@@ -167,21 +231,31 @@ def index():
 
     processed_grid = []
     for a in grid:
-        d = dict(a)
-        try: d['key_details'] = json.loads(d['key_details'])
-        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
-        try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
-        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
+        d = dict(a) if not isinstance(a, dict) else a
+        if not d.get('is_editorial'):
+            try: d['key_details'] = json.loads(d['key_details'])
+            except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
+            try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
+            except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
         processed_grid.append(d)
 
     processed_carousel = []
     for a in carousel:
-        d = dict(a)
-        try: d['key_details'] = json.loads(d['key_details'])
-        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
-        try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
-        except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
+        d = dict(a) if not isinstance(a, dict) else a
+        if not d.get('is_editorial'):
+            try: d['key_details'] = json.loads(d['key_details'])
+            except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []
+            try: d['design_tokens'] = json.loads(d.get('design_tokens') or '{}')
+            except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['design_tokens'] = {}
         processed_carousel.append(d)
+
+    # Add 'Editorial' to categories list if editorials exist
+    if 'Editorial' not in categories:
+        try:
+            ed_count = conn if not isinstance(conn, type(None)) else get_db_connection()
+        except Exception:
+            pass
+        categories = sorted(set(categories + ['Editorial']))
 
     return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow(), search_mode=search_mode, trends=trends)
 

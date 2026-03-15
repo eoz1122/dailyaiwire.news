@@ -110,11 +110,12 @@
             <!-- Left: Unpublish (if currently published) -->
             <div>
                 {% if id != 'new' and (post.is_published or post.published_at) %}
-                <button type="submit" name="action" value="unpublish"
-                    class="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-4 py-2.5 rounded-lg border border-amber-200 transition-colors min-h-[44px]"
-                    onclick="return confirm('Unpublish this post? It will become a draft.')">
+                <button type="button" id="unpublish-btn"
+                    class="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-4 py-2.5 rounded-lg border border-amber-200 transition-colors min-h-[44px]">
                     ↩ Unpublish (Draft)
                 </button>
+                <!-- Hidden submit for unpublish, triggered by JS after confirm -->
+                <button type="submit" name="action" value="unpublish" id="unpublish-submit" class="hidden"></button>
                 {% endif %}
             </div>
 
@@ -140,4 +141,57 @@
         </div>
     </form>
 </div>
+
+<!-- Unpublish Confirmation Modal -->
+<div id="unpublish-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-4 text-center">
+        <div class="text-3xl mb-3">⚠️</div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Unpublish this post?</h3>
+        <p class="text-sm text-gray-500 mb-5">It will be reverted to a draft and removed from the public site.</p>
+        <div class="flex gap-3 justify-center">
+            <button id="unpublish-cancel"
+                class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-bold text-sm border border-gray-300 transition-all min-h-[44px]">
+                Cancel
+            </button>
+            <button id="unpublish-confirm"
+                class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm shadow-lg transition-all min-h-[44px]">
+                Yes, Unpublish
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const btn = document.getElementById('unpublish-btn');
+    const modal = document.getElementById('unpublish-modal');
+    const cancelBtn = document.getElementById('unpublish-cancel');
+    const confirmBtn = document.getElementById('unpublish-confirm');
+    const submitBtn = document.getElementById('unpublish-submit');
+
+    if (!btn || !modal) return;
+
+    btn.addEventListener('click', function() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    });
+
+    cancelBtn.addEventListener('click', function() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    });
+
+    confirmBtn.addEventListener('click', function() {
+        submitBtn.click();
+    });
+
+    // Close on backdrop click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    });
+})();
+</script>
 {% endblock %}

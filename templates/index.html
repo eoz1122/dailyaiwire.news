@@ -149,7 +149,7 @@ Google Gemini.{% endif %}{% endblock %}
             {% for art in carousel_articles %}
             <div class="carousel-slide absolute inset-0 transition-opacity duration-700 {% if loop.index0 == 0 %}opacity-100 z-10{% else %}opacity-0 z-0 pointer-events-none{% endif %}"
                 data-index="{{ loop.index0 }}">
-                <a href="/article/{{ art.slug }}" class="block h-full relative">
+                <a href="{% if art.is_editorial %}/lab/{{ art.slug }}{% else %}/article/{{ art.slug }}{% endif %}" class="block h-full relative">
                     <img src="{{ art.image }}" alt="{{ art.title }}" decoding="async" class="w-full h-full object-cover object-center" {%
                         if loop.index0> 0
                     %}loading="lazy"{% else %}fetchpriority="high"{% endif %}
@@ -369,7 +369,7 @@ Google Gemini.{% endif %}{% endblock %}
                 <!-- Badge Removed -->
 
                 <!-- Article Image Link -->
-                <a href="/article/{{ art.slug }}" class="relative h-48 overflow-hidden block">
+                <a href="{% if art.is_editorial %}/lab/{{ art.slug }}{% else %}/article/{{ art.slug }}{% endif %}" class="relative h-48 overflow-hidden block">
                     <img src="{{ art.image }}" alt="{{ art.title }}" loading="lazy" decoding="async"
                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onerror="this.src='/static/fallbacks/tools_0.jpg'">
@@ -408,7 +408,14 @@ Google Gemini.{% endif %}{% endblock %}
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center space-x-2">
                             <!-- Source Logo/Icon -->
-                            {% if art.source %}
+                            {% if art.is_editorial %}
+                            <div class="w-5 h-5 rounded bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                                <span class="text-white text-[8px] font-black">✍️</span>
+                            </div>
+                            <span class="text-zinc-500 text-[10px] uppercase font-black tracking-tighter">
+                                {{ art.author_name }} // {{ art.published_at[:10] if art.published_at else 'LATEST' }}
+                            </span>
+                            {% elif art.source %}
                             {% if 'Verge' in art.source %}
                             <div
                                 class="w-5 h-5 rounded bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -427,21 +434,34 @@ Google Gemini.{% endif %}{% endblock %}
                                 <span class="text-white text-[8px] font-black">AI</span>
                             </div>
                             {% endif %}
-                            {% endif %}
                             <span class="text-zinc-500 text-[10px] uppercase font-black tracking-tighter">
                                 {{ art.source or 'DAILY WIRE' }} // {{ art.published_at[:10] if art.published_at else
                                 'LATEST' }}
                             </span>
+                            {% endif %}
                         </div>
                     </div>
 
-                    <a href="/article/{{ art.slug }}" class="group/link">
+                    <a href="{% if art.is_editorial %}/lab/{{ art.slug }}{% else %}/article/{{ art.slug }}{% endif %}" class="group/link">
                         <h2
                             class="text-lg font-bold leading-tight group-hover/link:text-blue-600 transition-colors mb-3 line-clamp-2">
                             {{ art.title }}
                         </h2>
                     </a>
 
+                    {% if art.is_editorial %}
+                    <!-- Editorial Card Body -->
+                    <p class="text-zinc-400 text-base mb-3 leading-relaxed">
+                        {{ art.gist }}
+                    </p>
+                    <div class="mt-auto pt-3 border-t border-zinc-800">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-amber-500 bg-amber-500/10 px-3 py-1 rounded-md border border-amber-500/20 uppercase tracking-wide">Opinion</span>
+                            <span class="text-xs font-black text-zinc-500 bg-zinc-800 px-3 py-1 rounded-md border border-zinc-700 uppercase tracking-wide">By {{ art.author_name }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Regular Article Card Body -->
                     <p class="text-zinc-400 text-base mb-3 leading-relaxed line-clamp-none">
                         <strong class="text-sm uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
                         {{ art.gist.replace('**', '') }}
@@ -503,10 +523,11 @@ Google Gemini.{% endif %}{% endblock %}
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
-                <a href="/article/{{ art.slug }}"
+                <a href="{% if art.is_editorial %}/lab/{{ art.slug }}{% else %}/article/{{ art.slug }}{% endif %}"
                     class="relative z-20 bg-zinc-800/50 hover:bg-blue-700 hover:text-white text-zinc-400 text-center py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all mt-auto">
-                    Deep Dive // Full Analysis
+                    {% if art.is_editorial %}Read Editorial // Opinion{% else %}Deep Dive // Full Analysis{% endif %}
                 </a>
             </div>
         </div>
