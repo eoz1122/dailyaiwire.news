@@ -269,7 +269,7 @@ def add_security_headers(response):
         "img-src 'self' https: data: blob:; "
         "media-src 'self' https: data: blob:; "
         "connect-src 'self' https: https://*.cloudflareinsights.com; "
-        "frame-src 'self' https: https://*.googlesyndication.com;"
+        "frame-src 'self' https: https://*.googlesyndication.com https://open.spotify.com;"
     )
     response.headers['Content-Security-Policy'] = csp
     return response
@@ -298,6 +298,7 @@ from routes.admin_ops import admin_ops_bp
 from routes.admin_carousel import admin_carousel_bp
 from routes.admin_emergency import admin_emergency_bp, is_emergency_mode
 from routes.signal import signal_bp
+from routes.podcast import podcast_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(public_bp)
@@ -310,6 +311,7 @@ app.register_blueprint(admin_ops_bp)
 app.register_blueprint(admin_carousel_bp)
 app.register_blueprint(admin_emergency_bp)
 app.register_blueprint(signal_bp)
+app.register_blueprint(podcast_bp)
 
 
 # --- Error Handlers ---

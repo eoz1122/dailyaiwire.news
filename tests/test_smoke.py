@@ -83,6 +83,11 @@ class TestPublicRoutes:
         resp = client.get('/subscribe')
         assert resp.status_code == 200
 
+    def test_podcast_page(self, client):
+        resp = client.get('/podcast')
+        assert resp.status_code == 200
+        assert b'Podcast' in resp.data
+
 
 # ── Auth Guard ───────────────────────────────────────────────────────
 
