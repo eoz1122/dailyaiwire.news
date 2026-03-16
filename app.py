@@ -269,7 +269,8 @@ def add_security_headers(response):
         "img-src 'self' https: data: blob:; "
         "media-src 'self' https: data: blob:; "
         "connect-src 'self' https: https://*.cloudflareinsights.com; "
-        "frame-src 'self' https: https://*.googlesyndication.com https://open.spotify.com;"
+        "frame-src 'self' https: https://*.googlesyndication.com https://open.spotify.com; "
+        "form-action 'self' https://api.web3forms.com;"
     )
     response.headers['Content-Security-Policy'] = csp
     return response
