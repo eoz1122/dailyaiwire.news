@@ -18,7 +18,10 @@ def get_combined_lab_posts():
     try:
         rows = conn.execute('SELECT * FROM blog_posts').fetchall()
         for r in rows:
-            posts.append(dict(r))
+            p = dict(r)
+            if not p.get('image'):
+                p['image'] = '/static/fallbacks/editorial_0.jpg'
+            posts.append(p)
     except Exception:
         pass
     conn.close()
@@ -44,6 +47,8 @@ def lab_post(slug):
             row = conn.execute('SELECT * FROM blog_posts WHERE slug = ?', (slug,)).fetchone()
             if row:
                 post = dict(row)
+                if not post.get('image'):
+                    post['image'] = '/static/fallbacks/editorial_0.jpg'
         except Exception:
             pass
         conn.close()
