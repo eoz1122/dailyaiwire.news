@@ -11,12 +11,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # ── Card Design Tokens ──────────────────────────────────────────
 CARD_SIZE = (1080, 1080)
-BG_TOP = (10, 10, 26)        # #0a0a1a  — deep navy
-BG_BOTTOM = (26, 26, 62)     # #1a1a3e  — dark indigo
-ACCENT_COLOR = (68, 102, 255)  # #4466FF — brand blue
-TEXT_COLOR = (255, 255, 255)
-SUBTEXT_COLOR = (180, 180, 200)
-WATERMARK_COLOR = (100, 100, 140)
+BG_TOP = (255, 255, 255)       # #ffffff  — white
+BG_BOTTOM = (244, 244, 245)    # #f4f4f5 — zinc-100
+ACCENT_COLOR = (37, 99, 235)   # #2563eb — website blue-600
+TEXT_COLOR = (9, 9, 11)        # #09090b — near-black
+SUBTEXT_COLOR = (113, 113, 122)  # #71717a — zinc-500
+WATERMARK_COLOR = (161, 161, 170)  # #a1a1aa — zinc-400
 
 # Paths
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "img", "brand", "logo_nodes.png")
@@ -91,9 +91,9 @@ def generate_card(headline, slug, gist=""):
 
     # 2. Add subtle grid pattern for depth
     for x in range(0, CARD_SIZE[0], 60):
-        draw.line([(x, 0), (x, CARD_SIZE[1])], fill=(30, 30, 55), width=1)
+        draw.line([(x, 0), (x, CARD_SIZE[1])], fill=(228, 228, 231), width=1)
     for y in range(0, CARD_SIZE[1], 60):
-        draw.line([(0, y), (CARD_SIZE[0], y)], fill=(30, 30, 55), width=1)
+        draw.line([(0, y), (CARD_SIZE[0], y)], fill=(228, 228, 231), width=1)
 
     # 3. Blue accent bar at top
     draw.rectangle([(0, 0), (CARD_SIZE[0], 6)], fill=ACCENT_COLOR)
@@ -149,7 +149,7 @@ def generate_card(headline, slug, gist=""):
             draw.text((60, gist_y + i * 36), line, fill=SUBTEXT_COLOR, font=gist_font)
 
     # 9. Bottom bar with gradient accent
-    draw.rectangle([(0, CARD_SIZE[1] - 100), (CARD_SIZE[0], CARD_SIZE[1])], fill=(8, 8, 20))
+    draw.rectangle([(0, CARD_SIZE[1] - 100), (CARD_SIZE[0], CARD_SIZE[1])], fill=(244, 244, 245))
     draw.rectangle([(0, CARD_SIZE[1] - 100), (CARD_SIZE[0], CARD_SIZE[1] - 96)], fill=ACCENT_COLOR)
 
     # 10. Watermark
