@@ -5,6 +5,21 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-16T18:55:00+01:00 — SEO Indexing Audit: Tiered Sitemap + Crawl Budget Optimization
+
+**Context**: Google Search Console showed 46/4,150 pages indexed (~1%). 3,179 "Discovered – not indexed", 919 "Crawled – not indexed", 41 returning 404. Technical SEO (canonical, OG, JSON-LD, www→non-www) was correct — root cause was crawl budget saturation from a single massive sitemap on a young domain.
+
+**Changes**:
+- `routes/seo.py`: `sitemap.xml` is now a **sitemap index** pointing to `sitemap-core.xml` (7 static + top 500 articles by `importance_score * compass_score` + lab posts = 512 URLs) and `sitemap-archive.xml` (remaining 3,611 articles at `priority: 0.4`). Concentrates Google's crawl budget on highest-quality content.
+- `templates/sitemap_index.xml` [NEW]: Sitemap index template.
+- `routes/public.py`: Missing article slugs now return `410 Gone` instead of `404 Not Found`. Google drops 410 URLs permanently (vs retrying 404s for weeks).
+- `templates/index.html`: Added `?q=` search pages to `noindex, follow` meta directive.
+- `nginx_optimized.conf`: Added `X-Robots-Tag: noindex` on all `/static` locations.
+
+**Rollback**: Revert `routes/seo.py` to single `sitemap()` function. Delete `templates/sitemap_index.xml`. Revert `routes/public.py` from `abort(410)` → `abort(404)`. Revert `index.html` noindex condition. Revert nginx config to remove `X-Robots-Tag` headers.
+
+---
+
 ## 2026-03-15T11:03:00+01:00 — Structured Logging, CI/CD Pipeline, and Content Provenance Chain
 
 **Context**: Jules' codebase analysis identified 3 still-relevant improvements: `print()` calls in production code, no CI/CD pipeline, and no audit trail for AI-processed content. This decision addresses all three.
