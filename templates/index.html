@@ -14,7 +14,7 @@ Google Gemini.{% endif %}{% endblock %}
 {% block canonical %}https://dailyaiwire.news/{% endblock %}
 
 {% block head_extra %}
-{% if page > 1 or category %}
+{% if page > 1 or category or q %}
 <meta name="robots" content="noindex, follow">
 {% endif %}
 {% endblock %}

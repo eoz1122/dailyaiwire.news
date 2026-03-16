@@ -271,7 +271,9 @@ def article(slug):
     art = conn.execute('SELECT * FROM articles WHERE slug = ?', (slug,)).fetchone()
     conn.close()
     if not art:
-        abort(404)
+        # 410 Gone — tells Google to permanently drop this URL from index
+        # (faster than 404, which Google retries for weeks)
+        abort(410)
     d = dict(art)
     try: d['key_details'] = json.loads(art['key_details'])
     except (ValueError, json.JSONDecodeError, TypeError, KeyError): d['key_details'] = []

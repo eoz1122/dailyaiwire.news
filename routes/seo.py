@@ -237,37 +237,55 @@ def linkedin_rss_feed():
 
 
 @seo_bp.route('/sitemap.xml', methods=['GET'])
-def sitemap():
-    """Generates a dynamic XML sitemap for Google Indexing.
+def sitemap_index():
+    """Serves a sitemap index pointing to core and archive sub-sitemaps.
     
-    SEO Fix (2026-03-14): Removed category query-string URLs (thin pages
-    that dilute crawl budget) and ensured all URLs are properly encoded.
+    SEO Strategy (2026-03-16): Tiered sitemap to concentrate crawl budget.
+    - sitemap-core.xml: Static pages + top 500 articles (highest quality)
+    - sitemap-archive.xml: Remaining published articles
+    """
+    now_str = datetime.now().strftime('%Y-%m-%d')
+    sitemaps = [
+        {'loc': 'https://dailyaiwire.news/sitemap-core.xml', 'lastmod': now_str},
+        {'loc': 'https://dailyaiwire.news/sitemap-archive.xml', 'lastmod': now_str},
+    ]
+    xml = render_template('sitemap_index.xml', sitemaps=sitemaps)
+    response = make_response(xml)
+    response.headers["Content-Type"] = "application/xml"
+    return response
+
+
+@seo_bp.route('/sitemap-core.xml', methods=['GET'])
+def sitemap_core():
+    """Core sitemap: static pages + top 500 articles by quality score.
+    
+    This is the high-priority sitemap that Google should crawl first.
+    Contains only the best content to maximize indexing rate.
     """
     base_url = "https://dailyaiwire.news"
     pages = []
     now_str = datetime.now().strftime('%Y-%m-%d')
 
-    # Static Pages
+    # Static Pages (always included)
     pages.append([base_url + "/", 1.0, "daily", now_str])
     pages.append([base_url + "/about", 0.5, "monthly", now_str])
     pages.append([base_url + "/contact", 0.5, "monthly", now_str])
     pages.append([base_url + "/privacy", 0.5, "yearly", now_str])
     pages.append([base_url + "/lab", 0.8, "weekly", now_str])
     pages.append([base_url + "/signal", 0.7, "weekly", now_str])
+    pages.append([base_url + "/podcast", 0.7, "weekly", now_str])
 
     conn = get_db_connection()
 
-    # NOTE: Category query-string URLs (/?category=X) intentionally excluded.
-    # They are thin filter views of the same content — not unique pages.
-    # Including them wastes crawl budget and creates near-duplicate signals.
-
-    # Dynamic Articles (canonical article URLs only)
+    # Top 500 articles ranked by quality (importance_score * compass_score)
     try:
         query = """
             SELECT slug, published_at FROM articles
             WHERE is_published = 1
             AND replace(published_at, 'T', ' ') <= datetime('now')
-            ORDER BY published_at DESC
+            ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
+                     published_at DESC
+            LIMIT 500
         """
         articles_rows = conn.execute(query).fetchall()
         for art in articles_rows:
@@ -281,11 +299,11 @@ def sitemap():
                 pub_date = now_str
             pages.append([url, 0.8, "daily", pub_date])
     except Exception as e:
-        print(f"Sitemap Error (Articles): {e}")
+        print(f"Sitemap Core Error (Articles): {e}")
 
     conn.close()
 
-    # Lab Posts
+    # Lab Posts (always in core — editorial content)
     try:
         lab_posts = get_combined_lab_posts()
         for post in lab_posts:
@@ -299,7 +317,51 @@ def sitemap():
                 pub_date = now_str
             pages.append([url, 0.8, "weekly", pub_date])
     except Exception as e:
-        print(f"Sitemap Error (Lab): {e}")
+        print(f"Sitemap Core Error (Lab): {e}")
+
+    sitemap_xml = render_template('sitemap_template.xml', pages=pages)
+    response = make_response(sitemap_xml)
+    response.headers["Content-Type"] = "application/xml"
+    return response
+
+
+@seo_bp.route('/sitemap-archive.xml', methods=['GET'])
+def sitemap_archive():
+    """Archive sitemap: remaining articles not in the core sitemap.
+    
+    Lower priority — Google crawls these after exhausting the core sitemap.
+    """
+    base_url = "https://dailyaiwire.news"
+    pages = []
+    now_str = datetime.now().strftime('%Y-%m-%d')
+
+    conn = get_db_connection()
+
+    try:
+        # All articles EXCEPT the top 500 (which are in core)
+        query = """
+            SELECT slug, published_at FROM articles
+            WHERE is_published = 1
+            AND replace(published_at, 'T', ' ') <= datetime('now')
+            ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
+                     published_at DESC
+            LIMIT -1 OFFSET 500
+        """
+        articles_rows = conn.execute(query).fetchall()
+        for art in articles_rows:
+            url = f"{base_url}/article/{art['slug']}"
+            try:
+                if 'T' in art['published_at']:
+                    pub_date = art['published_at'].split('T')[0]
+                else:
+                    pub_date = art['published_at'].split(' ')[0]
+            except Exception:
+                pub_date = now_str
+            pages.append([url, 0.4, "monthly", pub_date])
+    except Exception as e:
+        print(f"Sitemap Archive Error: {e}")
+
+    conn.close()
 
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     response = make_response(sitemap_xml)
