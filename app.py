@@ -201,6 +201,14 @@ def inject_config():
         'image': '/static/emre.jpg'
     }
 
+    cagri_data = {
+        'name': 'Cagri Eralp',
+        'title': 'Strategic Advisor — Business & Technology',
+        'bio': "20 years building and scaling tech-driven businesses across Eurasia and the Middle East. Operating at the intersection of strategy and execution, taking products from zero to revenue. Background spans digital transformation, industrial engineering, automated retail, and large-scale commercial operations.",
+        'linkedin': 'https://www.linkedin.com/in/cagrieralp/',
+        'image': '/static/cagri.jpg'
+    }
+
     try:
         conn = get_db_connection()
         conn.execute('CREATE TABLE IF NOT EXISTS author_config (id INTEGER PRIMARY KEY, name TEXT, title TEXT, bio TEXT, linkedin TEXT, image TEXT)')
@@ -230,6 +238,13 @@ def inject_config():
                 else:
                     emre_data['image'] = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
 
+    # Cagri image fallback
+    cagri_img = cagri_data.get('image', '')
+    if cagri_img.startswith('/static/'):
+        cagri_abs = os.path.join(app.static_folder, cagri_img[8:])
+        if not os.path.exists(cagri_abs):
+            cagri_data['image'] = "https://ui-avatars.com/api/?name=Cagri+Eralp&size=512&background=2563eb&color=fff"
+
     def get_cat_color(c):
         colors = {
             'Business': 'bg-indigo-600',
@@ -254,6 +269,7 @@ def inject_config():
         'config_web3forms_key': os.getenv('WEB3FORMS_ACCESS_KEY'),
         'q': request.args.get('q', '') if has_request_context() else '',
         'emre': emre_data,
+        'cagri': cagri_data,
         'category_color': get_cat_color
     }
 
