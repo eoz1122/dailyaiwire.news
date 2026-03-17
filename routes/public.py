@@ -5,7 +5,7 @@ Homepage, article pages, static pages, and subscription.
 import json
 import math
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, make_response
 from flask_login import current_user
@@ -184,9 +184,16 @@ def index():
 
             carousel = list(pinned) + list(auto)
 
-            # Inject the most recent editorial into carousel (position 3) if available
+            # Inject the most recent editorial into carousel (position 3) if fresh (<7 days)
             if editorials:
-                carousel.insert(min(2, len(carousel)), editorials[0])
+                ed = editorials[0]
+                ed_date = ed.get('published_at', '')
+                try:
+                    ed_dt = datetime.fromisoformat(ed_date.replace(' ', 'T'))
+                    if datetime.now() - ed_dt < timedelta(days=7):
+                        carousel.insert(min(2, len(carousel)), ed)
+                except (ValueError, TypeError):
+                    pass  # Skip if date parsing fails
 
             # Grid: everything after carousel
             all_carousel_ids = [dict(r)['id'] for r in carousel if not isinstance(dict(r).get('id', ''), str)]
