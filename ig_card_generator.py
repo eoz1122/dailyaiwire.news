@@ -98,67 +98,119 @@ def generate_card(headline, slug, gist=""):
     # 3. Blue accent bar at top
     draw.rectangle([(0, 0), (CARD_SIZE[0], 6)], fill=ACCENT_COLOR)
 
+    # ── Layout constants ──
+    PAD_X = 60                     # horizontal padding
+    MAX_TEXT_W = CARD_SIZE[0] - PAD_X * 2   # 960px usable width
+    HEADER_BOTTOM = 180            # vertical space reserved for logo + brand
+    FOOTER_HEIGHT = 120            # bottom bar height
+    FOOTER_TOP = CARD_SIZE[1] - FOOTER_HEIGHT
+    CONTENT_ZONE = FOOTER_TOP - HEADER_BOTTOM  # ~780px for text
+
     # 4. Logo (top-left area)
     try:
         logo = Image.open(LOGO_PATH).convert("RGBA")
-        logo = logo.resize((80, 80), Image.LANCZOS)
-        # Place logo with slight offset
-        img.paste(logo, (60, 50), logo)
+        logo = logo.resize((100, 100), Image.LANCZOS)
+        img.paste(logo, (PAD_X, 35), logo)
     except Exception:
         pass  # Skip logo if not found
 
     # 5. "DAILY AI WIRE" label next to logo
-    label_font = _get_font(24, bold=True)
-    draw.text((155, 72), "DAILY AI WIRE", fill=ACCENT_COLOR, font=label_font)
+    label_font = _get_font(30, bold=True)
+    draw.text((PAD_X + 115, 63), "DAILY AI WIRE", fill=ACCENT_COLOR, font=label_font)
 
-    # 6. Accent dot separator
-    draw.ellipse([(60, 160), (68, 168)], fill=ACCENT_COLOR)
-    draw.line([(74, 164), (200, 164)], fill=ACCENT_COLOR, width=2)
+    # 6. Accent dot + line separator
+    draw.ellipse([(PAD_X, 158), (PAD_X + 12, 170)], fill=ACCENT_COLOR)
+    draw.line([(PAD_X + 18, 164), (PAD_X + 180, 164)], fill=ACCENT_COLOR, width=3)
 
-    # 7. Headline text (main content — auto-sized)
-    headline_font_size = 56
-    headline_font = _get_font(headline_font_size, bold=True)
+    # ── 7. Dynamic headline sizing ──────────────────────────────
+    # Try progressively smaller fonts until the text fits the content zone,
+    # picking the LARGEST size that works.  This ensures the card always
+    # looks full regardless of headline length.
 
-    # Wrap text to fit width (with padding)
-    max_width_chars = 24  # characters per line
-    if len(headline) > 80:
-        max_width_chars = 28
-        headline_font_size = 48
-        headline_font = _get_font(headline_font_size, bold=True)
-    if len(headline) > 120:
-        max_width_chars = 32
-        headline_font_size = 42
-        headline_font = _get_font(headline_font_size, bold=True)
-
-    wrapped = textwrap.fill(headline, width=max_width_chars)
-    lines = wrapped.split("\n")[:6]  # Max 6 lines
-
-    y_start = 210
-    line_height = int(headline_font_size * 1.35)
-    for i, line in enumerate(lines):
-        draw.text((60, y_start + i * line_height), line, fill=TEXT_COLOR, font=headline_font)
-
-    # 8. Gist text (below headline, smaller)
+    gist_clean = ""
     if gist:
-        gist_y = y_start + len(lines) * line_height + 30
-        gist_font = _get_font(26)
         gist_clean = gist.replace("**", "").replace("*", "")
-        gist_wrapped = textwrap.fill(gist_clean, width=48)
-        gist_lines = gist_wrapped.split("\n")[:4]  # Max 4 lines
-        for i, line in enumerate(gist_lines):
-            draw.text((60, gist_y + i * 36), line, fill=SUBTEXT_COLOR, font=gist_font)
 
-    # 9. Bottom bar with gradient accent
-    draw.rectangle([(0, CARD_SIZE[1] - 100), (CARD_SIZE[0], CARD_SIZE[1])], fill=(244, 244, 245))
-    draw.rectangle([(0, CARD_SIZE[1] - 100), (CARD_SIZE[0], CARD_SIZE[1] - 96)], fill=ACCENT_COLOR)
+    best = None
+    for font_size in range(120, 38, -2):
+        font = _get_font(font_size, bold=True)
+        line_h = int(font_size * 1.25)
+
+        # Estimate how many chars fit per line at this size
+        # (avg char width ≈ 0.6 × font_size for bold sans-serif)
+        avg_char_w = font_size * 0.58
+        chars_per_line = max(10, int(MAX_TEXT_W / avg_char_w))
+
+        wrapped = textwrap.fill(headline, width=chars_per_line)
+        lines = wrapped.split("\n")
+        if len(lines) > 7:
+            continue  # too many lines, try smaller
+
+        headline_h = len(lines) * line_h
+
+        # Gist sizing: proportional to headline (roughly 40% of headline font)
+        gist_h = 0
+        gist_font_size = max(24, int(font_size * 0.42))
+        gist_lines = []
+        if gist_clean:
+            gist_avg_w = gist_font_size * 0.52
+            gist_chars = max(20, int(MAX_TEXT_W / gist_avg_w))
+            gist_wrapped = textwrap.fill(gist_clean, width=gist_chars)
+            gist_lines = gist_wrapped.split("\n")[:5]
+            gist_line_h = int(gist_font_size * 1.4)
+            gist_h = len(gist_lines) * gist_line_h + 30  # 30px gap above gist
+
+        total_h = headline_h + gist_h
+
+        if total_h <= CONTENT_ZONE:
+            best = {
+                "font_size": font_size, "font": font, "line_h": line_h,
+                "lines": lines, "headline_h": headline_h,
+                "gist_font_size": gist_font_size, "gist_lines": gist_lines,
+                "gist_h": gist_h, "total_h": total_h,
+            }
+            break  # largest fitting size found
+
+    if best is None:
+        # Absolute fallback — smallest size
+        best = {
+            "font_size": 40, "font": _get_font(40, bold=True), "line_h": 50,
+            "lines": textwrap.fill(headline, width=30).split("\n")[:7],
+            "headline_h": 350, "gist_font_size": 24, "gist_lines": [],
+            "gist_h": 0, "total_h": 350,
+        }
+
+    # Vertically center all content within the content zone
+    y_cursor = HEADER_BOTTOM + (CONTENT_ZONE - best["total_h"]) // 2
+
+    # Draw headline
+    for line in best["lines"]:
+        draw.text((PAD_X, y_cursor), line, fill=TEXT_COLOR, font=best["font"])
+        y_cursor += best["line_h"]
+
+    # Draw gist
+    if best["gist_lines"]:
+        y_cursor += 30  # gap
+        gist_font = _get_font(best["gist_font_size"])
+        gist_line_h = int(best["gist_font_size"] * 1.4)
+        for line in best["gist_lines"]:
+            draw.text((PAD_X, y_cursor), line, fill=SUBTEXT_COLOR, font=gist_font)
+            y_cursor += gist_line_h
+
+    # ── 9. Bottom bar ───────────────────────────────────────────
+    draw.rectangle([(0, FOOTER_TOP), (CARD_SIZE[0], CARD_SIZE[1])], fill=(244, 244, 245))
+    draw.rectangle([(0, FOOTER_TOP), (CARD_SIZE[0], FOOTER_TOP + 5)], fill=ACCENT_COLOR)
 
     # 10. Watermark
-    watermark_font = _get_font(22)
-    draw.text((60, CARD_SIZE[1] - 70), "dailyaiwire.news", fill=WATERMARK_COLOR, font=watermark_font)
+    watermark_font = _get_font(28)
+    draw.text((PAD_X, CARD_SIZE[1] - 80), "dailyaiwire.news", fill=WATERMARK_COLOR, font=watermark_font)
 
     # 11. "Read Full Analysis →" CTA
-    cta_font = _get_font(22, bold=True)
-    draw.text((CARD_SIZE[0] - 280, CARD_SIZE[1] - 70), "Read Full Analysis →", fill=ACCENT_COLOR, font=cta_font)
+    cta_font = _get_font(28, bold=True)
+    cta_text = "Read Full Analysis →"
+    cta_bbox = draw.textbbox((0, 0), cta_text, font=cta_font)
+    cta_w = cta_bbox[2] - cta_bbox[0]
+    draw.text((CARD_SIZE[0] - PAD_X - cta_w, CARD_SIZE[1] - 80), cta_text, fill=ACCENT_COLOR, font=cta_font)
 
     # Save
     img.save(output_path, "PNG", quality=95)
