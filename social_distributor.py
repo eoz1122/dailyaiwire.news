@@ -13,6 +13,7 @@ import tweepy
 import requests
 from dotenv import load_dotenv
 from google_indexer import notify_google_index
+from url_shortener import shorten
 
 load_dotenv()
 
@@ -60,7 +61,7 @@ class SocialDistributor:
             gist = article.get('gist', '')
             question = article.get('thought_provoking_question', '')
             slug = article.get('seo_slug')
-            link = f"{self.base_url}/article/{slug}?utm_source=twitter&utm_medium=social&utm_campaign=auto_post"
+            link = shorten(f"{self.base_url}/article/{slug}?utm_source=twitter&utm_medium=social&utm_campaign=auto_post")
             hashtags = article.get('hashtags', [])
             
             # Use provided hashtags only - NO generic fallbacks
@@ -125,7 +126,7 @@ class SocialDistributor:
             gist = article.get('gist', '')
             question = article.get('thought_provoking_question', '')
             hashtags = article.get('hashtags', [])
-            link = f"{self.base_url}/article/{slug}?utm_source=instagram&utm_medium=social&utm_campaign=auto_post"
+            link = shorten(f"{self.base_url}/article/{slug}?utm_source=instagram&utm_medium=social&utm_campaign=auto_post")
 
             # Generate branded card image
             try:
@@ -278,7 +279,7 @@ class SocialDistributor:
             gist = article.get('gist', '')
             question = article.get('thought_provoking_question', '')
             hashtags = article.get('hashtags', [])
-            link = f"{self.base_url}/article/{slug}?utm_source=facebook&utm_medium=social&utm_campaign=auto_post"
+            link = shorten(f"{self.base_url}/article/{slug}?utm_source=facebook&utm_medium=social&utm_campaign=auto_post")
 
             # Clean markdown formatting
             gist_clean = gist.replace('**', '')
@@ -368,7 +369,7 @@ class SocialDistributor:
         headline = article.get('headline', 'Intelligence Update')
         analysis = article.get('deep_analysis', '')
         slug = article.get('seo_slug')
-        link = f"{self.base_url}/article/{slug}"
+        link = shorten(f"{self.base_url}/article/{slug}")
         
         # Clean markdown
         analysis_clean = analysis.replace('**', '').replace('\n', ' ')
