@@ -194,22 +194,28 @@ def main_loop():
                     time.sleep(3600)
                 
                 # --- INSTAGRAM DISTRIBUTION ---
-                if not article.get('shared_on_ig'):
-                    logger.info("📸 Attempting to post to Instagram...")
-                    if distributor.post_to_instagram(article_for_dist):
-                        mark_as_shared_ig(article['slug'])
-                        logger.info("✅ Successfully shared on Instagram.")
-                    else:
-                        logger.warning("⚠️ [IG SKIP] Instagram post failed or skipped.")
+                try:
+                    if not article.get('shared_on_ig'):
+                        logger.info("📸 Attempting to post to Instagram...")
+                        if distributor.post_to_instagram(article_for_dist):
+                            mark_as_shared_ig(article['slug'])
+                            logger.info("✅ Successfully shared on Instagram.")
+                        else:
+                            logger.warning("⚠️ [IG SKIP] Instagram post failed or skipped.")
+                except Exception as ig_err:
+                    logger.error("❌ [IG ERROR] Instagram distribution failed: %s", ig_err)
                 
                 # --- FACEBOOK DISTRIBUTION ---
-                if not article.get('shared_on_fb'):
-                    logger.info("📘 Attempting to post to Facebook...")
-                    if distributor.post_to_facebook(article_for_dist):
-                        mark_as_shared_fb(article['slug'])
-                        logger.info("✅ Successfully shared on Facebook.")
-                    else:
-                        logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.") 
+                try:
+                    if not article.get('shared_on_fb'):
+                        logger.info("📘 Attempting to post to Facebook...")
+                        if distributor.post_to_facebook(article_for_dist):
+                            mark_as_shared_fb(article['slug'])
+                            logger.info("✅ Successfully shared on Facebook.")
+                        else:
+                            logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.")
+                except Exception as fb_err:
+                    logger.error("❌ [FB ERROR] Facebook distribution failed: %s", fb_err) 
             else:
                 logger.info("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
                 time.sleep(600)

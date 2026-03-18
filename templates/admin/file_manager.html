@@ -13,6 +13,7 @@
         <h1 class="text-3xl font-bold text-white mb-10">Stock Image Manager</h1>
 
         <form method="POST" enctype="multipart/form-data" class="space-y-6 mb-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-zinc-300 mb-2">Category</label>

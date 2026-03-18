@@ -12,6 +12,7 @@
     <div class="mb-10 p-6 bg-zinc-800/50 rounded-xl border border-zinc-700">
         <h3 class="text-lg font-bold text-white mb-4">Add New Admin</h3>
         <form action="{{ url_for('auth.admin_add_user') }}" method="POST" class="flex gap-4 items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="flex-1">
                 <label class="block text-xs uppercase text-zinc-500 font-bold mb-1">Username</label>
                 <input type="text" name="username" required aria-label="Username" placeholder="Enter username"
@@ -50,6 +51,7 @@
                     {% if user.id != current_user.id %}
                     <form action="{{ url_for('auth.admin_delete_user', id=user.id) }}" method="POST"
                         class="delete-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit"
                             class="text-red-500 hover:text-red-400 uppercase font-black text-xs border border-red-500/30 hover:bg-red-500/10 px-2 py-1 rounded transition-colors">
                             Delete

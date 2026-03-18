@@ -10,7 +10,11 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, make_response
 from flask_login import current_user
 
+from extensions import limiter
 from db import get_db_connection
+import logging
+
+logger = logging.getLogger('public')
 
 public_bp = Blueprint('public', __name__)
 
@@ -95,7 +99,7 @@ def index():
             from embedding_service import search_articles
             semantic_results = search_articles(q, limit=20)
         except (ImportError, Exception) as e:
-            print(f"⚠️ Semantic search unavailable, falling back to keyword: {e}")
+            logger.warning("Semantic search unavailable, falling back to keyword: %s", e)
 
         if semantic_results:
             search_mode = 'semantic'
@@ -230,7 +234,7 @@ def index():
             from trend_engine import get_trend_snapshot
             trends = get_trend_snapshot(conn)
         except Exception as trend_err:
-            print(f"⚠️ Trend engine error (non-blocking): {trend_err}")
+            logger.warning("Trend engine error (non-blocking): %s", trend_err)
 
     conn.close()
 
@@ -319,7 +323,7 @@ def article(slug):
         conn.execute('UPDATE articles SET views = views + 1 WHERE id = ?', (d['id'],))
         conn.commit()
     except Exception as e:
-        print(f"Analytics Error: {e}")
+        logger.error("Analytics Error: %s", e)
     finally:
         conn.close()
 
@@ -352,6 +356,7 @@ def thank_you_page():
 
 
 @public_bp.route('/subscribe', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"])
 def subscribe():
     import sqlite3
     from newsletter_sender import send_welcome_email
@@ -376,7 +381,7 @@ def subscribe():
                 try:
                     send_welcome_email(email)
                 except Exception as e:
-                    print(f"Failed to send welcome email: {e}")
+                    logger.error("Failed to send welcome email: %s", e)
 
                 return redirect(url_for('public.thank_you_page'))
             except sqlite3.IntegrityError:

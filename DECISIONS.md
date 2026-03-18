@@ -5,6 +5,36 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-18T12:00:00+01:00 — Facebook Pipeline Fix: Missing Column + Scheduler Isolation
+
+**Context**: Facebook posting stopped ~17 hours ago. Root cause: `shared_on_fb` column was never added to the database (migrations existed for `shared_on_x` and `shared_on_ig` but not `shared_on_fb`). Additionally, the scheduler's IG/FB distribution blocks were not error-isolated — a crash in `mark_as_shared_fb` could cascade into the main loop's catch-all.
+
+**Changes**:
+- `scripts/migrate_facebook.py` [NEW]: Idempotent migration to add `shared_on_fb BOOLEAN DEFAULT 0` to the articles table.
+- `fetcher/db_init.py`: Added `shared_on_ig` and `shared_on_fb` to both the CREATE TABLE statement (for fresh DBs) and as lazy migrations (for existing DBs).
+- `tweet_scheduler.py`: Wrapped Instagram and Facebook distribution blocks in isolated try/except so a failure in one platform never crashes the scheduler or blocks the other.
+
+**Rollback**: Remove `shared_on_fb` and `shared_on_ig` lazy migrations from `db_init.py`. Remove try/except wrappers from scheduler distribution blocks. Delete `scripts/migrate_facebook.py`.
+
+---
+
+## 2026-03-18T02:45:00+01:00 — System Hardening: CSRF, Rate Limiting, and Brute-Force Defenses
+
+**Context**: Addressed critical security vulnerabilities identified during the architecture audit (P0 Priorities): absence of CSRF protection on forms, no rate limiting on public/admin endpoints, and exposure to brute-force credential stuffing.
+
+**Changes (Security & Stability)**:
+- `extensions.py` [NEW]: Centralized global registry to prevent cyclic dependency initialization of `flask_wtf.csrf.CSRFProtect` and `flask_limiter.Limiter`.
+- `app.py`: Integrated `CSRFProtect` and `Flask-Limiter`. Uses `key_func=get_remote_address` to actively trust `X-Forwarded-For` headers from the Nginx proxy.
+- `templates/**/*.html`: Injected `{{ csrf_token() }}` into all 18+ `<form method="POST">` nodes across the admin and public UI.
+- `routes/api.py`: Exempted programmatic API/AJAX endpoints (`/api/track-audio`, `/api/search`) using `@csrf.exempt`.
+- `routes/auth.py`: Replaced login logic with `FailedLoginTracker` for local memory credential tracking. Locks out accounts for 15 minutes after 5 failures. Enforced POST rate limiting of `10/min`.
+- `routes/public.py`: Rate limited `/subscribe` POST submissions to `5/min` to defend against email bombing.
+- `tests/test_smoke.py`: Refactored unit tests to correctly expect `410 Gone` on removed articles, preventing Google Search Console soft-404 dilution.
+
+**Rollback**: Uninstall `flask-wtf` and `flask-limiter`. Delete `extensions.py` and remove initialization imports from `app.py`. Strip `@csrf.exempt` and `@limiter` decorators from route modules.
+
+---
+
 ## 2026-03-16T18:55:00+01:00 — SEO Indexing Audit: Tiered Sitemap + Crawl Budget Optimization
 
 **Context**: Google Search Console showed 46/4,150 pages indexed (~1%). 3,179 "Discovered – not indexed", 919 "Crawled – not indexed", 41 returning 404. Technical SEO (canonical, OG, JSON-LD, www→non-www) was correct — root cause was crawl budget saturation from a single massive sitemap on a young domain.

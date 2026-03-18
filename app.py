@@ -14,10 +14,10 @@ from flask_login import current_user, login_required
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash
 
+from extensions import csrf, limiter
 from db import get_db_connection, DB_PATH
 from helpers import register_filters
 from logging_config import setup_logging
-
 import logging
 
 # --- App Setup ---
@@ -35,6 +35,9 @@ if not secret:
     secret = os.urandom(24).hex()
 app.config['SECRET_KEY'] = secret
 
+# --- Extensions Init ---
+csrf.init_app(app)
+limiter.init_app(app)
 
 # --- Auto-Migration on Startup ---
 def init_db_migrations():
@@ -169,7 +172,7 @@ class MyAdminIndexView(AdminIndexView):
             leads = conn2.execute('SELECT id FROM leads WHERE status != ? ORDER BY found_at DESC', ('rejected',)).fetchall()
             conn2.close()
         except Exception as e:
-            app.logger.error(f"Failed to fetch leads for dashboard: {e}")
+            app.logger.error("Failed to fetch leads for dashboard: %s", e)
             leads = []
 
         # Fetch carousel pinned article IDs
@@ -339,7 +342,7 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
-    app.logger.error(f"500 Internal Server Error: {e}")
+    app.logger.error("500 Internal Server Error: %s", e)
     return render_template('500.html'), 500
 
 

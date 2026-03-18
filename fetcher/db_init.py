@@ -43,6 +43,8 @@ def init_db():
             original_author TEXT,
             hashtags TEXT, -- Stored as JSON string
             shared_on_x BOOLEAN DEFAULT 0,
+            shared_on_ig BOOLEAN DEFAULT 0,
+            shared_on_fb BOOLEAN DEFAULT 0,
             shared_at TIMESTAMP
         )
     ''')
@@ -195,6 +197,20 @@ def init_db():
     except sqlite3.OperationalError:
         cursor.execute("ALTER TABLE articles ADD COLUMN ai_model_used TEXT")
         logger.info("🤖 Added ai_model_used column to articles table.")
+
+    # Lazy migration: Add shared_on_ig column if missing
+    try:
+        cursor.execute("SELECT shared_on_ig FROM articles LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE articles ADD COLUMN shared_on_ig BOOLEAN DEFAULT 0")
+        logger.info("📸 Added shared_on_ig column to articles table.")
+
+    # Lazy migration: Add shared_on_fb column if missing
+    try:
+        cursor.execute("SELECT shared_on_fb FROM articles LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE articles ADD COLUMN shared_on_fb BOOLEAN DEFAULT 0")
+        logger.info("📘 Added shared_on_fb column to articles table.")
 
     conn.commit()
     conn.close()

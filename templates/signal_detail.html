@@ -83,6 +83,7 @@
         <p class="text-[var(--text-primary)] font-bold text-base mb-1.5">Get The Signal in your inbox</p>
         <p class="text-[var(--text-secondary)] text-xs mb-5">Free weekly intelligence briefing, every Sunday.</p>
         <form action="/subscribe" method="POST" class="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input type="email" name="email" placeholder="you@example.com" required autocomplete="email"
                 class="flex-1 bg-zinc-900/50 border border-zinc-800 text-[var(--text-primary)] rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-blue-600 transition-all min-h-[44px] placeholder:text-zinc-600">
             <button type="submit"

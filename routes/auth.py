@@ -3,15 +3,60 @@ Auth routes — DailyAIWire.news
 Login, logout, user management, and Flask-Login setup.
 """
 import sqlite3
+import logging
+import time
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from extensions import limiter
 from db import get_db_connection
 
+logger = logging.getLogger('auth')
+
 auth_bp = Blueprint('auth', __name__)
+
+
+# --- Failed Login Tracker (§4 Brute-Force Protection) ---
+class FailedLoginTracker:
+    """In-memory tracker: locks a username after MAX_ATTEMPTS failures for LOCKOUT_SECONDS."""
+
+    MAX_ATTEMPTS = 5
+    LOCKOUT_SECONDS = 15 * 60  # 15 minutes
+
+    def __init__(self):
+        self._attempts = {}  # {username: {"count": int, "first_at": float, "locked_until": float}}
+
+    def is_locked(self, username):
+        entry = self._attempts.get(username)
+        if not entry:
+            return False
+        if entry.get("locked_until", 0) > time.time():
+            return True
+        # Lockout expired — reset
+        if entry.get("locked_until"):
+            del self._attempts[username]
+        return False
+
+    def record_failure(self, username):
+        now = time.time()
+        entry = self._attempts.get(username, {"count": 0, "first_at": now})
+        entry["count"] += 1
+        logger.warning("Failed login attempt %d for user '%s' from %s",
+                        entry["count"], username, request.remote_addr)
+        if entry["count"] >= self.MAX_ATTEMPTS:
+            entry["locked_until"] = now + self.LOCKOUT_SECONDS
+            logger.warning("Account '%s' locked for %d minutes after %d failures",
+                            username, self.LOCKOUT_SECONDS // 60, entry["count"])
+        self._attempts[username] = entry
+
+    def reset(self, username):
+        self._attempts.pop(username, None)
+
+
+_login_tracker = FailedLoginTracker()
 
 
 # --- User Model ---
@@ -41,20 +86,30 @@ def init_login_manager(app):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if _login_tracker.is_locked(username):
+            logger.warning("Login attempt on locked account '%s' from %s",
+                            username, request.remote_addr)
+            flash('Account temporarily locked. Try again later.', 'error')
+            return render_template('login.html'), 429
 
         conn = get_db_connection()
         user_row = conn.execute('SELECT * FROM admins WHERE username = ?', (username,)).fetchone()
         conn.close()
 
         if user_row and check_password_hash(user_row['password_hash'], password):
+            _login_tracker.reset(username)
             user = User(id=user_row['id'], username=user_row['username'])
             login_user(user)
+            logger.info("Successful login for user '%s' from %s", username, request.remote_addr)
             return redirect(url_for('admin.index'))
         else:
+            _login_tracker.record_failure(username)
             flash('Invalid credentials', 'error')
     return render_template('login.html')
 

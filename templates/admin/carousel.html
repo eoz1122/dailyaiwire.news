@@ -50,6 +50,7 @@
                     </h2>
                     {% if slots|length > 1 %}
                     <form action="{{ url_for('admin_carousel.reorder_carousel') }}" method="POST" id="reorder-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit"
                             class="text-[10px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg border border-blue-200 transition-colors min-h-[44px]">
                             Save Order
@@ -126,6 +127,7 @@
                                         <form
                                             action="{{ url_for('admin_carousel.update_timer', article_id=slot.article_id) }}"
                                             method="POST" class="space-y-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <p
                                                 class="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">
                                                 Set Duration</p>
@@ -156,6 +158,7 @@
                                 <!-- Unpin -->
                                 <form action="{{ url_for('admin_carousel.unpin_article', article_id=slot.article_id) }}"
                                     method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit"
                                         class="w-full text-[10px] font-black uppercase tracking-wider text-red-500 hover:text-white bg-red-50 hover:bg-red-600 px-3 py-2 rounded-lg border border-red-200 hover:border-red-600 transition-colors min-h-[44px]"
                                         onclick="return confirm('Remove from carousel?')">
@@ -205,6 +208,7 @@
 
                         <form action="{{ url_for('admin_carousel.pin_article', article_id=art.id) }}" method="POST"
                             class="flex flex-wrap gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <!-- Quick pin with preset durations -->
                             <select name="duration"
                                 class="text-[10px] bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]">

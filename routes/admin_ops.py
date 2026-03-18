@@ -10,6 +10,9 @@ from flask_login import login_required
 
 from db import get_db_connection
 from budget_tracker import BudgetTracker
+import logging
+
+logger = logging.getLogger('admin_ops')
 
 admin_ops_bp = Blueprint('admin_ops', __name__)
 
@@ -51,7 +54,7 @@ def admin_sources():
         ''')
         conn.commit()
     except Exception as e:
-        print(f"Source discovery warning: {e}")
+        logger.warning("Source discovery warning: %s", e)
 
     try:
         sources_managed = conn.execute('''
@@ -324,7 +327,7 @@ def admin_kill_article(id):
                 ''', (domain, row['source_url'], row['title']))
                 status_msg += " + COPIED TO LEADS"
             except Exception as e:
-                print(f"Error moving to leads: {e}")
+                logger.error("Error moving to leads: %s", e)
 
         if new_status == 0 and request.args.get('block_source') == 'true':
             source_to_block = row['source']

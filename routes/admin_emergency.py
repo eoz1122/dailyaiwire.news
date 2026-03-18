@@ -7,6 +7,9 @@ from flask import Blueprint, redirect, url_for, flash, request
 from flask_login import login_required
 
 from db import get_db_connection
+import logging
+
+logger = logging.getLogger('admin_emergency')
 
 admin_emergency_bp = Blueprint('admin_emergency', __name__)
 
@@ -63,7 +66,7 @@ def toggle_emergency():
             from google_indexer import notify_google_index
             notify_google_index("https://dailyaiwire.news/")
         except Exception as e:
-            print(f"⚠️ Google re-crawl request failed: {e}")
+            logger.warning("Google re-crawl request failed: %s", e)
 
         flash("✅ EMERGENCY OVERRIDE LIFTED — Site is back ONLINE.", "success")
     else:
@@ -80,7 +83,7 @@ def toggle_emergency():
             # Send URL_DELETED signal to accelerate de-indexing
             notify_google_index("https://dailyaiwire.news/", action="URL_DELETED")
         except Exception as e:
-            print(f"⚠️ Google deindex signal failed (non-critical): {e}")
+            logger.warning("Google deindex signal failed (non-critical): %s", e)
 
         flash("🚨 EMERGENCY OVERRIDE ACTIVATED — Public site is OFFLINE. Admin panel remains accessible.", "error")
 

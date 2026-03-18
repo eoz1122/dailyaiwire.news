@@ -33,6 +33,7 @@
                 <td class="px-6 py-4">
                     <form action="{{ url_for('admin_content.delete_subscriber', id=sub.id) }}" method="POST"
                         class="delete-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit"
                             class="text-red-500 hover:text-red-400 font-bold text-[10px] uppercase tracking-wider">
                             Delete

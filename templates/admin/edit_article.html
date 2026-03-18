@@ -4,6 +4,7 @@
 
 {% block admin_content %}
 <form method="POST" enctype="multipart/form-data" class="flex flex-col h-full">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
     <!-- Sticky Header Actions -->
     <div
@@ -167,6 +168,7 @@
                         <label class="block text-xs font-bold text-zinc-500">Audio Synthesis</label>
                         <form action="{{ url_for('admin_content.admin_generate_audio', id=article.id) }}" method="POST"
                             class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit"
                                 class="text-[10px] font-bold px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors flex items-center gap-1">
                                 <span>🎙️</span> Generate

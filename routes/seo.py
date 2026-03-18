@@ -10,6 +10,9 @@ from flask import Blueprint, render_template, Response, make_response, current_a
 
 from db import get_db_connection
 from lab_posts import get_lab_posts, get_lab_post
+import logging
+
+logger = logging.getLogger('seo')
 
 seo_bp = Blueprint('seo', __name__)
 
@@ -299,7 +302,7 @@ def sitemap_core():
                 pub_date = now_str
             pages.append([url, 0.8, "daily", pub_date])
     except Exception as e:
-        print(f"Sitemap Core Error (Articles): {e}")
+        logger.error("Sitemap Core Error (Articles): %s", e)
 
     conn.close()
 
@@ -317,7 +320,7 @@ def sitemap_core():
                 pub_date = now_str
             pages.append([url, 0.8, "weekly", pub_date])
     except Exception as e:
-        print(f"Sitemap Core Error (Lab): {e}")
+        logger.error("Sitemap Core Error (Lab): %s", e)
 
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     response = make_response(sitemap_xml)
@@ -359,7 +362,7 @@ def sitemap_archive():
                 pub_date = now_str
             pages.append([url, 0.4, "monthly", pub_date])
     except Exception as e:
-        print(f"Sitemap Archive Error: {e}")
+        logger.error("Sitemap Archive Error: %s", e)
 
     conn.close()
 

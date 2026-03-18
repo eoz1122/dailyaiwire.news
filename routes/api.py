@@ -3,16 +3,22 @@ API routes — DailyAIWire.news
 Search, trends, and tracking endpoints.
 """
 import base64
+import logging
 
 from flask import Blueprint, request, Response
 from flask_login import current_user
 
+from extensions import csrf, limiter
 from db import get_db_connection
+
+logger = logging.getLogger('api')
 
 api_bp = Blueprint('api', __name__)
 
 
+
 @api_bp.route('/api/search')
+@limiter.limit("30 per minute")
 def api_search():
     """Semantic search API endpoint for typeahead and programmatic access."""
     q = request.args.get('q', '').strip()
@@ -42,7 +48,7 @@ def api_search():
 
             return {"results": enriched, "mode": "semantic"}, 200
     except (ImportError, Exception) as e:
-        print(f"⚠️ API semantic search fallback: {e}")
+        logger.warning("API semantic search fallback: %s", e)
 
     # Fallback: keyword search
     conn = get_db_connection()
@@ -73,6 +79,7 @@ def api_trends():
 
 
 @api_bp.route('/api/track-audio/<int:id>', methods=['POST'])
+@csrf.exempt
 def track_audio_play(id):
     try:
         conn = get_db_connection()
@@ -96,7 +103,7 @@ def track_newsletter_open(newsletter_id, recipient_email):
         ''', (newsletter_id, recipient_email))
         conn.commit()
     except Exception as e:
-        print(f"Tracking error: {e}")
+        logger.error("Tracking error: %s", e)
     finally:
         conn.close()
 

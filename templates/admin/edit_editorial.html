@@ -48,6 +48,7 @@
 
     <!-- Form -->
     <form method="POST" class="p-5 space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- Title -->
         <div>
             <label for="title" class="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Title</label>

@@ -70,6 +70,7 @@
                 <div class="flex items-center gap-2">
                     <form method="POST" action="{{ url_for('admin_ops.admin_dedup_merge', cluster_id=cluster.id) }}"
                         class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit"
                             class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
                             onclick="return confirm('Merge: Keep newest article, unpublish {{ cluster.articles|length - 1 }} older duplicates?')">
@@ -78,6 +79,7 @@
                     </form>
                     <form method="POST" action="{{ url_for('admin_ops.admin_dedup_dismiss', cluster_id=cluster.id) }}"
                         class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit"
                             class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-bold rounded-lg transition-colors">
                             ❌ Dismiss

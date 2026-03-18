@@ -218,6 +218,7 @@ def client(_patch_db):
     from app import app
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
+    app.config['RATELIMIT_ENABLED'] = False
     with app.test_client() as c:
         yield c
 
@@ -231,6 +232,7 @@ def auth_client(_patch_db):
 
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False
+    app.config['RATELIMIT_ENABLED'] = False
 
     # Ensure test admin exists
     conn = sqlite3.connect(db_module.DB_PATH)

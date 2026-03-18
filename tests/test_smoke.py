@@ -53,7 +53,7 @@ class TestPublicRoutes:
 
     def test_article_not_found(self, client):
         resp = client.get('/article/nonexistent-slug-xyz')
-        assert resp.status_code == 404
+        assert resp.status_code == 410
 
     def test_about_page(self, client):
         resp = client.get('/about')
@@ -303,8 +303,7 @@ class TestErrorPages:
 
     def test_404_article_not_found(self, client):
         resp = client.get('/article/definitely-not-a-real-slug-xyz')
-        assert resp.status_code == 404
-        assert b'Intelligence Not Found' in resp.data
+        assert resp.status_code == 410
 
     def test_error_handlers_registered(self, client):
         from app import app

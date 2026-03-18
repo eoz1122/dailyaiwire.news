@@ -12,6 +12,9 @@ from flask_login import login_required
 
 from db import get_db_connection
 from budget_tracker import BudgetTracker
+import logging
+
+logger = logging.getLogger('admin_content')
 
 admin_content_bp = Blueprint('admin_content', __name__)
 
@@ -343,9 +346,9 @@ def admin_generate_video(id):
     from maintenance.linkedin_audiogram import generate_audiogram
 
     def run_gen(aid):
-        print(f"🧵 Thread started for Video {aid}")
+        logger.info("Thread started for Video %s", aid)
         generate_audiogram(aid)
-        print(f"🏁 Thread finished for Video {aid}")
+        logger.info("Thread finished for Video %s", aid)
 
     thread = threading.Thread(target=run_gen, args=(id,))
     thread.start()
@@ -362,7 +365,7 @@ def admin_generate_audio(id):
     from audio_generator import AudioGenerator
 
     def run_audio_gen(article_id):
-        print(f"🎙️ Thread started for Audio {article_id}")
+        logger.info("Thread started for Audio %s", article_id)
         try:
             conn = get_db_connection()
             article = conn.execute('''
@@ -372,7 +375,7 @@ def admin_generate_audio(id):
             ''', (article_id,)).fetchone()
 
             if not article:
-                print(f"❌ Article {article_id} not found")
+                logger.error("Article %s not found", article_id)
                 return
 
             slug, title, gist, matters, bull, bear, details_json, script = article
@@ -404,15 +407,15 @@ def admin_generate_audio(id):
                     (male, female, article_id)
                 )
                 conn.commit()
-                print(f"✅ Audio generated for article {article_id}")
+                logger.info("Audio generated for article %s", article_id)
             else:
-                print(f"❌ Audio generation failed for article {article_id}")
+                logger.error("Audio generation failed for article %s", article_id)
 
             conn.close()
         except Exception as e:
-            print(f"❌ Error generating audio: {e}")
+            logger.error("Error generating audio: %s", e)
 
-        print(f"🏁 Thread finished for Audio {article_id}")
+        logger.info("Thread finished for Audio %s", article_id)
 
     thread = threading.Thread(target=run_audio_gen, args=(id,))
     thread.start()

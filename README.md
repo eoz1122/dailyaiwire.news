@@ -56,28 +56,18 @@ python app.py
 
 ```
 dailyaiwire/
-├── app.py                 # Flask application
-├── fetcher.py            # RSS aggregation & AI processing
-├── seo_routes.py         # Sitemap & robots.txt
-├── seed_blog.py          # Blog post seeder
-├── templates/            # Jinja2 templates
-│   ├── base.html
-│   ├── index.html
-│   ├── article.html
-│   ├── lab_index.html
-│   ├── lab_post.html
-│   ├── privacy.html
-│   ├── 404.html
-│   └── 500.html
-├── static/               # Static assets
-│   ├── og-image.jpg
-│   ├── logo.png
-│   └── robots.txt
-├── maintenance/          # Utility scripts (QA, Deduplication, Debugging)
-│   ├── qa_monitor.py
-│   └── check_unsplash_urls.py
-├── news.db              # SQLite database
-└── requirements.txt
+├── app.py                 # Flask application entrypoint
+├── extensions.py          # Global extensions (CSRF, Limiter)
+├── db.py                  # Database connection utilities
+├── fetcher/               # RSS aggregation & AI intelligence pipeline
+├── routes/                # Flask Blueprints (public, api, admin, auth, seo, lab)
+├── services/              # External integrations (social, email, analytics)
+├── scripts/               # Utility scripts (migrations, deduplication)
+├── templates/             # Jinja2 HTML templates
+├── static/                # CSS, JS, Images, Fonts
+├── tests/                 # Pytest test suite
+├── news.db                # SQLite database
+└── requirements.txt       # Dependencies
 ```
 
 ## 🌐 Deployment
