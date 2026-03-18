@@ -39,6 +39,7 @@ QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
 VERSION = "2.3.0"
+FB_DAILY_LIMIT = 3  # Max Facebook posts per day to avoid spam throttle
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -115,9 +116,21 @@ def mark_as_shared_ig(slug):
 def mark_as_shared_fb(slug):
     """Mark article as shared on Facebook."""
     conn = get_db_connection()
-    conn.execute('UPDATE articles SET shared_on_fb = 1 WHERE slug = ?', (slug,))
+    now_str = datetime.now(timezone.utc).isoformat()
+    conn.execute('UPDATE articles SET shared_on_fb = 1, shared_on_fb_at = ? WHERE slug = ?', (now_str, slug))
     conn.commit()
     conn.close()
+
+def get_fb_posts_today():
+    """Count Facebook posts made in the last 24 hours."""
+    conn = get_db_connection()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    row = conn.execute(
+        'SELECT COUNT(*) as cnt FROM articles WHERE shared_on_fb = 1 AND shared_on_fb_at > ?',
+        (cutoff,)
+    ).fetchone()
+    conn.close()
+    return row['cnt'] if row else 0
 
 def main_loop():
     logger.info("🚀 Starting Tweet Scheduler v%s", VERSION)
@@ -208,12 +221,16 @@ def main_loop():
                 # --- FACEBOOK DISTRIBUTION ---
                 try:
                     if not article.get('shared_on_fb'):
-                        logger.info("📘 Attempting to post to Facebook...")
-                        if distributor.post_to_facebook(article_for_dist):
-                            mark_as_shared_fb(article['slug'])
-                            logger.info("✅ Successfully shared on Facebook.")
+                        fb_today = get_fb_posts_today()
+                        if fb_today >= FB_DAILY_LIMIT:
+                            logger.info("📘 [FB LIMIT] %d/%d FB posts today — skipping to avoid throttle.", fb_today, FB_DAILY_LIMIT)
                         else:
-                            logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.")
+                            logger.info("📘 Attempting to post to Facebook... (%d/%d today)", fb_today + 1, FB_DAILY_LIMIT)
+                            if distributor.post_to_facebook(article_for_dist):
+                                mark_as_shared_fb(article['slug'])
+                                logger.info("✅ Successfully shared on Facebook.")
+                            else:
+                                logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.")
                 except Exception as fb_err:
                     logger.error("❌ [FB ERROR] Facebook distribution failed: %s", fb_err) 
             else:
