@@ -39,7 +39,8 @@ QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
 VERSION = "2.3.0"
-FB_DAILY_LIMIT = 3  # Max Facebook posts per day to avoid spam throttle
+FB_DAILY_LIMIT = 2  # Max Facebook posts per day to avoid spam throttle
+FB_BACKOFF_MAX_HOURS = 48  # Maximum backoff window
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -134,8 +135,12 @@ def get_fb_posts_today():
 
 def main_loop():
     logger.info("🚀 Starting Tweet Scheduler v%s", VERSION)
-    logger.info("📡 Config: Interval 2h | Quiet Window %d-%d AM DE", QUIET_START, QUIET_END)
+    logger.info("📡 Config: Interval 2h | Quiet Window %d-%d AM DE | FB Limit %d/day", QUIET_START, QUIET_END, FB_DAILY_LIMIT)
     distributor = SocialDistributor()
+
+    # Facebook exponential backoff state
+    fb_backoff_hours = 0
+    fb_backoff_until = None
 
     while True:
         try:
@@ -221,18 +226,30 @@ def main_loop():
                 # --- FACEBOOK DISTRIBUTION ---
                 try:
                     if not article.get('shared_on_fb'):
-                        fb_today = get_fb_posts_today()
-                        if fb_today >= FB_DAILY_LIMIT:
-                            logger.info("📘 [FB LIMIT] %d/%d FB posts today — skipping to avoid throttle.", fb_today, FB_DAILY_LIMIT)
+                        # Exponential backoff check
+                        if fb_backoff_until and datetime.now(timezone.utc) < fb_backoff_until:
+                            remaining = (fb_backoff_until - datetime.now(timezone.utc)).total_seconds() / 3600
+                            logger.info("📘 [FB BACKOFF] Cooling down for %.1fh more (backoff: %dh).", remaining, fb_backoff_hours)
                         else:
-                            logger.info("📘 Attempting to post to Facebook... (%d/%d today)", fb_today + 1, FB_DAILY_LIMIT)
-                            if distributor.post_to_facebook(article_for_dist):
-                                mark_as_shared_fb(article['slug'])
-                                logger.info("✅ Successfully shared on Facebook.")
+                            fb_today = get_fb_posts_today()
+                            if fb_today >= FB_DAILY_LIMIT:
+                                logger.info("📘 [FB LIMIT] %d/%d FB posts today — skipping to avoid throttle.", fb_today, FB_DAILY_LIMIT)
                             else:
-                                logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.")
+                                logger.info("📘 Attempting to post to Facebook... (%d/%d today)", fb_today + 1, FB_DAILY_LIMIT)
+                                if distributor.post_to_facebook(article_for_dist):
+                                    mark_as_shared_fb(article['slug'])
+                                    logger.info("✅ Successfully shared on Facebook.")
+                                    # Reset backoff on success
+                                    fb_backoff_hours = 0
+                                    fb_backoff_until = None
+                                else:
+                                    logger.warning("⚠️ [FB SKIP] Facebook post failed or skipped.")
                 except Exception as fb_err:
-                    logger.error("❌ [FB ERROR] Facebook distribution failed: %s", fb_err) 
+                    logger.error("❌ [FB ERROR] Facebook distribution failed: %s", fb_err)
+                    # Exponential backoff: 4h → 8h → 16h → 32h → 48h max
+                    fb_backoff_hours = min(max(fb_backoff_hours * 2, 4), FB_BACKOFF_MAX_HOURS)
+                    fb_backoff_until = datetime.now(timezone.utc) + timedelta(hours=fb_backoff_hours)
+                    logger.warning("📘 [FB BACKOFF] Rate limited. Next FB attempt in %dh (at %s).", fb_backoff_hours, fb_backoff_until.strftime('%H:%M UTC')) 
             else:
                 logger.info("📭 Queue is empty (0 unshared articles). Checking again in 10 mins...")
                 time.sleep(600)
