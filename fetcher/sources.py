@@ -119,7 +119,7 @@ def fetch_all_sources() -> List[Dict]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT name, url FROM sources WHERE is_active = 1")
+        cursor.execute("SELECT name, url FROM sources WHERE is_active = 1 AND url IS NOT NULL AND url != '' AND url != 'None'")
         sources = cursor.fetchall()
     except sqlite3.OperationalError:
         logger.warning("⚠️ 'sources' table not found. Using fallback list.")
@@ -130,9 +130,14 @@ def fetch_all_sources() -> List[Dict]:
     finally:
         conn.close()
 
+    # Runtime safety: filter out any sources with missing URLs
+    sources = [(name, url) for name, url in sources if url and url.strip() and url.strip().lower() != 'none']
+
     if not sources:
         logger.warning("⚠️ No active sources found in DB.")
         return []
+
+    logger.info("📡 Scanning %d active sources...", len(sources))
 
     unique_articles = {}
 
