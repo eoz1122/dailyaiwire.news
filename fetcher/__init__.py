@@ -57,12 +57,12 @@ def main():
 
     # Process in batches for efficiency
     # HARD LIMIT: Never process more than 16 articles per cycle to prevent token spikes
-    MAX_ARTICLES_PER_CYCLE = 16
+    MAX_ARTICLES_PER_CYCLE = int(os.getenv('FETCHER_MAX_ARTICLES', '16'))
     if len(new_articles) > MAX_ARTICLES_PER_CYCLE:
         logger.warning("⚠️ Cap reached! Truncating %d articles to %d", len(new_articles), MAX_ARTICLES_PER_CYCLE)
         new_articles = new_articles[:MAX_ARTICLES_PER_CYCLE]
 
-    batch_size = 4
+    batch_size = int(os.getenv('FETCHER_BATCH_SIZE', '4'))
     distributor = SocialDistributor()
     total_posts_sent = 0
     articles_saved = 0

@@ -118,7 +118,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                         logger.warning("   ⚠️ Lead extraction failed: %s", le)
                     continue
         except ImportError:
-            pass  # Compass not installed, skip gracefully
+            logger.debug("Embedding service not installed — skipping compass scoring")
         except Exception as compass_err:
             logger.warning("⚠️ Editorial Compass error (non-blocking): %s", compass_err)
 
@@ -325,7 +325,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                     )
                     logger.info("📦 Indexed into Qdrant: %s", art.get('headline'))
             except ImportError:
-                pass  # Compass not installed
+                logger.debug("Embedding service not installed — skipping Qdrant indexing")
             except Exception as idx_err:
                 logger.warning("⚠️ Qdrant indexing error (non-blocking): %s", idx_err)
 

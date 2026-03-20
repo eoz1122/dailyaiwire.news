@@ -2,8 +2,10 @@
 Auth routes — DailyAIWire.news
 Login, logout, user management, and Flask-Login setup.
 """
+import os
 import sqlite3
 import logging
+import logging.handlers
 import time
 from datetime import datetime
 
@@ -16,44 +18,96 @@ from db import get_db_connection
 
 logger = logging.getLogger('auth')
 
+# F-21: Dedicated auth audit log — always writes to file regardless of LOG_TO_FILE
+_log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+os.makedirs(_log_dir, exist_ok=True)
+_auth_handler = logging.handlers.RotatingFileHandler(
+    os.path.join(_log_dir, 'auth_audit.log'),
+    maxBytes=2 * 1024 * 1024,
+    backupCount=5,
+    encoding='utf-8'
+)
+_auth_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s %(name)s: %(message)s', '%Y-%m-%d %H:%M:%S'))
+_auth_handler.setLevel(logging.INFO)
+logger.addHandler(_auth_handler)
+
 auth_bp = Blueprint('auth', __name__)
 
 
 # --- Failed Login Tracker (§4 Brute-Force Protection) ---
 class FailedLoginTracker:
-    """In-memory tracker: locks a username after MAX_ATTEMPTS failures for LOCKOUT_SECONDS."""
+    """SQLite-backed tracker: locks a username after MAX_ATTEMPTS failures for LOCKOUT_SECONDS.
+    Persists across Gunicorn worker restarts and is shared across all workers (F-11)."""
 
     MAX_ATTEMPTS = 5
     LOCKOUT_SECONDS = 15 * 60  # 15 minutes
 
     def __init__(self):
-        self._attempts = {}  # {username: {"count": int, "first_at": float, "locked_until": float}}
+        self._ensure_table()
+
+    def _ensure_table(self):
+        try:
+            conn = get_db_connection()
+            conn.execute('''CREATE TABLE IF NOT EXISTS failed_logins (
+                username TEXT PRIMARY KEY,
+                count INTEGER DEFAULT 0,
+                first_at REAL,
+                locked_until REAL DEFAULT 0
+            )''')
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning("Failed to create failed_logins table: %s", e)
 
     def is_locked(self, username):
-        entry = self._attempts.get(username)
-        if not entry:
+        try:
+            conn = get_db_connection()
+            row = conn.execute('SELECT locked_until FROM failed_logins WHERE username = ?', (username,)).fetchone()
+            conn.close()
+            if not row:
+                return False
+            if row['locked_until'] > time.time():
+                return True
+            # Lockout expired — reset
+            if row['locked_until'] > 0:
+                self.reset(username)
             return False
-        if entry.get("locked_until", 0) > time.time():
-            return True
-        # Lockout expired — reset
-        if entry.get("locked_until"):
-            del self._attempts[username]
-        return False
+        except Exception:
+            return False
 
     def record_failure(self, username):
         now = time.time()
-        entry = self._attempts.get(username, {"count": 0, "first_at": now})
-        entry["count"] += 1
-        logger.warning("Failed login attempt %d for user '%s' from %s",
-                        entry["count"], username, request.remote_addr)
-        if entry["count"] >= self.MAX_ATTEMPTS:
-            entry["locked_until"] = now + self.LOCKOUT_SECONDS
-            logger.warning("Account '%s' locked for %d minutes after %d failures",
-                            username, self.LOCKOUT_SECONDS // 60, entry["count"])
-        self._attempts[username] = entry
+        try:
+            conn = get_db_connection()
+            row = conn.execute('SELECT count FROM failed_logins WHERE username = ?', (username,)).fetchone()
+            if row:
+                new_count = row['count'] + 1
+                locked_until = (now + self.LOCKOUT_SECONDS) if new_count >= self.MAX_ATTEMPTS else 0
+                conn.execute('UPDATE failed_logins SET count = ?, locked_until = ? WHERE username = ?',
+                             (new_count, locked_until, username))
+            else:
+                new_count = 1
+                locked_until = 0
+                conn.execute('INSERT INTO failed_logins (username, count, first_at, locked_until) VALUES (?, ?, ?, ?)',
+                             (username, 1, now, 0))
+            conn.commit()
+            conn.close()
+            logger.warning("Failed login attempt %d for user '%s' from %s",
+                            new_count, username, request.remote_addr)
+            if new_count >= self.MAX_ATTEMPTS:
+                logger.warning("Account '%s' locked for %d minutes after %d failures",
+                                username, self.LOCKOUT_SECONDS // 60, new_count)
+        except Exception as e:
+            logger.error("Error recording login failure: %s", e)
 
     def reset(self, username):
-        self._attempts.pop(username, None)
+        try:
+            conn = get_db_connection()
+            conn.execute('DELETE FROM failed_logins WHERE username = ?', (username,))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
 
 _login_tracker = FailedLoginTracker()
@@ -114,8 +168,9 @@ def login():
     return render_template('login.html')
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
+    logger.info("User '%s' logged out from %s", current_user.username if current_user.is_authenticated else 'unknown', request.remote_addr)
     logout_user()
     return redirect(url_for('public.index'))
 
@@ -152,7 +207,8 @@ def admin_add_user():
     except sqlite3.IntegrityError:
         flash('Username already exists!', 'error')
     except Exception as e:
-        flash(f'Error creating user: {e}', 'error')
+        logger.error("Error creating user: %s", e, exc_info=True)
+        flash('An error occurred while creating the user.', 'error')
 
     return redirect(url_for('auth.admin_users'))
 

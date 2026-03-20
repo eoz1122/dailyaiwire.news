@@ -16,6 +16,12 @@ from db import get_db_connection
 
 admin_core_bp = Blueprint('admin_core', __name__)
 
+# F-06: Upload extension whitelist
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'mp3', 'wav', 'ogg'}
+
+import logging
+logger = logging.getLogger('admin_core')
+
 
 @admin_core_bp.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -45,6 +51,10 @@ def admin_edit_article(id):
 
                 filename = secure_filename(file.filename)
                 name, ext = os.path.splitext(filename)
+                # F-06: Validate extension
+                if ext.lower().lstrip('.') not in ALLOWED_EXTENSIONS:
+                    flash(f'File type {ext} not allowed.', 'error')
+                    return None
                 new_filename = f"{article_slug}_{name[:20]}_{int(time.time())}{ext}"
 
                 path = os.path.join(save_dir, new_filename)
@@ -93,7 +103,8 @@ def admin_edit_article(id):
         except sqlite3.IntegrityError:
             flash('Error: An article with this slug already exists.', 'error')
         except Exception as e:
-            flash(f'Error updating article: {e}', 'error')
+            logger.error("Article update error: %s", e, exc_info=True)
+            flash('An error occurred while updating the article.', 'error')
         finally:
             conn.close()
         return redirect(url_for('admin_core.admin_edit_article', id=id))
@@ -168,7 +179,8 @@ def admin_create_article():
             flash('Error: An article with this slug or source URL already exists.', 'error')
             return redirect(url_for('admin_core.admin_create_article'))
         except Exception as e:
-            flash(f'Error creating article: {e}', 'error')
+            logger.error("Article creation error: %s", e, exc_info=True)
+            flash('An error occurred while creating the article.', 'error')
             return redirect(url_for('admin_core.admin_create_article'))
 
     return render_template('admin/create_article.html')

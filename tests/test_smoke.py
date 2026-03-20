@@ -249,7 +249,7 @@ class TestAnswerEngineAPI:
 
     def test_cors_headers(self, client):
         resp = client.get('/api/intelligence')
-        assert resp.headers.get('Access-Control-Allow-Origin') == '*'
+        assert resp.headers.get('Access-Control-Allow-Origin') == 'https://dailyaiwire.news'
 
     def test_cache_headers(self, client):
         resp = client.get('/api/intelligence')

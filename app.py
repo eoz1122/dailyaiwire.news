@@ -35,6 +35,14 @@ if not secret:
     secret = os.urandom(24).hex()
 app.config['SECRET_KEY'] = secret
 
+# SECURITY: Session cookie hardening (F-02)
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = True
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+
 # --- Extensions Init ---
 csrf.init_app(app)
 limiter.init_app(app)
@@ -57,8 +65,11 @@ def init_db_migrations():
 
             if not conn.execute('SELECT id FROM admins LIMIT 1').fetchone():
                 logger.info("MIGRATION: Moving ENV Admin to Database...")
-                env_user = os.getenv('ADMIN_USERNAME', 'admin')
-                env_pass = os.getenv('ADMIN_PASSWORD', 'admin')
+                env_user = os.getenv('ADMIN_USERNAME')
+                env_pass = os.getenv('ADMIN_PASSWORD')
+                if not env_user or not env_pass:
+                    logger.critical("⚠️ ADMIN_USERNAME / ADMIN_PASSWORD not set! Cannot create admin.")
+                    raise RuntimeError("Missing ADMIN_USERNAME or ADMIN_PASSWORD environment variables.")
                 p_hash = generate_password_hash(env_pass)
                 conn.execute('INSERT INTO admins (username, password_hash, created_at) VALUES (?, ?, ?)',
                              (env_user, p_hash, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
@@ -280,6 +291,8 @@ def inject_config():
 # --- Security Headers ---
 @app.after_request
 def add_security_headers(response):
+    # NOTE: Tailwind CDN (JIT mode) requires 'unsafe-eval'. If you migrate to a pre-built
+    # Tailwind bundle, remove 'unsafe-eval' from script-src below.
     csp = (
         "default-src 'self' https: data: blob:; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
@@ -292,6 +305,12 @@ def add_security_headers(response):
         "form-action 'self' https://api.web3forms.com;"
     )
     response.headers['Content-Security-Policy'] = csp
+    # F-01: Additional security headers
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
     return response
 
 
@@ -370,6 +389,13 @@ def check_emergency_mode():
         resp = make_response(render_template('maintenance.html'), 503)
         resp.headers['Retry-After'] = '3600'
         return resp
+
+
+# --- Health Check (F-23) ---
+@app.route('/health')
+def health_check():
+    """Uptime probe for load balancers and monitoring."""
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}, 200
 
 
 if __name__ == '__main__':

@@ -264,10 +264,13 @@
                         <div class="text-[10px] text-gray-400 uppercase tracking-wider">Administrator</div>
                     </div>
                 </div>
-                <a href="{{ url_for('auth.logout') }}"
-                    class="block w-full text-center px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg border border-red-200 hover:border-red-300 transition-all">
-                    End Session
-                </a>
+                <form method="POST" action="{{ url_for('auth.logout') }}" class="w-full">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"
+                        class="block w-full text-center px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg border border-red-200 hover:border-red-300 transition-all cursor-pointer">
+                        End Session
+                    </button>
+                </form>
             </div>
         </aside>
 

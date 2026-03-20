@@ -113,7 +113,7 @@ def admin_edit_newsletter(id):
     return render_template('admin/edit_newsletter.html', newsletter=newsletter, articles=articles, article_metadata=article_metadata)
 
 
-@admin_content_bp.route('/admin/newsletter/delete/<int:id>')
+@admin_content_bp.route('/admin/newsletter/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_newsletter(id):
     conn = get_db_connection()
@@ -124,7 +124,7 @@ def admin_delete_newsletter(id):
     return redirect(url_for('admin_content.admin_newsletters'))
 
 
-@admin_content_bp.route('/admin/newsletter/generate')
+@admin_content_bp.route('/admin/newsletter/generate', methods=['POST'])
 @login_required
 def admin_generate_newsletter():
     import subprocess
@@ -133,12 +133,13 @@ def admin_generate_newsletter():
         subprocess.Popen([sys.executable, 'weekly_curator.py'], cwd=os.getcwd())
         flash("AI Curation Engine started. Draft will appear in a few seconds.")
     except Exception as e:
-        flash(f"Failed to start curation: {e}")
+        logger.error("Newsletter generation error: %s", e)
+        flash("Failed to start curation. Check server logs.")
 
     return redirect(url_for('admin_content.admin_newsletters'))
 
 
-@admin_content_bp.route('/admin/newsletter/send/<int:id>')
+@admin_content_bp.route('/admin/newsletter/send/<int:id>', methods=['POST'])
 @login_required
 def admin_send_newsletter(id):
     from newsletter_sender import send_newsletter
@@ -196,7 +197,7 @@ def admin_editorials():
     return render_template('admin/editorials.html', posts=posts)
 
 
-@admin_content_bp.route('/admin/editorial/generate')
+@admin_content_bp.route('/admin/editorial/generate', methods=['POST'])
 @login_required
 def admin_generate_opinion():
     """Spawns opinion_generator.py to create a draft opinion piece."""
@@ -206,7 +207,8 @@ def admin_generate_opinion():
         subprocess.Popen([sys.executable, 'opinion_generator.py'], cwd=os.getcwd())
         flash("🧠 Opinion piece generation started. A new DRAFT will appear in ~30 seconds.", "success")
     except Exception as e:
-        flash(f"Failed to start opinion generator: {e}", "error")
+        logger.error("Opinion generation error: %s", e)
+        flash("Failed to start opinion generator. Check server logs.", "error")
     return redirect(url_for('admin_content.admin_editorials'))
 
 

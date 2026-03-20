@@ -14,6 +14,7 @@ import requests
 from dotenv import load_dotenv
 from google_indexer import notify_google_index
 from url_shortener import shorten
+from helpers import clean_markdown
 
 load_dotenv()
 
@@ -68,7 +69,7 @@ class SocialDistributor:
             tags_str = " ".join(hashtags) if hashtags else ""
             
             # Clean markdown bolding
-            gist_clean = gist.replace('**', '')
+            gist_clean = clean_markdown(gist)
             
             source = article.get('source', '')
             
@@ -146,7 +147,7 @@ class SocialDistributor:
                     return False
 
             # Clean markdown formatting
-            gist_clean = gist.replace('**', '')
+            gist_clean = clean_markdown(gist)
 
             # Build caption (Instagram limit: 2,200 chars, 30 hashtags)
             caption_parts = [
@@ -282,7 +283,7 @@ class SocialDistributor:
             link = shorten(f"{self.base_url}/article/{slug}?utm_source=facebook&utm_medium=social&utm_campaign=auto_post")
 
             # Clean markdown formatting
-            gist_clean = gist.replace('**', '')
+            gist_clean = clean_markdown(gist)
 
             # Build Facebook post message
             msg_parts = [
@@ -372,7 +373,7 @@ class SocialDistributor:
         link = shorten(f"{self.base_url}/article/{slug}")
         
         # Clean markdown
-        analysis_clean = analysis.replace('**', '').replace('\n', ' ')
+        analysis_clean = clean_markdown(analysis).replace('\n', ' ')
         
         li_text = f"📢 AI-First Intelligence Analysis: {headline}\n\n{analysis_clean[:400]}...\n\nFull Investigation: {link}\n\n#AI #DailyAIWire #HybridIntelligence #Innovation"
         

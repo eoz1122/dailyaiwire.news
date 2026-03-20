@@ -92,7 +92,7 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
              return articles[:8]  # Fallback
 
         model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt, request_options={'timeout': 120})
 
         # Log Usage
         if hasattr(response, 'usage_metadata'):

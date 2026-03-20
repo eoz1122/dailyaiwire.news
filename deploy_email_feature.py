@@ -10,7 +10,7 @@ WELCOME_EMAIL_TEMPLATE = "templates/email/welcome.html"
 
 def run(cmd):
     print(f"Running: {cmd}")
-    subprocess.run(cmd, shell=True)
+    subprocess.run(cmd, shell=False)
 
 def update_files():
     print("--- 1. Creating Welcome Email Template ---")
@@ -175,5 +175,5 @@ def send_welcome_email(recipient_email):
 if __name__ == "__main__":
     update_files()
     print("--- Restarting Service ---")
-    run("sudo supervisorctl restart dailyaiwire")
+    run(["sudo", "supervisorctl", "restart", "dailyaiwire"])
     print("DONE! Welcome email & New UI Deployed.")

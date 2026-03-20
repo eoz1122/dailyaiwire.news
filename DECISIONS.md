@@ -5,6 +5,69 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-03-20T11:27:00+01:00 — Penetration Test Remediation Final Batch (7 Findings, 10 Files)
+
+**Context**: Final sweep to close all 23 pentest findings (23/23 complete).
+
+**Changes**:
+- `deploy_email_feature.py`: F-08 — `shell=True` → `shell=False` with list-based subprocess args. Prevents shell injection.
+- `routes/api.py`: F-09 — CORS narrowed from `*` to `https://dailyaiwire.news` on intelligence API endpoints.
+- `routes/auth.py`: F-11 — `FailedLoginTracker` rewritten from in-memory dict to SQLite-backed table (`failed_logins`). Persists across Gunicorn restarts and shares state across all workers. F-16 — Logout changed from GET to POST, added audit log entry.
+- `templates/admin/base_admin.html`: F-16 — Logout link → POST form with CSRF token.
+- `app.py`: F-14 — Documented that `unsafe-eval` is required by Tailwind CDN JIT mode and will be removable after Tailwind migration to pre-built CSS.
+- `nginx_optimized.conf`: F-15 — Added `limit_req_zone` (10r/s general, 5r/s login), `client_max_body_size 10m` (1m for login), dedicated `/login` location block with stricter limit.
+- `tweet_scheduler.py`: F-20 — Centralized 7 constants to env vars (`SCHEDULER_INTERVAL_SECONDS`, `SCHEDULER_QUIET_START/END`, `SCHEDULER_TIMEZONE`, `FB_DAILY_LIMIT`, `FB_BACKOFF_MAX_HOURS`). Version bumped to 2.4.0.
+- `fetcher/__init__.py`: F-20 — `MAX_ARTICLES_PER_CYCLE` and `batch_size` now read from `FETCHER_MAX_ARTICLES` and `FETCHER_BATCH_SIZE` env vars.
+- `tests/test_smoke.py`: Updated CORS assertion from `*` to domain-specific.
+- `tests/test_security.py`: Updated brute-force test to create `failed_logins` table in test DB and clean up after.
+
+**Tests**: 102/102 passing (1 skipped).
+
+**Rollback**: `git revert <commit>`. For F-11: `DROP TABLE IF EXISTS failed_logins` and restore the class to dict-based. For F-15: nginx rate limits are graceful (burst allows normal usage), but `sudo nginx -t && sudo systemctl reload nginx` needed after any config change.
+
+---
+
+## 2026-03-20T11:02:00+01:00 — Penetration Test Remediation Batch 2 (5 Findings, 7 Files)
+
+**Context**: Second pass addressing remaining pentest findings from F-03 (critical PII leak), F-10, F-12, F-20/F-22 (code quality).
+
+**Changes**:
+- `newsletter_sender.py`: F-03 — HMAC tracking tokens replace raw email in newsletter tracking URLs. New `_tracking_token()` generates 16-char HMAC hex. `_ensure_tracking_columns()` adds lazy migration for `tracking_token` + `opened_at` columns. Token stored in `newsletter_deliveries` at delivery time.
+- `routes/api.py`: F-03 — Tracking endpoint now matches by `tracking_token` instead of `recipient_email`. URL pattern changed from `/t/nl/<id>/<email>` to `/t/nl/<id>/<token>`.
+- `services/lead_extractor.py`: F-10 — Replaced hardcoded `DB_PATH = "news.db"` with `from db import DB_PATH`.
+- `.env.example`: F-12 — Removed duplicate `SECRET_KEY` entry (was on lines 12 and 19).
+- `helpers.py`: F-22 — Added shared `clean_markdown()` function.
+- `social_distributor.py`: F-22 — Replaced 4 inline `.replace('**', '')` calls with `clean_markdown()` import.
+
+**Tests**: 102/102 passing (1 skipped).
+
+**Rollback**: `git revert <commit>`. For F-03: the tracking endpoint change means previously-sent newsletters with old-style email URLs will return 200 (no DB match → no update). This is safe — it just means old tracking pixels stop working, which is an acceptable tradeoff for eliminating PII from server logs.
+
+---
+
+## 2026-03-20T10:48:00+01:00 — Penetration Test Remediation (12 Findings, 11 Files)
+
+**Context**: Full static-analysis penetration test identified 23 findings (F-01 through F-23) across OWASP Top 10 categories. This commit remediates 12 of the highest-priority findings.
+
+**Changes**:
+- `app.py`: F-01 security headers (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), F-02 session cookie hardening (Secure/HttpOnly/SameSite), F-13 removed default admin credentials fallback, F-23 `/health` endpoint.
+- `db.py`: F-18 added `timeout=10` to SQLite connection.
+- `tweet_scheduler.py`: F-18 added `timeout=10` to local SQLite connection.
+- `routes/api.py`: F-05 rate limit on audio tracking (5/min), F-07 sanitized trend API error.
+- `routes/auth.py`: F-07 sanitized user creation error, F-21 dedicated auth audit log (`logs/auth_audit.log`).
+- `routes/admin_content.py`: F-04 changed 4 destructive routes from GET to POST (newsletter delete/generate/send, editorial generate), F-07 sanitized error messages.
+- `routes/admin_core.py`: F-06 file upload extension whitelist (jpg/jpeg/png/webp/gif/mp3/wav/ogg), F-07 sanitized error messages.
+- `routes/admin_ops.py`: F-07 sanitized source-blocking error.
+- `fetcher/sources.py`: F-17 added `request_options={'timeout': 120}` to Gemini API call.
+- `fetcher/persistence.py`: F-19 replaced silent `except ImportError: pass` with debug logging.
+- `templates/admin/newsletters.html`: F-04 converted GET links to POST forms with CSRF tokens.
+
+**Tests**: 102/102 passing (1 skipped).
+
+**Rollback**: `git revert <commit>`. All changes are additive (headers, config, timeouts) or tightening (GET→POST, error sanitization), so reverting restores the previous behavior without data loss.
+
+---
+
 ## 2026-03-18T12:00:00+01:00 — Facebook Pipeline Fix: Missing Column + Scheduler Isolation
 
 **Context**: Facebook posting stopped ~17 hours ago. Root cause: `shared_on_fb` column was never added to the database (migrations existed for `shared_on_x` and `shared_on_ig` but not `shared_on_fb`). Additionally, the scheduler's IG/FB distribution blocks were not error-isolated — a crash in `mark_as_shared_fb` could cascade into the main loop's catch-all.

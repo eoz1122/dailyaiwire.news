@@ -93,7 +93,8 @@ def admin_block_source():
 
             conn.commit()
         except Exception as e:
-            flash(f"Error blocking source: {e}")
+            logger.error("Error blocking source: %s", e, exc_info=True)
+            flash("An error occurred while blocking the source.")
         conn.close()
     return redirect(url_for('admin_ops.admin_sources'))
 

@@ -1,6 +1,8 @@
 import sqlite3
 import json
 import os
+import hmac
+import hashlib
 import logging
 import requests
 import time
@@ -13,6 +15,29 @@ logger = logging.getLogger('newsletter')
 DB_PATH = "news.db"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 SENDER_EMAIL = "briefing@dailyaiwire.news"  # Verified Domain Sender
+
+
+def _tracking_token(newsletter_id, email):
+    """Generate a one-way HMAC token for newsletter open tracking (F-03).
+    Replaces raw PII (email) in tracking URLs with an opaque token."""
+    secret = os.getenv('SECRET_KEY', 'fallback-dev-key')
+    msg = f"{newsletter_id}:{email}".encode()
+    return hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()[:16]
+
+
+def _ensure_tracking_columns(conn):
+    """Lazy migration: add tracking_token and opened_at columns if missing."""
+    try:
+        conn.execute('SELECT tracking_token FROM newsletter_deliveries LIMIT 1')
+    except sqlite3.OperationalError:
+        logger.info("MIGRATION: Adding 'tracking_token' column to newsletter_deliveries...")
+        conn.execute('ALTER TABLE newsletter_deliveries ADD COLUMN tracking_token TEXT')
+    try:
+        conn.execute('SELECT opened_at FROM newsletter_deliveries LIMIT 1')
+    except sqlite3.OperationalError:
+        logger.info("MIGRATION: Adding 'opened_at' column to newsletter_deliveries...")
+        conn.execute('ALTER TABLE newsletter_deliveries ADD COLUMN opened_at TIMESTAMP')
+    conn.commit()
 
 def send_welcome_email(recipient_email):
     """Sends a transactional welcome email to a new subscriber."""
@@ -91,7 +116,8 @@ def build_email_html(newsletter_id, template='email/briefing.html', recipient_em
     
     tracking_url = ""
     if recipient_email:
-        tracking_url = f"https://dailyaiwire.news/t/nl/{newsletter_id}/{recipient_email}"
+        token = _tracking_token(newsletter_id, recipient_email)
+        tracking_url = f"https://dailyaiwire.news/t/nl/{newsletter_id}/{token}"
     
     # Render using the requested Jinja2 template
     from app import app
@@ -117,6 +143,9 @@ def send_newsletter(newsletter_id, is_apology=False):
         logger.warning("⚠️ Newsletter %d not found.", newsletter_id)
         conn.close()
         return False
+
+    # Ensure tracking columns exist (lazy migration)
+    _ensure_tracking_columns(conn)
         
     subscribers = get_active_subscribers()
     if not subscribers:
@@ -165,9 +194,12 @@ def send_newsletter(newsletter_id, is_apology=False):
             response = requests.post(url, headers=headers, json=payload)
             if response.status_code in [200, 201]:
                 logger.info("✅ Sent to %s", sub_email)
-                # Log success
-                conn.execute("INSERT INTO newsletter_deliveries (newsletter_id, recipient_email, status) VALUES (?, ?, ?)",
-                             (newsletter_id, sub_email, 'DELIVERED'))
+                # Log success with tracking token (F-03: store token for open tracking)
+                token = _tracking_token(newsletter_id, sub_email)
+                conn.execute(
+                    "INSERT INTO newsletter_deliveries (newsletter_id, recipient_email, status, tracking_token) VALUES (?, ?, ?, ?)",
+                    (newsletter_id, sub_email, 'DELIVERED', token)
+                )
                 conn.commit()
                 success_count += 1
             else:

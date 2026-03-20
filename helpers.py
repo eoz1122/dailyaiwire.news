@@ -79,3 +79,10 @@ def register_filters(app):
     app.jinja_env.filters['time_ago'] = time_ago
     app.jinja_env.filters['remove_emojis'] = remove_emojis
     app.template_filter('add_utm_to_html')(add_utm_to_html)
+
+
+def clean_markdown(text):
+    """Strip common markdown formatting for plain-text social posts."""
+    if not text:
+        return ""
+    return text.replace('**', '').replace('__', '').replace('~~', '')

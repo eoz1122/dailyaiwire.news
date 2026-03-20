@@ -60,6 +60,17 @@ class TestSecurityFeatures:
 
     def test_login_brute_force_lockout(self, security_client):
         """After 5 failed login attempts, the account should lock and return 429."""
+        # Ensure failed_logins table exists in test DB (F-11: SQLite-backed tracker)
+        from db import get_db_connection
+        conn = get_db_connection()
+        conn.execute('''CREATE TABLE IF NOT EXISTS failed_logins (
+            username TEXT PRIMARY KEY, count INTEGER DEFAULT 0,
+            first_at REAL, locked_until REAL DEFAULT 0
+        )''')
+        conn.execute("DELETE FROM failed_logins WHERE username = 'target_user'")
+        conn.commit()
+        conn.close()
+
         csrf_token = self._get_csrf_token(security_client, '/login')
         
         for _ in range(5):
@@ -70,6 +81,12 @@ class TestSecurityFeatures:
         resp = security_client.post('/login', data={'username': 'target_user', 'password': 'wrong2', 'csrf_token': csrf_token})
         assert resp.status_code == 429
         assert b'Account temporarily locked' in resp.data
+
+        # Clean up after test
+        conn = get_db_connection()
+        conn.execute("DELETE FROM failed_logins WHERE username = 'target_user'")
+        conn.commit()
+        conn.close()
 
     def test_rate_limit_subscribe(self, security_client):
         """Subscribe endpoint limits to 5 requests per minute."""

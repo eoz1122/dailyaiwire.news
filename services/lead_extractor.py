@@ -11,7 +11,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from budget_tracker import BudgetTracker
 
-DB_PATH = "news.db"
+from db import DB_PATH
 budget = BudgetTracker()
 
 class LeadExtractor:

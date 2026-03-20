@@ -75,11 +75,13 @@ def api_trends():
         conn.close()
         return snapshot, 200
     except Exception as e:
-        return {"error": str(e), "has_trends": False}, 200
+        logger.error("Trend API error: %s", e)
+        return {"error": "Trend data temporarily unavailable.", "has_trends": False}, 200
 
 
 @api_bp.route('/api/track-audio/<int:id>', methods=['POST'])
 @csrf.exempt
+@limiter.limit("5 per minute")
 def track_audio_play(id):
     try:
         conn = get_db_connection()
@@ -91,16 +93,16 @@ def track_audio_play(id):
         return {"status": "error", "message": str(e)}, 500
 
 
-@api_bp.route('/t/nl/<int:newsletter_id>/<string:recipient_email>')
-def track_newsletter_open(newsletter_id, recipient_email):
-    """Tracks newsletter opens via a 1x1 pixel."""
+@api_bp.route('/t/nl/<int:newsletter_id>/<string:token>')
+def track_newsletter_open(newsletter_id, token):
+    """Tracks newsletter opens via a 1x1 pixel. Uses HMAC token instead of raw email (F-03)."""
     try:
         conn = get_db_connection()
         conn.execute('''
             UPDATE newsletter_deliveries
             SET status = 'OPENED', opened_at = CURRENT_TIMESTAMP
-            WHERE newsletter_id = ? AND recipient_email = ? AND (opened_at IS NULL OR status = 'DELIVERED')
-        ''', (newsletter_id, recipient_email))
+            WHERE newsletter_id = ? AND tracking_token = ? AND (opened_at IS NULL OR status = 'DELIVERED')
+        ''', (newsletter_id, token))
         conn.commit()
     except Exception as e:
         logger.error("Tracking error: %s", e)
@@ -183,7 +185,7 @@ def api_intelligence():
         mimetype='application/json'
     )
     response.headers['Cache-Control'] = 'public, max-age=300'
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'https://dailyaiwire.news'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
 
@@ -220,5 +222,5 @@ def api_intelligence_detail(slug):
         mimetype='application/json'
     )
     response.headers['Cache-Control'] = 'public, max-age=300'
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Origin'] = 'https://dailyaiwire.news'
     return response
