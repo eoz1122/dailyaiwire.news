@@ -38,9 +38,12 @@ INTERVAL_SECONDS = int(os.getenv('SCHEDULER_INTERVAL_SECONDS', '7200'))  # 2 hou
 QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '4'))  # Max Facebook posts per day
 FB_BACKOFF_MAX_HOURS = int(os.getenv('FB_BACKOFF_MAX_HOURS', '48'))  # Maximum backoff window
+FB_START_HOUR = int(os.getenv('FB_START_HOUR', '13'))    # Start posting at 1 PM UK
+FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '10800'))  # 3 hours between FB posts
+FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK time
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -271,18 +274,33 @@ def main_loop():
             time.sleep(2)  # Brief pause between platform API calls
 
             # ═══════════════════════════════════════════════════════
-            # PLATFORM 3: Facebook
+            # PLATFORM 3: Facebook (1 PM UK → every 3h → max 4/day)
             # ═══════════════════════════════════════════════════════
             try:
-                # Exponential backoff check
+                uk_now = datetime.now(FB_TIMEZONE)
+
+                # Gate 1: Exponential backoff (rate-limit recovery)
                 if fb_backoff_until and datetime.now(timezone.utc) < fb_backoff_until:
                     remaining = (fb_backoff_until - datetime.now(timezone.utc)).total_seconds() / 3600
                     logger.info("📘 [FB] ⏳ Backoff: %.1fh remaining.", remaining)
+
+                # Gate 2: Before start hour (UK time)
+                elif uk_now.hour < FB_START_HOUR:
+                    logger.info("📘 [FB] 🕐 Waiting until %d:00 UK (currently %s UK).", FB_START_HOUR, uk_now.strftime('%H:%M'))
+
+                # Gate 3: Daily limit
+                elif get_fb_posts_today() >= FB_DAILY_LIMIT:
+                    logger.info("📘 [FB] 🛑 Daily limit reached (%d/%d).", get_fb_posts_today(), FB_DAILY_LIMIT)
+
+                # Gate 4: 3-hour gap between FB posts
                 else:
-                    fb_today = get_fb_posts_today()
-                    if fb_today >= FB_DAILY_LIMIT:
-                        logger.info("📘 [FB] 🛑 Daily limit reached (%d/%d).", fb_today, FB_DAILY_LIMIT)
+                    last_fb_time = get_last_fb_post_time()
+                    fb_gap = (datetime.now(timezone.utc) - last_fb_time).total_seconds()
+                    if fb_gap < FB_GAP_SECONDS:
+                        remaining = (FB_GAP_SECONDS - fb_gap) / 60
+                        logger.info("📘 [FB] ⏳ %.0f mins until next FB post.", remaining)
                     else:
+                        fb_today = get_fb_posts_today()
                         fb_article = get_next_article_for_fb()
                         if fb_article:
                             payload = _build_article_payload(fb_article)
