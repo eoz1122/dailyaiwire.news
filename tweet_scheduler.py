@@ -39,7 +39,7 @@ QUIET_START = 4   # 4 AM
 QUIET_END = 9     # 9 AM
 TIMEZONE = pytz.timezone("Europe/Berlin")
 VERSION = "2.3.0"
-FB_DAILY_LIMIT = 6  # Max Facebook posts per day to avoid spam throttle
+FB_DAILY_LIMIT = 4  # Max Facebook posts per day to avoid spam throttle
 FB_BACKOFF_MAX_HOURS = 48  # Maximum backoff window
 
 def get_db_connection():
