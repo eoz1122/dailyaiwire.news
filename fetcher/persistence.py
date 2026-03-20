@@ -8,6 +8,7 @@ import time
 import random
 import sqlite3
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime
 from typing import List, Dict
 
@@ -19,6 +20,14 @@ from google_indexer import notify_google_index
 from qa_monitor import run_post_publication_audit
 
 logger = logging.getLogger('fetcher.persistence')
+
+# R2-03: Whitelist of valid categories to prevent garbage data in DB
+VALID_CATEGORIES = {
+    'LLMs', 'Robotics', 'Business', 'Tools', 'Policy',
+    'Science', 'Security', 'Society', 'Ethics', 'AI Agents'
+}
+
+_EMBEDDING_TIMEOUT = 30  # R2-04: Max seconds for embedding service calls
 
 
 def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0, audio_gen=None):
@@ -73,34 +82,55 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         try:
             from embedding_service import score_article, find_duplicates, index_article, score_ad_likelihood
 
-            # AD SHIELD: Semantic ad/promotional content detection
-            ad_score = score_ad_likelihood(
-                art.get('headline', ''),
-                art.get('gist', ''),
-                art.get('why_it_matters', '')
-            )
-            if ad_score >= 0.76:
-                logger.info("🛡️ AD SHIELD: Blocked '%s' — ad-likelihood %s (threshold: 0.76)", art.get('headline'), ad_score)
-                continue
-            elif ad_score >= 0.65:
-                logger.warning("🛡️ AD SHIELD: REVIEW '%s' — ad-likelihood %s (borderline)", art.get('headline'), ad_score)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                # AD SHIELD: Semantic ad/promotional content detection (R2-04: timeout)
+                ad_future = executor.submit(
+                    score_ad_likelihood,
+                    art.get('headline', ''),
+                    art.get('gist', ''),
+                    art.get('why_it_matters', '')
+                )
+                try:
+                    ad_score = ad_future.result(timeout=_EMBEDDING_TIMEOUT)
+                except FuturesTimeout:
+                    logger.warning("⏱️ AD SHIELD timeout for '%s'. Allowing through.", art.get('headline'))
+                    ad_score = 0.0
 
-            # Semantic Dedup: Check if near-duplicate exists (>0.92 cosine)
-            dup = find_duplicates(
-                art.get('headline', ''),
-                art.get('gist', ''),
-                threshold=0.92
-            )
-            if dup:
-                logger.info("🧬 Semantic Duplicate Detected: '%s' matches '%s' (score: %s)", art.get('headline'), dup['title'], dup['score'])
-                continue
+                if ad_score >= 0.76:
+                    logger.info("🛡️ AD SHIELD: Blocked '%s' — ad-likelihood %s (threshold: 0.76)", art.get('headline'), ad_score)
+                    continue
+                elif ad_score >= 0.65:
+                    logger.warning("🛡️ AD SHIELD: REVIEW '%s' — ad-likelihood %s (borderline)", art.get('headline'), ad_score)
 
-            # Editorial Compass: Score relevance to existing corpus
-            compass_score, similar = score_article(
-                art.get('headline', ''),
-                art.get('gist', ''),
-                art.get('why_it_matters', '')
-            )
+                # Semantic Dedup: Check if near-duplicate exists (>0.92 cosine) (R2-04: timeout)
+                dup_future = executor.submit(
+                    find_duplicates,
+                    art.get('headline', ''),
+                    art.get('gist', ''),
+                    0.92
+                )
+                try:
+                    dup = dup_future.result(timeout=_EMBEDDING_TIMEOUT)
+                except FuturesTimeout:
+                    logger.warning("⏱️ Dedup timeout for '%s'. Skipping dedup check.", art.get('headline'))
+                    dup = None
+
+                if dup:
+                    logger.info("🧬 Semantic Duplicate Detected: '%s' matches '%s' (score: %s)", art.get('headline'), dup['title'], dup['score'])
+                    continue
+
+                # Editorial Compass: Score relevance to existing corpus (R2-04: timeout)
+                compass_future = executor.submit(
+                    score_article,
+                    art.get('headline', ''),
+                    art.get('gist', ''),
+                    art.get('why_it_matters', '')
+                )
+                try:
+                    compass_score, similar = compass_future.result(timeout=_EMBEDDING_TIMEOUT)
+                except FuturesTimeout:
+                    logger.warning("⏱️ Compass timeout for '%s'. Using default score.", art.get('headline'))
+                    compass_score, similar = 0.7, []
 
             if compass_score > 0:
                 if compass_score >= 0.75:
@@ -252,7 +282,14 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         if not final_slug:
             final_slug = f"article-{uuid.uuid4().hex[:8]}"
 
-        art['seo_slug'] = final_slug
+        # R2-02: Cap slug at 120 chars to prevent absurdly long URLs
+        art['seo_slug'] = final_slug[:120]
+
+        # R2-03: Validate category against whitelist
+        cat = art.get('category', 'Tools')
+        if cat not in VALID_CATEGORIES:
+            logger.warning("Invalid category '%s' for '%s'. Defaulting to 'Tools'.", cat, art.get('headline'))
+            art['category'] = 'Tools'
 
         try:
             # Generate Audio Reads

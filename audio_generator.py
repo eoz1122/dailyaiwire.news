@@ -297,7 +297,8 @@ class AudioGenerator:
             for f in temp_clips:
                 try:
                     os.remove(f)
-                except OSError: pass
+                except OSError as cleanup_err:
+                    logging.getLogger('audio').debug("Temp file cleanup failed: %s", cleanup_err)
 
         # Ensure conversation_clip is not None before proceeding
         if conversation_clip is None:

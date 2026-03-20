@@ -106,9 +106,6 @@ class BudgetTracker:
         cost = (input_tokens / 1000 * self.cost_per_1k_input_tokens + 
                 output_tokens / 1000 * self.cost_per_1k_output_tokens)
         
-        cost = (input_tokens / 1000 * self.cost_per_1k_input_tokens + 
-                output_tokens / 1000 * self.cost_per_1k_output_tokens)
-        
         self.data["total_spent"] += cost
         self.data["daily_spent"] = self.data.get("daily_spent", 0.0) + cost
         self.data["requests"] += 1

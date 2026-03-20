@@ -209,8 +209,13 @@ class SocialDistributor:
             logger.info("📦 Container created: %s", creation_id)
 
             # Step 2: Wait for container to be ready (poll status)
+            # R2-05: Hard wall clock timeout (45s) in addition to retry limit
             import time as _time
+            poll_deadline = _time.monotonic() + 45
             for attempt in range(10):
+                if _time.monotonic() > poll_deadline:
+                    logger.error("❌ Container processing hard-timeout (45s).")
+                    return False
                 status_resp = requests.get(
                     f"{api_base}/{creation_id}",
                     params={

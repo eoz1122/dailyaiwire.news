@@ -7,8 +7,13 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+import os
+
 csrf = CSRFProtect()
 
+# R2-01: In-memory rate limiter. Per-worker only; nginx F-15 provides the shared
+# persistent layer. To share across Gunicorn workers, upgrade to:
+#   storage_uri="redis://localhost:6379"
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri="memory://"
