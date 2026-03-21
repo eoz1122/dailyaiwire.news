@@ -745,32 +745,59 @@
             const closeBtn = document.getElementById('close-newsletter');
             const backdrop = document.getElementById('newsletter-backdrop');
 
-            // Check if already closed (suppress for 30 days)
+            // Check 30-day suppress
             const isClosed = localStorage.getItem('newsletter_popup_closed');
             const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
             const now = new Date().getTime();
 
             if (isClosed && (now - parseInt(isClosed)) < thirtyDaysInMs) {
-                return;
+                return; // Still suppressed — do nothing
             }
 
-            // Show after 5 seconds if not already closed
-            setTimeout(() => {
+            // Skip on touch devices (no mouseleave to detect)
+            const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+            let shown = false;
+            const pageEnteredAt = Date.now();
+            const MIN_DWELL_MS = 5000; // Must be on page 5s before eligible
+
+            function showModal() {
+                if (shown) return;
+                shown = true;
                 if (modal) {
                     modal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95', 'invisible');
                     modal.classList.add('opacity-100', 'scale-100');
                 }
-            }, 3000);
+            }
 
             function closeModal() {
                 if (modal) {
                     modal.classList.remove('opacity-100', 'scale-100');
                     modal.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-                    setTimeout(() => {
-                        modal.classList.add('invisible');
-                    }, 500);
+                    setTimeout(() => modal.classList.add('invisible'), 500);
                 }
                 localStorage.setItem('newsletter_popup_closed', new Date().getTime());
+            }
+
+            if (!isTouch) {
+                // Exit-intent: fires when cursor moves toward browser chrome (y < 10px)
+                document.addEventListener('mouseleave', (e) => {
+                    if (e.clientY <= 10 && (Date.now() - pageEnteredAt) > MIN_DWELL_MS) {
+                        showModal();
+                    }
+                });
+            } else {
+                // Mobile fallback: scroll-based trigger (fired once, after 60% page scroll)
+                let mobileFired = false;
+                window.addEventListener('scroll', () => {
+                    if (mobileFired) return;
+                    const scrolled = window.scrollY + window.innerHeight;
+                    const total = document.documentElement.scrollHeight;
+                    if (scrolled / total > 0.6) {
+                        mobileFired = true;
+                        setTimeout(showModal, 1000);
+                    }
+                }, { passive: true });
             }
 
             if (closeBtn) closeBtn.addEventListener('click', closeModal);
