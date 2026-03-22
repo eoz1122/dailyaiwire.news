@@ -28,8 +28,9 @@
     <!-- Author Block -->
     <div class="flex items-center gap-4 py-8 border-y border-zinc-800/50 mb-12">
         {% if post.author_name and post.author_name != 'Emre Ozen' %}
-        {# DB-generated opinion post — author is always Aaron Azadi #}
-        <img src="https://ui-avatars.com/api/?name=Aaron+Azadi&size=96&background=2563eb&color=fff" alt="Aaron Azadi"
+        {# DB post — use author fields as set on the publish/edit page #}
+        <img src="https://ui-avatars.com/api/?name={{ post.author_name | urlencode }}&size=96&background=2563eb&color=fff"
+            alt="{{ post.author_name }}"
             class="w-12 h-12 rounded-full ring-2 ring-zinc-800 object-cover">
         <div>
             <div class="flex items-center gap-2 mb-1">
