@@ -235,6 +235,59 @@ def linkedin_rss_feed():
         a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
         articles.append(a)
 
+    # Inject published editorials (blog_posts) into the LinkedIn feed
+    conn = get_db_connection()
+    try:
+        editorial_rows = conn.execute('''
+            SELECT * FROM blog_posts
+            WHERE is_published = 1 AND published_at IS NOT NULL
+            ORDER BY published_at DESC
+            LIMIT 5
+        ''').fetchall()
+    except Exception:
+        editorial_rows = []
+    conn.close()
+
+    for row in editorial_rows:
+        e = dict(row)
+        try:
+            clean_date = e['published_at'].replace('T', ' ').split('.')[0]
+            try:
+                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
+            e['pub_date_obj'] = dt
+            e['pub_date_rss'] = formatdate(float(dt.timestamp()))
+        except Exception:
+            e['pub_date_obj'] = datetime.now()
+            e['pub_date_rss'] = formatdate()
+
+        img_url = e.get('image') or 'https://dailyaiwire.news/static/fallbacks/editorial_0.jpg'
+        if img_url.startswith('/'):
+            img_url = f"https://dailyaiwire.news{img_url}"
+        e['enclosure_url'] = img_url
+        e['enclosure_type'] = 'image/jpeg'
+
+        gist = e.get('gist') or e.get('subtitle') or e.get('meta_description') or ''
+        impact = e.get('impact', '')
+        social_parts = []
+        if gist:
+            social_parts.append(gist)
+        if impact:
+            social_parts.append(f"Impact: {impact}")
+        social_parts.append('#DailyAIWire #AI #Opinion')
+
+        e['clean_summary'] = "\n\n".join(social_parts)
+        e['link'] = f"https://dailyaiwire.news/lab/{e['slug']}"
+        # Ensure required fields exist for rss.xml template compatibility
+        e.setdefault('title', e.get('title', 'Editorial'))
+        e.setdefault('category', 'Editorial')
+        articles.append(e)
+
+    # Re-sort combined list and apply hard cap
+    articles.sort(key=lambda x: x.get('pub_date_obj', datetime.min), reverse=True)
+    articles = articles[:20]
+
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
 
