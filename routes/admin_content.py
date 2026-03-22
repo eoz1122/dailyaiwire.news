@@ -142,13 +142,19 @@ def admin_generate_newsletter():
 @admin_content_bp.route('/admin/newsletter/send/<int:id>', methods=['POST'])
 @login_required
 def admin_send_newsletter(id):
+    import threading
     from newsletter_sender import send_newsletter
-    success = send_newsletter(id)
-    if success:
-        flash("Signal broadcast successful. Intelligence delivered to subscribers.")
-    else:
-        flash("Signal broadcast failed. Check logs/API key.")
 
+    def _send():
+        try:
+            send_newsletter(id)
+        except Exception as e:
+            logger.error("Background newsletter send error (id=%s): %s", id, e)
+
+    t = threading.Thread(target=_send, daemon=True)
+    t.start()
+
+    flash("Signal broadcast initiated. Emails are being delivered in the background.")
     return redirect(url_for('admin_content.admin_newsletters'))
 
 
