@@ -156,29 +156,29 @@ def send_newsletter(newsletter_id, is_apology=False):
     logger.info("🚀 Processing broadcast for '%s' to %d subscribers...", nl['subject'], len(subscribers))
     
     template = 'email/apology_briefing.html' if is_apology else 'email/briefing.html'
-    html_base = build_email_html(newsletter_id, template=template, recipient_email="TRACK_ME_TOKEN")
-    
+
     url = "https://api.resend.com/emails"
     headers = {
         "Authorization": f"Bearer {RESEND_API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     success_count = 0
     skip_count = 0
     fail_count = 0
-    
+
     for sub_email in subscribers:
         # 1. Check if already delivered
-        check = conn.execute("SELECT id FROM newsletter_deliveries WHERE newsletter_id = ? AND recipient_email = ?", 
+        check = conn.execute("SELECT id FROM newsletter_deliveries WHERE newsletter_id = ? AND recipient_email = ?",
                              (newsletter_id, sub_email)).fetchone()
         if check:
             logger.info("⏭️ Skipping %s (Already Delivered)", sub_email)
             skip_count += 1
             continue
-            
-        # 2. Send Individual Email
-        html_content = html_base.replace("TRACK_ME_TOKEN", sub_email)
+
+        # 2. Render per-subscriber HTML with correct HMAC tracking token
+        # (Must render per-subscriber so each tracking pixel URL has the right token)
+        html_content = build_email_html(newsletter_id, template=template, recipient_email=sub_email)
         payload = {
             "from": "DailyAIWire <intelligence@dailyaiwire.news>",
             "to": [sub_email],
