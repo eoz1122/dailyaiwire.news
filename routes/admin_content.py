@@ -213,11 +213,23 @@ def admin_generate_opinion():
     import subprocess
     import sys
     try:
-        subprocess.Popen([sys.executable, 'opinion_generator.py'], cwd=os.getcwd())
+        # Use absolute paths so this works correctly from Gunicorn's cwd
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        python_exe = sys.executable
+        script = os.path.join(app_dir, 'opinion_generator.py')
+        log_path = os.path.join(app_dir, 'logs', 'opinion_generator.log')
+        os.makedirs(os.path.join(app_dir, 'logs'), exist_ok=True)
+        with open(log_path, 'a') as log_f:
+            subprocess.Popen(
+                [python_exe, script],
+                cwd=app_dir,
+                stdout=log_f,
+                stderr=log_f,
+            )
         flash("🧠 Opinion piece generation started. A new DRAFT will appear in ~30 seconds.", "success")
     except Exception as e:
         logger.error("Opinion generation error: %s", e)
-        flash("Failed to start opinion generator. Check server logs.", "error")
+        flash(f"Failed to start opinion generator: {e}", "error")
     return redirect(url_for('admin_content.admin_editorials'))
 
 
