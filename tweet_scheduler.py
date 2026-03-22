@@ -45,6 +45,7 @@ FB_START_HOUR = int(os.getenv('FB_START_HOUR', '11'))    # Start posting at 11 A
 FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '7200'))  # 2 hours between FB posts
 FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK time
 IG_ENABLED = os.getenv('IG_ENABLED', 'false').lower() == 'true'  # Disabled during suspension
+IG_GAP_SECONDS = int(os.getenv('IG_GAP_SECONDS', '10800'))  # 3 hours between IG posts
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -256,8 +257,8 @@ def main_loop():
                     last_ig_time = get_last_ig_post_time()
                     ig_gap = (datetime.now(timezone.utc) - last_ig_time).total_seconds()
 
-                    if ig_gap < INTERVAL_SECONDS:
-                        remaining = (INTERVAL_SECONDS - ig_gap) / 60
+                    if ig_gap < IG_GAP_SECONDS:
+                        remaining = (IG_GAP_SECONDS - ig_gap) / 60
                         logger.info("📸 [IG] ⏳ %.0f mins until next post.", remaining)
                     else:
                         ig_article = get_next_article_for_ig()
