@@ -25,32 +25,41 @@
         <p class="text-xl text-zinc-400 font-medium leading-relaxed">{{ post.subtitle }}</p>
     </header>
 
-    <!-- Global Premium Author Block for Lab Reports -->
-    <!-- Global Premium Author Block for Lab Reports -->
-    <!-- Global Premium Author Block for Lab Reports -->
+    <!-- Author Block -->
     <div class="flex items-center gap-4 py-8 border-y border-zinc-800/50 mb-12">
-        <img src="{% if not post.author_name or post.author_name == emre.name %}{{ emre.image }}{% else %}https://ui-avatars.com/api/?name={{ post.author_name|urlencode }}&size=96&background=2563eb&color=fff{% endif %}" alt="{{ post.author_name or emre.name }}"
+        {% if post.author_name and post.author_name != 'Emre Ozen' %}
+        {# DB-generated opinion post — author is always Aaron Azadi #}
+        <img src="https://ui-avatars.com/api/?name=Aaron+Azadi&size=96&background=2563eb&color=fff" alt="Aaron Azadi"
             class="w-12 h-12 rounded-full ring-2 ring-zinc-800 object-cover">
         <div>
             <div class="flex items-center gap-2 mb-1">
-                <span class="text-white font-bold text-sm">{{ post.author_name or emre.name }}</span>
-                <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">{{ post.author_title or emre.title }}</span>
+                <span class="text-white font-bold text-sm">{{ post.author_name }}</span>
+                <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">{{ post.author_title }}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-zinc-500 font-bold uppercase tracking-wide">
+                <span>{{ post.published_at[:10] if post.published_at else '' }}</span>
+            </div>
+        </div>
+        {% else %}
+        {# Legacy hardcoded lab post — use Emre context #}
+        <img src="{{ emre.image }}" alt="{{ emre.name }}"
+            class="w-12 h-12 rounded-full ring-2 ring-zinc-800 object-cover">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-white font-bold text-sm">{{ emre.name }}</span>
+                <span class="text-xs text-zinc-500 font-bold uppercase tracking-widest">{{ emre.title }}</span>
             </div>
             <div class="flex items-center gap-3 text-xs text-zinc-500 font-bold uppercase tracking-wide">
                 <span>{{ post.date }}</span>
-                {% if not post.author_name or post.author_name == emre.name %}
-                <span class="text-zinc-700">•</span>
+                <span class="text-zinc-700">&bull;</span>
                 <a href="{{ emre.linkedin }}" target="_blank"
                     class="inline-flex items-center space-x-2 text-white bg-blue-700 hover:bg-blue-600 px-6 py-2 rounded-xl transition-all shadow-lg hover:shadow-blue-600/20 font-bold uppercase text-[10px] tracking-widest">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path
-                            d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                    </svg>
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
                     <span>Connect via LinkedIn</span>
                 </a>
-                {% endif %}
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- Hero Image Disabled to avoid duplicates with workflow content -->
@@ -61,6 +70,56 @@
     </div>
     {% endif %} 
     -->
+
+    <!-- Structured Intel Panels (only for opinion posts with structured data) -->
+    {% if post.gist or post.impact or post.optimistic_outlook or post.pessimistic_warning %}
+    <div class="space-y-4 mb-12">
+
+        {% if post.gist %}
+        <!-- Gist -->
+        <div class="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-blue-500 text-xs font-black uppercase tracking-widest">&#128203; The Gist</span>
+            </div>
+            <p class="text-zinc-300 leading-relaxed">{{ post.gist }}</p>
+        </div>
+        {% endif %}
+
+        {% if post.impact %}
+        <!-- Impact -->
+        <div class="rounded-2xl border border-blue-900/60 bg-blue-950/20 p-6">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-blue-400 text-xs font-black uppercase tracking-widest">&#9889; Impact</span>
+            </div>
+            <p class="text-zinc-300 leading-relaxed">{{ post.impact }}</p>
+        </div>
+        {% endif %}
+
+        {% if post.optimistic_outlook or post.pessimistic_warning %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if post.optimistic_outlook %}
+            <!-- Optimistic Outlook -->
+            <div class="rounded-2xl border border-emerald-900/50 bg-emerald-950/20 p-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-emerald-400 text-xs font-black uppercase tracking-widest">&#128200; Optimistic Outlook</span>
+                </div>
+                <p class="text-zinc-300 text-sm leading-relaxed">{{ post.optimistic_outlook }}</p>
+            </div>
+            {% endif %}
+            {% if post.pessimistic_warning %}
+            <!-- Pessimistic Warning -->
+            <div class="rounded-2xl border border-red-900/50 bg-red-950/20 p-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-red-400 text-xs font-black uppercase tracking-widest">&#128201; Pessimistic Warning</span>
+                </div>
+                <p class="text-zinc-300 text-sm leading-relaxed">{{ post.pessimistic_warning }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
 
     <div class="prose prose-invert prose-orange max-w-none">
         <div class="blog-content text-zinc-300 space-y-8 text-lg leading-relaxed">

@@ -156,28 +156,41 @@ HERE ARE THE MOST SIGNIFICANT ARTICLES THIS WEEK:
 
 2. **SUBTITLE**: A one-sentence hook that creates urgency or curiosity.
 
-3. **CONTENT**: Write a 600-900 word opinion piece in HTML format. Structure:
+3. **GIST**: A single plain-language paragraph (2-3 sentences) summarising what happened this week in AI. No jargon. No metaphors. Just the facts distilled.
+
+4. **IMPACT**: 2-3 sentences on why this week's developments matter — for society, for workers, for builders.
+
+5. **OPTIMISTIC OUTLOOK**: 2-3 sentences on the best-case interpretation of where this is heading. Be genuinely hopeful but grounded.
+
+6. **PESSIMISTIC WARNING**: 2-3 sentences on the risks, threats, or concerns The Architect sees in this week's direction. Be honest.
+
+7. **CONTENT**: Write a 600-900 word opinion piece in HTML format. Structure:
    - Opening: A philosophical observation that connects to this week's news
    - 2-3 thematic sections (use <h2> tags), each discussing a theme you identify across categories.
      Reference SPECIFIC articles by name as evidence.
    - A section connecting the week's developments to the Triple Liberators framework
    - Closing: A forward-looking declaration in Aaron Azadi's voice
 
-4. **META DESCRIPTION**: A 150-character SEO meta description.
+8. **META DESCRIPTION**: A 150-character SEO meta description.
 
 ## FORMAT RULES
-- Use <h2>, <p>, <strong>, <ul>, <li> HTML tags
+- Use <h2>, <p>, <strong>, <ul>, <li> HTML tags in the content field only
 - Do NOT use markdown formatting inside the HTML content
 - Do NOT include <html>, <head>, <body> wrapper tags—just the article body HTML
 - Reference at least 3 specific articles from the data
 - Write in first person ("I", "we")
 - Be opinionated. Take a stance. This is NOT a neutral summary.
+- gist, impact, optimistic_outlook, pessimistic_warning must be PLAIN TEXT — no HTML tags
 
 ## OUTPUT FORMAT
 Return a JSON object:
 {{
     "title": "Your philosophical title",
     "subtitle": "Your one-sentence hook",
+    "gist": "Plain-text week summary (2-3 sentences)",
+    "impact": "Plain-text impact statement (2-3 sentences)",
+    "optimistic_outlook": "Plain-text optimistic take (2-3 sentences)",
+    "pessimistic_warning": "Plain-text risk warning (2-3 sentences)",
     "content": "<h2>First Section</h2><p>Content...</p>...",
     "meta_description": "150-char SEO description"
 }}
@@ -212,6 +225,10 @@ Return a JSON object:
 
         title = data['title']
         subtitle = data.get('subtitle', '')
+        gist = data.get('gist', '')
+        impact = data.get('impact', '')
+        optimistic_outlook = data.get('optimistic_outlook', '')
+        pessimistic_warning = data.get('pessimistic_warning', '')
         content = data['content']
         meta_desc = data.get('meta_description', subtitle[:155])
         slug = slugify(title)
@@ -220,13 +237,17 @@ Return a JSON object:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Ensure blog_posts table exists with is_published column
+        # Ensure blog_posts table exists with all columns
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS blog_posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 slug TEXT UNIQUE,
                 title TEXT,
                 subtitle TEXT,
+                gist TEXT,
+                impact TEXT,
+                optimistic_outlook TEXT,
+                pessimistic_warning TEXT,
                 content TEXT,
                 image TEXT,
                 author_name TEXT,
@@ -239,11 +260,18 @@ Return a JSON object:
             )
         ''')
 
-        # Lazy migration: add is_published if missing
-        try:
-            cursor.execute("SELECT is_published FROM blog_posts LIMIT 1")
-        except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE blog_posts ADD COLUMN is_published BOOLEAN DEFAULT 0")
+        # Lazy migrations for new columns
+        for col, coldef in [
+            ('is_published', 'BOOLEAN DEFAULT 0'),
+            ('gist', 'TEXT'),
+            ('impact', 'TEXT'),
+            ('optimistic_outlook', 'TEXT'),
+            ('pessimistic_warning', 'TEXT'),
+        ]:
+            try:
+                cursor.execute(f"SELECT {col} FROM blog_posts LIMIT 1")
+            except sqlite3.OperationalError:
+                cursor.execute(f"ALTER TABLE blog_posts ADD COLUMN {col} {coldef}")
 
         # Check for slug collision
         existing = cursor.execute('SELECT id FROM blog_posts WHERE slug = ?', (slug,)).fetchone()
@@ -252,12 +280,16 @@ Return a JSON object:
 
         cursor.execute('''
             INSERT INTO blog_posts (
-                slug, title, subtitle, content, meta_description,
+                slug, title, subtitle, gist, impact,
+                optimistic_outlook, pessimistic_warning,
+                content, meta_description,
                 author_name, author_title, author_linkedin,
                 is_published, published_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)
         ''', (
-            slug, title, subtitle, content, meta_desc,
+            slug, title, subtitle, gist, impact,
+            optimistic_outlook, pessimistic_warning,
+            content, meta_desc,
             'Aaron Azadi', 'The Architect',
             'https://www.linkedin.com/in/aliemreozen/'
         ))

@@ -194,7 +194,7 @@ def index():
                 ed_date = ed.get('published_at', '')
                 try:
                     ed_dt = datetime.fromisoformat(ed_date.replace(' ', 'T'))
-                    if datetime.now() - ed_dt < timedelta(days=7):
+                    if datetime.now() - ed_dt < timedelta(days=1):
                         carousel.insert(min(2, len(carousel)), ed)
                 except (ValueError, TypeError):
                     pass  # Skip if date parsing fails
