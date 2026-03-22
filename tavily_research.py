@@ -8,8 +8,11 @@ slowing down the pipeline with unnecessary network calls.
 
 Per AIRULES.md §1: 100% free solution.
 """
+import logging
 import time
 from typing import Dict, Optional
+
+logger = logging.getLogger('tavily_research')
 
 
 def deep_research(title: str, gist: str, source_url: str = "") -> Optional[Dict]:
@@ -28,7 +31,7 @@ def deep_research(title: str, gist: str, source_url: str = "") -> Optional[Dict]
     try:
         from duckduckgo_search import DDGS
     except ImportError:
-        print("⚠️ duckduckgo-search not installed. Run: pip install duckduckgo-search")
+        logger.warning("⚠️ duckduckgo-search not installed. Run: pip install duckduckgo-search")
         return None
 
     # Build a targeted search query
@@ -47,7 +50,7 @@ def deep_research(title: str, gist: str, source_url: str = "") -> Optional[Dict]
         )
 
         if not results:
-            print(f"🔍 Deep Research: No results for '{title[:50]}...'")
+            logger.debug("🔍 Deep Research: No results for '%s...'", title[:50])
             return None
 
         # Filter out self-references and low-value sources
@@ -80,7 +83,7 @@ def deep_research(title: str, gist: str, source_url: str = "") -> Optional[Dict]
 
         context = "\n\n".join(context_parts)
 
-        print(f"🔬 Deep Research: Found {len(sources)} sources for '{title[:50]}...'")
+        logger.info("🔬 Deep Research: Found %d sources for '%s...'", len(sources), title[:50])
 
         return {
             "query": query,
@@ -90,5 +93,5 @@ def deep_research(title: str, gist: str, source_url: str = "") -> Optional[Dict]
         }
 
     except Exception as e:
-        print(f"⚠️ Deep research failed (non-blocking): {e}")
+        logger.warning("⚠️ Deep research failed (non-blocking): %s", e)
         return None

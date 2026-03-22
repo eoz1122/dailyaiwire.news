@@ -1,6 +1,7 @@
 
 import os
 import sqlite3
+import logging
 import google.generativeai as genai
 from datetime import datetime
 
@@ -8,8 +9,11 @@ from datetime import datetime
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from budget_tracker import BudgetTracker
+from logging_config import setup_logging
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "news.db")
+setup_logging()
+logger = logging.getLogger('proposal_agent')
 budget = BudgetTracker()
 
 class ProposalAgent:
@@ -28,7 +32,7 @@ class ProposalAgent:
 
         # 1. Budget Check
         if not budget.can_make_request(estimated_tokens=300):
-            print("💰 Budget Guard: Skipping Layout Generation.")
+            logger.info("💰 Budget Guard: Skipping Proposal Generation for lead %d.", lead_id)
             return None
 
         # 2. Determine Pricing Tier
@@ -92,19 +96,19 @@ class ProposalAgent:
                 return text
             
         except Exception as e:
-            print(f"Proposal Generation Error: {e}")
+            logger.error("Proposal Generation Error for lead %d: %s", lead_id, e, exc_info=True)
             return None
 
     def save_draft(self, lead_id, draft_json):
         """Saves the generated draft to the leads table."""
         conn = sqlite3.connect(DB_PATH)
         try:
-            conn.execute('UPDATE leads SET draft_proposal = ?, status = "DRAFT_READY" WHERE id = ?', 
+            conn.execute('UPDATE leads SET draft_proposal = ?, status = "DRAFT_READY" WHERE id = ?',
                         (draft_json, lead_id))
             conn.commit()
-            print(f"💾 Draft saved for Lead {lead_id}")
+            logger.info("💾 Draft saved for Lead %d", lead_id)
         except Exception as e:
-            print(f"Error saving draft: {e}")
+            logger.error("Error saving draft for Lead %d: %s", lead_id, e, exc_info=True)
         finally:
             conn.close()
 
@@ -163,4 +167,6 @@ class ProposalAgent:
 if __name__ == "__main__":
     agent = ProposalAgent()
     # Test with a dummy ID (assuming 1 exists)
-    print(agent.generate_pitch(1))
+    result = agent.generate_pitch(1)
+    if result:
+        logger.info("Pitch result: %s", result)

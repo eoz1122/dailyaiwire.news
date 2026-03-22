@@ -569,3 +569,29 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 3. Deleted old diverged `cleanup/investor-ready` branch (superseded).
 
 **Rollback**: N/A — the diverged local history was corrupted and had no unique production value.
+
+---
+
+## 2026-03-22T21:44:00+01:00 — Logging Migration: print() → structured logging
+
+**Decision**: Migrated all ad-hoc `print()` calls in production code to Python's `logging` module.
+
+**Files changed**:
+- `weekly_curator.py` — 8 calls → `logging.getLogger('weekly_curator')`
+- `services/lead_extractor.py` — 10 calls → `logging.getLogger('lead_extractor')`
+- `services/proposal_agent.py` — 3 calls → `logging.getLogger('proposal_agent')`
+- `tavily_research.py` — 4 calls → `logging.getLogger('tavily_research')` (library pattern, no setup_logging)
+- `video_renderer.py` — 7 calls → `logging.getLogger('video_renderer')` (library pattern, no setup_logging)
+- `tests/test_logging.py` — new test file (6 tests covering idempotency, level control, named loggers)
+
+**Log level mapping**:
+- DEBUG: noisy heuristic hits, pipeline misses (high frequency, low signal)
+- INFO: business events (lead captured, draft created, render start)
+- WARNING: non-blocking failures, config fallbacks
+- ERROR + exc_info=True: exceptions with full stack traces
+
+**Not migrated**: one-off CLI scripts in `scripts/` (print() is correct operator UX there).
+
+**Trigger**: Closed Jules PR #1 (CODE_ANALYSIS.md / IMPROVEMENT_IDEAS.md). Logging was the only actionable item.
+
+**Rollback**: `git revert` the commit. No DB or config changes.

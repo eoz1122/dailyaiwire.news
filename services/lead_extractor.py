@@ -2,6 +2,7 @@
 import os
 import re
 import sqlite3
+import logging
 import trafilatura
 from urllib.parse import urlparse
 import google.generativeai as genai
@@ -10,8 +11,12 @@ import google.generativeai as genai
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from budget_tracker import BudgetTracker
+from logging_config import setup_logging
 
 from db import DB_PATH
+
+setup_logging()
+logger = logging.getLogger('lead_extractor')
 budget = BudgetTracker()
 
 class LeadExtractor:
@@ -42,13 +47,13 @@ class LeadExtractor:
         # Check Keywords
         for k in keywords:
             if re.search(k, content_lower):
-                print(f"🎯 Heuristic Hit: '{k}' found in {url}")
+                logger.debug("🎯 Heuristic Hit: '%s' found in %s", k, url)
                 return True
-                
+
         # Check Emails
         if re.search(email_pattern, content_lower):
-             print(f"🎯 Heuristic Hit: Email pattern found in {url}")
-             return True
+            logger.debug("🎯 Heuristic Hit: Email pattern found in %s", url)
+            return True
              
         return False
 
@@ -58,18 +63,18 @@ class LeadExtractor:
         """
         # 1. Check Budget & Safety
         if not budget.can_make_request(estimated_tokens=500):
-            print("💰 Budget Guard: Skipping Lead Extraction.")
+            logger.info("💰 Budget Guard: Skipping Lead Extraction.")
             return
 
         # 2. Fetch Content
-        print(f"🕵️ Investigating potential lead: {url}")
+        logger.info("🕵️ Investigating potential lead: %s", url)
         downloaded = trafilatura.fetch_url(url)
         if not downloaded:
             return
 
         # 3. Layer 1: Heuristic Filter (Cost: $0)
         if not self._cheap_heuristic_filter(downloaded, url):
-            print("Start of Lead Extraction Pipeline - Failed Heuristic Check. Skipping LLM.")
+            logger.debug("Lead Extraction Pipeline: Failed Heuristic Check. Skipping LLM for %s", url)
             return
 
         # 4. Layer 2: LLM Extraction (Cost: Low)
@@ -122,22 +127,22 @@ class LeadExtractor:
 
             # --- DEEP CRAWL: If no email, check /contact or /about ---
             if not email or confidence < 40:
-                print(f"   Searching for Contact Page on {url}...")
-                email, secondary_source  = self._hunt_for_contact_email(url)
+                logger.debug("Searching for Contact Page on %s...", url)
+                email, secondary_source = self._hunt_for_contact_email(url)
                 if email:
-                    print(f"   🎯 Found email on secondary page: {email}")
-                    confidence = 85 # Boost confidence if found on contact page
+                    logger.info("🎯 Found email on secondary page: %s", email)
+                    confidence = 85  # Boost confidence if found on contact page
                     # Re-verify company name if needed, or keep existing
             # ---------------------------------------------------------
 
             if email:
-                print(f"🤑 LEAD CAPTURED: {company} ({email}) - {value}")
+                logger.info("🤑 LEAD CAPTURED: %s (%s) - %s", company, email, value)
                 self._save_lead(url, source_title, company, email, confidence, value, reason)
             else:
-                print("No high-quality lead found (checked article + contact pages).")
+                logger.debug("No high-quality lead found (checked article + contact pages) for %s", url)
 
         except Exception as e:
-            print(f"Extraction Error: {e}")
+            logger.error("Extraction Error: %s", e, exc_info=True)
 
     def _hunt_for_contact_email(self, original_url):
         """
@@ -184,9 +189,9 @@ class LeadExtractor:
             ''', (urlparse(url).netloc, url, company or title, email, score, value, reason))
             conn.commit()
         except sqlite3.IntegrityError:
-            print("Lead already exists.")
+            logger.debug("Lead already exists for url: %s", url)
         except sqlite3.OperationalError:
-             print("⚠️ DB Error: Columns missing. Run migration.")
+            logger.error("⚠️ DB Error: Columns missing. Run migration script for leads table.")
         finally:
             conn.close()
 

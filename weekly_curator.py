@@ -1,13 +1,18 @@
 import sqlite3
 import json
 import os
+import logging
 from google import genai
 from google.genai import types
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from logging_config import setup_logging
 
 # Load environment variables
 load_dotenv()
+setup_logging()
+
+logger = logging.getLogger('weekly_curator')
 
 # Configure Gemini
 # client = genai.Client(api_key=os.getenv("GEMINI_API_KEY")) 
@@ -41,10 +46,10 @@ def generate_newsletter_draft():
     top_articles = get_top_articles()
     
     if not top_articles:
-        print("📭 No high-signal articles found this week. Skipping draft generation.")
+        logger.info("📭 No high-signal articles found this week. Skipping draft generation.")
         return
 
-    print(f"🔬 Synthesizing {len(top_articles)} landmark stories into a weekly wrap...")
+    logger.info("🔬 Synthesizing %d landmark stories into a weekly wrap...", len(top_articles))
     
     articles_context = "\n---\n".join([
         f"ID: {a['id']}\nTITLE: {a['title']}\nGIST: {a['gist']}\nIMPORTANCE: {a['importance_score']}" 
@@ -132,18 +137,18 @@ def generate_newsletter_draft():
         conn.commit()
         conn.close()
         
-        print(f"✅ Newsletter Draft Created: '{data['subject']}'")
-        print(f"📅 Status: DRAFT | Scheduled for: {scheduled_date.strftime('%Y-%m-%d %H:%M')}")
-        
+        logger.info("✅ Newsletter Draft Created: '%s'", data['subject'])
+        logger.info("📅 Status: DRAFT | Scheduled for: %s", scheduled_date.strftime('%Y-%m-%d %H:%M'))
+
     except Exception as e:
-        print(f"❌ Failed to generate weekly wrap: {e}")
+        logger.error("❌ Failed to generate weekly wrap: %s", e, exc_info=True)
 
 if __name__ == "__main__":
     import sys
 
     if "--auto" in sys.argv:
         # Unattended mode: include trend data in the curation
-        print("🤖 Running in --auto mode (unattended weekly curation)...")
+        logger.info("🤖 Running in --auto mode (unattended weekly curation)...")
 
         # Inject trend snapshot into the prompt
         try:
@@ -156,9 +161,9 @@ if __name__ == "__main__":
             if snapshot.get('has_trends'):
                 hot_cats = [c['category'] for c in snapshot.get('hot_categories', [])[:3]]
                 hot_tags = [h['hashtag'] for h in snapshot.get('hot_hashtags', [])[:5]]
-                print(f"📊 Trend context: categories={hot_cats}, hashtags={hot_tags}")
+                logger.debug("📊 Trend context: categories=%s, hashtags=%s", hot_cats, hot_tags)
         except Exception as e:
-            print(f"⚠️ Trend injection skipped: {e}")
+            logger.warning("⚠️ Trend injection skipped: %s", e)
 
         generate_newsletter_draft()
     else:
