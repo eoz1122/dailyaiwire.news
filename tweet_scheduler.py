@@ -39,11 +39,12 @@ QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
 VERSION = "2.5.0"
-FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '8'))  # Max Facebook posts per day
+FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '6'))  # Max Facebook posts per day
 FB_BACKOFF_MAX_HOURS = int(os.getenv('FB_BACKOFF_MAX_HOURS', '48'))  # Maximum backoff window
 FB_START_HOUR = int(os.getenv('FB_START_HOUR', '11'))    # Start posting at 11 AM UK
 FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '7200'))  # 2 hours between FB posts
 FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK time
+IG_ENABLED = os.getenv('IG_ENABLED', 'false').lower() == 'true'  # Disabled during suspension
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -249,25 +250,28 @@ def main_loop():
             # PLATFORM 2: Instagram
             # ═══════════════════════════════════════════════════════
             try:
-                last_ig_time = get_last_ig_post_time()
-                ig_gap = (datetime.now(timezone.utc) - last_ig_time).total_seconds()
-
-                if ig_gap < INTERVAL_SECONDS:
-                    remaining = (INTERVAL_SECONDS - ig_gap) / 60
-                    logger.info("📸 [IG] ⏳ %.0f mins until next post.", remaining)
+                if not IG_ENABLED:
+                    logger.warning("📸 [IG] ⛔ DISABLED — account suspended. Set IG_ENABLED=true to re-enable.")
                 else:
-                    ig_article = get_next_article_for_ig()
-                    if ig_article:
-                        payload = _build_article_payload(ig_article)
-                        logger.info("📸 [IG] Posting: %s", ig_article['title'][:60])
-                        if distributor.post_to_instagram(payload):
-                            mark_as_shared_ig(ig_article['slug'])
-                            logger.info("📸 [IG] ✅ Posted successfully.")
-                            did_any_work = True
-                        else:
-                            logger.warning("📸 [IG] ⚠️ Post failed or skipped.")
+                    last_ig_time = get_last_ig_post_time()
+                    ig_gap = (datetime.now(timezone.utc) - last_ig_time).total_seconds()
+
+                    if ig_gap < INTERVAL_SECONDS:
+                        remaining = (INTERVAL_SECONDS - ig_gap) / 60
+                        logger.info("📸 [IG] ⏳ %.0f mins until next post.", remaining)
                     else:
-                        logger.info("📸 [IG] 📭 No unshared articles.")
+                        ig_article = get_next_article_for_ig()
+                        if ig_article:
+                            payload = _build_article_payload(ig_article)
+                            logger.info("📸 [IG] Posting: %s", ig_article['title'][:60])
+                            if distributor.post_to_instagram(payload):
+                                mark_as_shared_ig(ig_article['slug'])
+                                logger.info("📸 [IG] ✅ Posted successfully.")
+                                did_any_work = True
+                            else:
+                                logger.warning("📸 [IG] ⚠️ Post failed or skipped.")
+                        else:
+                            logger.info("📸 [IG] 📭 No unshared articles.")
             except Exception as ig_err:
                 logger.error("📸 [IG] ❌ Error: %s", ig_err)
 
