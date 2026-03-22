@@ -134,7 +134,7 @@ def process_batch(batch: List[Dict]):
         "    \"thought_provoking_question\": \"A short, engaging question to spark discussion.\",\n"
         "    \"eli5\": \"Explain like I'm 5 years old version\",\n"
         "    \"importance_score\": \"Integer 50-100 reflecting strategic value. Use PRECISE numbers (e.g. 73, 87, 62), NOT round multiples of 5. Rubric: 91-100 = Industry-reshaping (new paradigm, trillion-dollar impact, regulation changing entire sectors). 81-90 = Major player move (big funding, significant product launch by top-5 company, critical security breach). 71-80 = Notable development (meaningful research, mid-tier company news, policy proposals). 61-70 = Incremental progress (updates, minor partnerships, tool releases). 50-60 = Low signal (opinions, rehashed takes, minor features). Below 50 = SPAM/irrelevant. If topic involves SUICIDE/MURDER, score MUST be < 20 unless global crisis.\",\n"
-        "    \"deep_analysis\": \"300+ words. Comprehensive summary using multiple paragraphs.\",\n"
+        "    \"deep_analysis\": \"300-500 words. ANALYST BRIEFING — NOT a summary or article recap. Open with the strategic/market/technical insight (NEVER with 'This article...' or any source reference). Structure: Para 1 — what happened and why it matters NOW. Para 2 — competitive, technical, or regulatory context using data from key_details. Para 3 — forward-looking implications. Confident, direct tone. No hedging.\",\n"
         "    \"narration_script\": \"1-minute radio script starting with 'Intelligence from DailyAIWire dot news...'.\",\n"
         "    \"metadata\": { \"ai_detected\": true, \"model\": \"Gemini 2.5 Flash\", \"label\": \"EU AI Act Art. 50 Compliant\" },\n"
         "    \"design_tokens\": {\n"

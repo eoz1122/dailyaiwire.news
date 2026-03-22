@@ -12,9 +12,10 @@ class BudgetTracker:
     def __init__(self, budget_file="budget_tracker.json", monthly_cap_usd=10.0):
         self.budget_file = budget_file
         self.monthly_cap = monthly_cap_usd
-        # Gemini 1.5 Flash pricing (Standard Rate)
-        self.cost_per_1k_input_tokens = 0.000075   # $0.075 per 1M tokens
-        self.cost_per_1k_output_tokens = 0.0003    # $0.30 per 1M tokens
+        # Gemini 2.5 Flash pricing (Standard Rate — updated 2026-03-23)
+        # https://ai.google.dev/pricing
+        self.cost_per_1k_input_tokens = 0.00015    # $0.15 per 1M input tokens
+        self.cost_per_1k_output_tokens = 0.0006    # $0.60 per 1M output tokens
         self.load_usage()
     
     def load_usage(self):
