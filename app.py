@@ -148,6 +148,18 @@ class MyAdminIndexView(AdminIndexView):
 
         date_filter = request.args.get('date', type=str)
         search_query = request.args.get('q', '', type=str)
+        sort_by = request.args.get('sort', 'date')       # date | views | score
+        sort_dir = request.args.get('dir', 'desc')       # asc | desc
+        status_filter = request.args.get('status', '')   # '' | live | offline
+
+        # Whitelist sort columns to prevent SQL injection
+        sort_column_map = {
+            'date':  "replace(published_at, 'T', ' ')",
+            'views': 'COALESCE(views, 0)',
+            'score': 'COALESCE(importance_score, 0)',
+        }
+        order_col = sort_column_map.get(sort_by, sort_column_map['date'])
+        order_dir = 'ASC' if sort_dir == 'asc' else 'DESC'
 
         conn = get_db_connection()
 
@@ -163,9 +175,18 @@ class MyAdminIndexView(AdminIndexView):
             params.append(f'%{search_query}%')
             params.append(f'%{search_query}%')
 
+        if status_filter == 'live':
+            conditions.append('is_published = 1')
+        elif status_filter == 'offline':
+            conditions.append('(is_published = 0 OR is_published IS NULL)')
+
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
 
-        query = "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays, source FROM articles" + where_clause + " ORDER BY replace(published_at, 'T', ' ') DESC LIMIT ? OFFSET ?"
+        query = (
+            "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays, source "
+            f"FROM articles{where_clause} "
+            f"ORDER BY {order_col} {order_dir} LIMIT ? OFFSET ?"
+        )
         query_params = params + [per_page, offset]
 
         articles = conn.execute(query, query_params).fetchall()
@@ -198,7 +219,15 @@ class MyAdminIndexView(AdminIndexView):
         except Exception:
             carousel_pinned_ids = []
 
-        return self.render('admin/index.html', articles=articles, page=page, has_next=has_next, date_filter=date_filter, q=search_query, total=total, leads=leads, carousel_pinned_ids=carousel_pinned_ids, emergency_mode=is_emergency_mode())
+        return self.render(
+            'admin/index.html',
+            articles=articles, page=page, has_next=has_next,
+            date_filter=date_filter, q=search_query, total=total,
+            leads=leads, carousel_pinned_ids=carousel_pinned_ids,
+            emergency_mode=is_emergency_mode(),
+            sort_by=sort_by, sort_dir=sort_dir, status_filter=status_filter,
+        )
+
 
 
 admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
