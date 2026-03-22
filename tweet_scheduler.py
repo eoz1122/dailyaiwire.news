@@ -39,9 +39,9 @@ QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
 VERSION = "2.5.0"
-FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '6'))  # Max Facebook posts per day
+FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '8'))  # Max Facebook posts per day
 FB_BACKOFF_MAX_HOURS = int(os.getenv('FB_BACKOFF_MAX_HOURS', '48'))  # Maximum backoff window
-FB_START_HOUR = int(os.getenv('FB_START_HOUR', '13'))    # Start posting at 1 PM UK
+FB_START_HOUR = int(os.getenv('FB_START_HOUR', '11'))    # Start posting at 11 AM UK
 FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '7200'))  # 2 hours between FB posts
 FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK time
 
