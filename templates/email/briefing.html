@@ -202,10 +202,9 @@
             {% for art in articles %}
             <div class="article-card">
                 <div class="article-category">{{ art.category }}</div>
-                <a href="https://dailyaiwire.news/article/{{ art.slug }}" class="article-title">{{ art.title }}</a>
+                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing" class="article-title">{{ art.title }}</a>
                 <div class="article-gist">{{ art.gist }}</div>
-                <a href="https://dailyaiwire.news/article/{{ art.slug }}" class="article-link">Read Full Intelligence
-                    ➔</a>
+                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing" class="article-link">Read Full Intelligence ➔</a>
             </div>
             {% endfor %}
 
@@ -216,7 +215,7 @@
                     Know someone who should be reading this?<br>
                     Forward this email or share the link below.
                 </p>
-                <a href="https://dailyaiwire.news/subscribe"
+                <a href="https://dailyaiwire.news/subscribe?utm_source=newsletter&utm_medium=email&utm_campaign=referral"
                    style="display: inline-block; background-color: #2563eb; color: #ffffff; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; padding: 14px 32px; border-radius: 100px;">
                     Share → dailyaiwire.news/subscribe
                 </a>
