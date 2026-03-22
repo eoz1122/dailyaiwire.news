@@ -98,19 +98,17 @@
     <link rel="alternate" type="application/rss+xml" title="DailyAIWire.news RSS Feed"
         href="https://dailyaiwire.news/rss">
 
-    <!-- Preconnect to external domains -->
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <!-- Preconnect: max 3 to avoid Lighthouse warning -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://www.googletagmanager.com">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS — self-hosted compiled bundle (replaces CDN script) -->
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
 
-    <!-- Non-blocking Google Fonts (preload + swap) -->
-    <link rel="preload" as="style"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap"
-        onload="this.onload=null;this.rel='stylesheet'">
+    <!-- Google Fonts — non-blocking via media=print swap (no deprecated onload API) -->
+    <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap">
     <noscript><link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap"></noscript>
 
@@ -182,29 +180,32 @@
 
         .glass-card {
             background: var(--card-bg);
-            -webkit-backdrop-filter: blur(25px) saturate(180%);
-            backdrop-filter: blur(25px) saturate(180%);
+            /* Reduced blur: 12px is imperceptible vs 25px but saves significant GPU work on mobile */
+            -webkit-backdrop-filter: blur(12px) saturate(150%);
+            backdrop-filter: blur(12px) saturate(150%);
             border: 1px solid var(--border-color);
-            transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+            /* Scope away from 'all' to avoid animating layout-triggering properties */
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        border-color 0.3s ease,
+                        background-color 0.3s ease;
             contain: layout style;
-            /* Performance win */
         }
 
         .article-card {
             contain: content;
-            /* Rendering optimization */
         }
 
         @media (hover: hover) {
             .glass-card:hover {
                 border-color: rgba(37, 99, 235, 0.4);
-                transform: translateY(-6px) scale(1.01);
+                transform: translateY(-4px);
                 background: rgba(25, 25, 30, 0.5);
-                box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+                box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.5);
             }
 
             .light-mode .glass-card:hover {
-                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.1);
             }
         }
 
@@ -390,11 +391,13 @@
             color: #ffffff !important;
         }
 
-        /* Custom Transitions */
-        .glass-card {
-            -webkit-backdrop-filter: blur(20px);
-            backdrop-filter: blur(20px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Mobile: disable backdrop-filter for performance */
+        @media (max-width: 768px) {
+            .glass-card {
+                -webkit-backdrop-filter: none;
+                backdrop-filter: none;
+                background: var(--card-bg);
+            }
         }
 
         /* Utility to hide scrollbar */

@@ -291,11 +291,10 @@ def inject_config():
 # --- Security Headers ---
 @app.after_request
 def add_security_headers(response):
-    # NOTE: Tailwind CDN (JIT mode) requires 'unsafe-eval'. If you migrate to a pre-built
-    # Tailwind bundle, remove 'unsafe-eval' from script-src below.
+    # Tailwind is now compiled to /static/css/tailwind.min.css — unsafe-eval removed.
     csp = (
         "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' https: data: blob:; "
@@ -305,13 +304,15 @@ def add_security_headers(response):
         "form-action 'self' https://api.web3forms.com;"
     )
     response.headers['Content-Security-Policy'] = csp
-    # F-01: Additional security headers
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    # Fixes Lighthouse Best Practices COOP warning
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
     return response
+
 
 
 @app.after_request
