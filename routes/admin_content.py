@@ -203,10 +203,13 @@ def admin_editorials():
     return render_template('admin/editorials.html', posts=posts)
 
 
-@admin_content_bp.route('/admin/editorial/generate', methods=['POST'])
+@admin_content_bp.route('/admin/editorial/generate', methods=['GET', 'POST'])
 @login_required
 def admin_generate_opinion():
     """Spawns opinion_generator.py to create a draft opinion piece."""
+    if request.method == 'GET':
+        # Graceful redirect when endpoint is visited directly via browser
+        return redirect(url_for('admin_content.admin_editorials'))
     import subprocess
     import sys
     try:
