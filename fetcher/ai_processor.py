@@ -142,7 +142,7 @@ def process_batch(batch: List[Dict]):
         "      \"sentiment_pallet\": \"techno-optimist | warning | crisis\",\n"
         "      \"component_triggers\": [\"quick_facts_grid\", \"market_ticker\", \"code_block\"]\n"
         "    },\n"
-        "    \"mermaid_diagram\": \"Valid Mermaid.js syntax (flowchart, sequence, timeline, or mindmap). Generate ONLY for technical/process/business articles where a visual flow adds genuine value (e.g. architecture, pipelines, funding flows, regulatory processes). For opinion pieces, minor updates, or non-visual topics, set to null. Use LR direction for flowcharts. Keep node labels concise (max 6 words). Do NOT wrap in markdown code fences.\"\n"
+        "    \"mermaid_diagram\": \"Valid Mermaid.js flowchart ONLY (no sequence, timeline, or mindmap — these cause parse errors). Generate ONLY for technical/process/business articles with a clear flow to visualise. Set to null for opinions, minor updates, or anything non-structural. STRICT SYNTAX RULES: (1) Use 'flowchart LR' as the opening line. (2) Node labels MUST use square bracket quoting: A[\\\"Label Text\\\"] — NEVER use round brackets () or curly braces {} in labels. (3) Forbidden characters inside labels: parentheses (), colons :, ampersands &, angle brackets <>, slashes /. Replace with plain words. (4) Keep labels max 4 words. (5) Max 8 nodes total. (6) Do NOT wrap in markdown code fences. If unsure about syntax correctness, set to null.\"\n"
         "  }\n"
         "]\n\n"
         "ARTICLES TO PROCESS:\n" + "\n---\n".join(batch_input) +
