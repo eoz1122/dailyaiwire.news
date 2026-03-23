@@ -188,6 +188,10 @@ def main_loop():
     fb_backoff_hours = 0
     fb_backoff_until = None
 
+    # Instagram backoff state (rate limit recovery)
+    ig_backoff_hours = 0
+    ig_backoff_until = None
+
     while True:
         try:
             logger.info("💓 [Heartbeat] Scheduler Alive at %s", datetime.now().strftime('%H:%M:%S'))
@@ -253,6 +257,9 @@ def main_loop():
             try:
                 if not IG_ENABLED:
                     logger.warning("📸 [IG] ⛔ DISABLED — account suspended. Set IG_ENABLED=true to re-enable.")
+                elif ig_backoff_until and datetime.now(timezone.utc) < ig_backoff_until:
+                    remaining = (ig_backoff_until - datetime.now(timezone.utc)).total_seconds() / 3600
+                    logger.info("📸 [IG] ⏳ Backoff: %.1fh remaining.", remaining)
                 else:
                     last_ig_time = get_last_ig_post_time()
                     ig_gap = (datetime.now(timezone.utc) - last_ig_time).total_seconds()
@@ -268,6 +275,8 @@ def main_loop():
                             if distributor.post_to_instagram(payload):
                                 mark_as_shared_ig(ig_article['slug'])
                                 logger.info("📸 [IG] ✅ Posted successfully.")
+                                ig_backoff_hours = 0
+                                ig_backoff_until = None
                                 did_any_work = True
                             else:
                                 logger.warning("📸 [IG] ⚠️ Post failed or skipped.")
@@ -275,6 +284,9 @@ def main_loop():
                             logger.info("📸 [IG] 📭 No unshared articles.")
             except Exception as ig_err:
                 logger.error("📸 [IG] ❌ Error: %s", ig_err)
+                ig_backoff_hours = min(max(ig_backoff_hours * 2, 3), 24)
+                ig_backoff_until = datetime.now(timezone.utc) + timedelta(hours=ig_backoff_hours)
+                logger.warning("📸 [IG] Backoff engaged: %dh (until %s).", ig_backoff_hours, ig_backoff_until.strftime('%H:%M UTC'))
 
             time.sleep(2)  # Brief pause between platform API calls
 
