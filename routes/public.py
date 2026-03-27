@@ -300,18 +300,28 @@ def article(slug):
     except (ValueError, json.JSONDecodeError, TypeError, KeyError):
         d['mermaid_diagram'] = None
 
-    # SEO Internal Linking: 3 Related Articles (Same Category)
+    # SEO Internal Linking: 6 Related Articles (3 same-category + 3 cross-category)
     conn = get_db_connection()
-    related = conn.execute('''
-        SELECT title, slug, image, category, published_at
+    same_cat = conn.execute('''
+        SELECT title, slug, image, category, published_at, gist
         FROM articles
-        WHERE category = ? AND id != ?
+        WHERE category = ? AND id != ? AND is_published = 1
+        ORDER BY published_at DESC LIMIT 3
+    ''', (d['category'], d['id'])).fetchall()
+
+    same_cat_slugs = [dict(r)['slug'] for r in same_cat]
+    exclude_ids = [d['id']]
+
+    cross_cat = conn.execute('''
+        SELECT title, slug, image, category, published_at, gist
+        FROM articles
+        WHERE category != ? AND id != ? AND is_published = 1
         ORDER BY published_at DESC LIMIT 3
     ''', (d['category'], d['id'])).fetchall()
     conn.close()
 
     related_articles = []
-    for r in related:
+    for r in list(same_cat) + list(cross_cat):
         rd = dict(r)
         if rd['image'] and not rd['image'].startswith('http') and not rd['image'].startswith('/'):
             rd['image'] = '/' + rd['image']

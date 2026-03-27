@@ -313,3 +313,42 @@ class TestErrorPages:
         assert 403 in handlers
         assert 429 in handlers
 
+
+# ── P1/P2 SEO Indexing Fixes ───────────────────────────────────────
+
+class TestSitemapCaching:
+    """Sitemap endpoints should include Cache-Control headers."""
+
+    def test_sitemap_index_cache_header(self, client):
+        resp = client.get('/sitemap.xml')
+        assert resp.status_code == 200
+        cc = resp.headers.get('Cache-Control', '')
+        assert 'max-age=3600' in cc
+
+    def test_sitemap_core_returns_200(self, client):
+        resp = client.get('/sitemap-core.xml')
+        assert resp.status_code == 200
+        cc = resp.headers.get('Cache-Control', '')
+        assert 'max-age=3600' in cc
+
+    def test_sitemap_archive_returns_200(self, client):
+        resp = client.get('/sitemap-archive.xml')
+        assert resp.status_code == 200
+        cc = resp.headers.get('Cache-Control', '')
+        assert 'max-age=21600' in cc
+
+
+class TestArticleSEOEnhancements:
+    """P2: Article pages should have improved SEO signals."""
+
+    def test_article_has_reading_time(self, client):
+        resp = client.get('/article/test-article-slug')
+        assert resp.status_code == 200
+        assert b'min read' in resp.data
+
+    def test_article_json_ld_present(self, client):
+        resp = client.get('/article/test-article-slug')
+        assert resp.status_code == 200
+        assert b'application/ld+json' in resp.data
+        assert b'NewsArticle' in resp.data
+

@@ -27,11 +27,14 @@
   "image": [{{ article.image | tojson | safe }}],
   "datePublished": {{ article.published_at | tojson | safe }},
   "dateModified": {{ article.published_at | tojson | safe }},
-  "author": {
+  "author": {% if article.original_author %}{
+    "@type": "Person",
+    "name": {{ article.original_author | tojson | safe }}
+  }{% else %}{
     "@type": "Organization",
     "name": "DailyAIWire AI-First Intelligence",
     "url": "https://dailyaiwire.news/about"
-  },
+  }{% endif %},
   "publisher": {
     "@type": "Organization",
     "name": "DailyAIWire.news",
@@ -301,6 +304,12 @@
                 {% if article.original_author %}
                 <span class="whitespace-nowrap">Original Author: <span class="text-zinc-300">{{ article.original_author
                         }}</span></span>
+                {% endif %}
+
+                {% set word_count = (article.deep_analysis | default('', true)).split() | length + (article.gist | default('', true)).split() | length %}
+                {% set read_mins = (word_count / 200) | round(0, 'ceil') | int %}
+                {% if read_mins > 0 %}
+                <span class="whitespace-nowrap text-zinc-600">{{ read_mins }} min read</span>
                 {% endif %}
 
                 <span class="whitespace-nowrap text-zinc-600">Intelligence Analysis by <span
@@ -765,7 +774,9 @@
             <!-- Key Data Points ticker removed -->
 
             <!-- Analysis Grid: Optimistic vs Pessimistic -->
+            {% if article.bull_case or article.bear_case %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
+                {% if article.bull_case %}
                 <div
                     class="glass-card p-8 rounded-3xl border-green-500/20 bg-green-500/5 light-mode:bg-green-100 light-mode:border-green-300 transition-colors">
                     <div class="flex items-center space-x-2 mb-6">
@@ -782,7 +793,9 @@
                     <p class="text-zinc-300 light-mode:text-zinc-900 font-medium">{{ article.bull_case
                         }}</p>
                 </div>
+                {% endif %}
 
+                {% if article.bear_case %}
                 <div
                     class="glass-card p-8 rounded-3xl border-red-500/20 bg-red-500/5 light-mode:bg-red-100 light-mode:border-red-300 transition-colors">
                     <div class="flex items-center space-x-2 mb-6">
@@ -799,7 +812,9 @@
                     <p class="text-zinc-300 light-mode:text-zinc-900 font-medium">{{ article.bear_case
                         }}</p>
                 </div>
+                {% endif %}
             </div>
+            {% endif %}
 
             <!-- Premium Newsletter CTA: Compact & Theme-Aware -->
             <div class="mt-16 mb-12 px-4 md:px-0">
@@ -923,7 +938,7 @@
                     </h3>
                     <div class="grid grid-cols-4 gap-2">
                         <!-- Twitter Share -->
-                        <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.url|urlencode }}"
+                        <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ ('https://dailyaiwire.news/article/' + article.slug + '?utm_source=twitter&utm_medium=social_share&utm_campaign=share_button')|urlencode }}"
                             target="_blank" rel="noopener"
                             class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-all group"
                             aria-label="Share on X">
@@ -935,7 +950,7 @@
                             </svg>
                         </a>
                         <!-- LinkedIn Share -->
-                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url|urlencode }}"
+                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ ('https://dailyaiwire.news/article/' + article.slug + '?utm_source=linkedin&utm_medium=social_share&utm_campaign=share_button')|urlencode }}"
                             target="_blank" rel="noopener"
                             class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] hover:bg-[#0077b5]/10 transition-all group"
                             aria-label="Share on LinkedIn">
@@ -947,8 +962,9 @@
                         </a>
                         <!-- Copy Link -->
                         <button
-                            onclick="navigator.clipboard.writeText(window.location.href); alert('Signal Link Copied!')"
+                            onclick="navigator.clipboard.writeText('https://dailyaiwire.news/article/{{ article.slug }}?utm_source=copy_link&utm_medium=dark_social&utm_campaign=share_button'); this.title='Copied!'; setTimeout(() => this.title='Copy Link', 2000);"
                             class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 hover:bg-blue-600/10 transition-all group"
+                            title="Copy Link"
                             aria-label="Copy Link">
                             <svg class="w-4 h-4 text-zinc-400 group-hover:text-blue-600 transition-colors" fill="none"
                                 stroke="currentColor" viewBox="0 0 24 24">
@@ -1024,11 +1040,18 @@
             {% for related in related_articles %}
             <a href="/article/{{ related.slug }}"
                 class="group flex flex-col p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-blue-700 hover:bg-zinc-800 transition-all">
+                {% if related.image %}
+                <div class="h-32 rounded-xl overflow-hidden mb-4">
+                    <img src="{{ related.image }}" alt="{{ related.title }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.parentElement.style.display='none'">
+                </div>
+                {% endif %}
                 <span class="text-xs text-blue-600 font-black uppercase tracking-widest mb-3">{{ related.category
                     }}</span>
                 <h4 class="text-white font-bold text-lg mb-2 leading-tight group-hover:text-blue-400 transition-colors">
                     {{ related.title }}</h4>
-                <p class="text-zinc-500 text-sm line-clamp-2">{{ related.gist }}</p>
+                {% if related.gist %}
+                <p class="text-zinc-500 text-sm line-clamp-2">{{ related.gist[:120] }}{% if related.gist|length > 120 %}...{% endif %}</p>
+                {% endif %}
             </a>
             {% endfor %}
         </div>

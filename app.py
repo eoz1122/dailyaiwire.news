@@ -346,6 +346,9 @@ def add_security_headers(response):
 
 @app.after_request
 def add_header(r):
+    # Skip if route handler already set Cache-Control explicitly
+    if 'Cache-Control' in r.headers:
+        return r
     ct = r.content_type or ''
     if 'text/html' in ct:
         r.headers['Cache-Control'] = 'public, max-age=60, s-maxage=300'

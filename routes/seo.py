@@ -95,7 +95,7 @@ def rss_feed():
             social_parts.append(hashtags_str)
 
         a['clean_summary'] = "\n\n".join(social_parts)
-        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
+        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}?utm_source=rss&utm_medium=feed&utm_campaign=weekly_rss"
         articles.append(a)
 
     # 2. Process Lab Posts
@@ -133,7 +133,7 @@ def rss_feed():
             social_copy.append(hashtags)
 
         p['clean_summary'] = "\n\n".join(social_copy) if social_copy else subtitle
-        p['link'] = f"https://dailyaiwire.news/lab/{p['slug']}"
+        p['link'] = f"https://dailyaiwire.news/lab/{p['slug']}?utm_source=rss&utm_medium=feed&utm_campaign=lab_rss"
 
         articles.append(p)
 
@@ -149,18 +149,15 @@ def rss_feed():
 def linkedin_rss_feed():
     """Curated, quality-filtered RSS feed for the n8n → LinkedIn pipeline.
 
-    Filters:
-    - importance_score >= 80 (top-quality signals only)
-    - Max 3 articles per category (diversity)
-    - Hard cap of 20 articles (prevents feed flooding)
-    - Excludes articles published during 02:00-08:00 CET dead zone
-      (focuses on EU+US active hours)
+    Filters (Relaxed):
+    - importance_score >= 60 (standard signals and above)
+    - Max 10 articles per category (diversity)
+    - Hard cap of 50 articles (prevents feed flooding)
     """
     conn = get_db_connection()
 
     # Use a window function to rank within each category,
-    # then filter to top 3 per category for diversity.
-    # The time filter excludes the 02:00-08:00 CET dead zone.
+    # then filter to top 10 per category for diversity.
     query = '''
         SELECT * FROM (
             SELECT *,
@@ -170,13 +167,13 @@ def linkedin_rss_feed():
                 ) as cat_rank
             FROM articles
             WHERE is_published = 1
-              AND importance_score >= 75
+              AND importance_score >= 60
               AND published_at IS NOT NULL
               AND replace(published_at, 'T', ' ') <= datetime('now')
         )
-        WHERE cat_rank <= 3
+        WHERE cat_rank <= 10
         ORDER BY published_at DESC
-        LIMIT 20
+        LIMIT 50
     '''
     articles_db = conn.execute(query).fetchall()
     conn.close()
@@ -232,7 +229,7 @@ def linkedin_rss_feed():
             social_parts.append(hashtags_str)
 
         a['clean_summary'] = "\n\n".join(social_parts)
-        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}"
+        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}?utm_source=rss&utm_medium=feed&utm_campaign=linkedin_rss"
         articles.append(a)
 
     # Inject published editorials (blog_posts) into the LinkedIn feed
@@ -278,7 +275,7 @@ def linkedin_rss_feed():
         social_parts.append('#DailyAIWire #AI #Opinion')
 
         e['clean_summary'] = "\n\n".join(social_parts)
-        e['link'] = f"https://dailyaiwire.news/lab/{e['slug']}"
+        e['link'] = f"https://dailyaiwire.news/lab/{e['slug']}?utm_source=rss&utm_medium=feed&utm_campaign=linkedin_rss"
         # Ensure required fields exist for rss.xml template compatibility
         e.setdefault('title', e.get('title', 'Editorial'))
         e.setdefault('category', 'Editorial')
@@ -286,7 +283,7 @@ def linkedin_rss_feed():
 
     # Re-sort combined list and apply hard cap
     articles.sort(key=lambda x: x.get('pub_date_obj', datetime.min), reverse=True)
-    articles = articles[:20]
+    articles = articles[:50]
 
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
     return Response(xml, mimetype='application/xml')
@@ -308,6 +305,7 @@ def sitemap_index():
     xml = render_template('sitemap_index.xml', sitemaps=sitemaps)
     response = make_response(xml)
     response.headers["Content-Type"] = "application/xml"
+    response.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600"
     return response
 
 
@@ -378,6 +376,7 @@ def sitemap_core():
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     response = make_response(sitemap_xml)
     response.headers["Content-Type"] = "application/xml"
+    response.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600"
     return response
 
 
@@ -422,6 +421,7 @@ def sitemap_archive():
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     response = make_response(sitemap_xml)
     response.headers["Content-Type"] = "application/xml"
+    response.headers["Cache-Control"] = "public, max-age=21600, s-maxage=21600"
     return response
 
 
