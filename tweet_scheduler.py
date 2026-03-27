@@ -39,10 +39,9 @@ QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
 VERSION = "2.5.0"
-FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '6'))  # Max Facebook posts per day
+FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '8'))  # Max Facebook posts per day
 FB_BACKOFF_MAX_HOURS = int(os.getenv('FB_BACKOFF_MAX_HOURS', '48'))  # Maximum backoff window
-FB_START_HOUR = int(os.getenv('FB_START_HOUR', '11'))    # Start posting at 11 AM UK
-FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '7200'))  # 2 hours between FB posts
+FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '10800'))  # 3 hours between FB posts
 FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK time
 IG_ENABLED = os.getenv('IG_ENABLED', 'false').lower() == 'true'  # Disabled during suspension
 IG_GAP_SECONDS = int(os.getenv('IG_GAP_SECONDS', '10800'))  # 3 hours between IG posts
@@ -63,15 +62,24 @@ _HYBRID_RANK_SQL = """
     ) as hybrid_rank
 """
 
-def _get_next_article_for(platform_col):
-    """Get the next unshared article for a given platform column."""
+def _get_next_article_for(platform_col, max_age_days=None):
+    """Get the next unshared article for a given platform column.
+    
+    Args:
+        platform_col: DB column tracking share state (e.g. 'shared_on_ig')
+        max_age_days: If set, only consider articles published within this many days.
+    """
     conn = get_db_connection()
+    age_filter = ""
+    if max_age_days:
+        age_filter = f"AND published_at > datetime('now', '-{int(max_age_days)} days')"
     query = f'''
         SELECT *, {_HYBRID_RANK_SQL}
         FROM articles
         WHERE ({platform_col} = 0 OR {platform_col} IS NULL)
         AND is_published = 1
         AND published_at <= datetime('now', 'localtime')
+        {age_filter}
         ORDER BY hybrid_rank DESC
         LIMIT 1
     '''
@@ -83,10 +91,10 @@ def get_next_article_to_share():
     return _get_next_article_for('shared_on_x')
 
 def get_next_article_for_ig():
-    return _get_next_article_for('shared_on_ig')
+    return _get_next_article_for('shared_on_ig', max_age_days=3)
 
 def get_next_article_for_fb():
-    return _get_next_article_for('shared_on_fb')
+    return _get_next_article_for('shared_on_fb', max_age_days=3)
 
 def clear_stale_queue():
     """Marks all unshared articles older than 48 hours as 'Skipped' on X."""
@@ -270,16 +278,17 @@ def main_loop():
                     else:
                         ig_article = get_next_article_for_ig()
                         if ig_article:
+                            # PRE-MARK to prevent duplicate posting on retry/crash
+                            mark_as_shared_ig(ig_article['slug'])
                             payload = _build_article_payload(ig_article)
                             logger.info("📸 [IG] Posting: %s", ig_article['title'][:60])
                             if distributor.post_to_instagram(payload):
-                                mark_as_shared_ig(ig_article['slug'])
                                 logger.info("📸 [IG] ✅ Posted successfully.")
                                 ig_backoff_hours = 0
                                 ig_backoff_until = None
                                 did_any_work = True
                             else:
-                                logger.warning("📸 [IG] ⚠️ Post failed or skipped.")
+                                logger.warning("📸 [IG] ⚠️ Post failed or skipped (article marked to prevent duplicate).")
                         else:
                             logger.info("📸 [IG] 📭 No unshared articles.")
             except Exception as ig_err:
@@ -301,11 +310,7 @@ def main_loop():
                     remaining = (fb_backoff_until - datetime.now(timezone.utc)).total_seconds() / 3600
                     logger.info("📘 [FB] ⏳ Backoff: %.1fh remaining.", remaining)
 
-                # Gate 2: Before start hour (UK time)
-                elif uk_now.hour < FB_START_HOUR:
-                    logger.info("📘 [FB] 🕐 Waiting until %d:00 UK (currently %s UK).", FB_START_HOUR, uk_now.strftime('%H:%M'))
-
-                # Gate 3: Daily limit
+                # Gate 2: Daily limit
                 elif get_fb_posts_today() >= FB_DAILY_LIMIT:
                     logger.info("📘 [FB] 🛑 Daily limit reached (%d/%d).", get_fb_posts_today(), FB_DAILY_LIMIT)
 
@@ -320,16 +325,17 @@ def main_loop():
                         fb_today = get_fb_posts_today()
                         fb_article = get_next_article_for_fb()
                         if fb_article:
+                            # PRE-MARK to prevent duplicate posting on retry/crash
+                            mark_as_shared_fb(fb_article['slug'])
                             payload = _build_article_payload(fb_article)
                             logger.info("📘 [FB] Posting (%d/%d today): %s", fb_today + 1, FB_DAILY_LIMIT, fb_article['title'][:60])
                             if distributor.post_to_facebook(payload):
-                                mark_as_shared_fb(fb_article['slug'])
                                 logger.info("📘 [FB] ✅ Posted successfully.")
                                 fb_backoff_hours = 0
                                 fb_backoff_until = None
                                 did_any_work = True
                             else:
-                                logger.warning("📘 [FB] ⚠️ Post failed or skipped.")
+                                logger.warning("📘 [FB] ⚠️ Post failed or skipped (article marked to prevent duplicate).")
                         else:
                             logger.info("📘 [FB] 📭 No unshared articles.")
             except Exception as fb_err:
