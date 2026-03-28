@@ -161,7 +161,7 @@ def login():
             user = User(id=user_row['id'], username=user_row['username'])
             login_user(user)
             logger.info("Successful login for user '%s' from %s", username, request.remote_addr)
-            return redirect(url_for('admin.index'))
+            return redirect(url_for('admin.index'), code=303)
         else:
             _login_tracker.record_failure(username)
             flash('Invalid credentials', 'error')

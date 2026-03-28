@@ -17,7 +17,7 @@
         {% endif %}
         {% endwith %}
 
-        <form method="POST" class="space-y-6">
+        <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div>
                 <label class="block text-sm font-medium text-zinc-300 mb-2">Username</label>
