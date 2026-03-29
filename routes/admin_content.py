@@ -139,9 +139,14 @@ def admin_generate_newsletter():
     return redirect(url_for('admin_content.admin_newsletters'))
 
 
-@admin_content_bp.route('/admin/newsletter/send/<int:id>', methods=['POST'])
+@admin_content_bp.route('/admin/newsletter/send/<int:id>', methods=['GET', 'POST'])
 @login_required
 def admin_send_newsletter(id):
+    # GET requests (e.g. direct URL navigation) redirect gracefully
+    if request.method == 'GET':
+        flash("Use the Send Now button from the newsletters list.", "warning")
+        return redirect(url_for('admin_content.admin_newsletters'))
+
     import threading
     from newsletter_sender import send_newsletter
 

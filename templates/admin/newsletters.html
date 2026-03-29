@@ -66,7 +66,7 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                {% if nl.status in ['DRAFT', 'PARTIAL'] %}
+                {% if nl.status in ['DRAFT', 'PARTIAL', 'SCHEDULED'] %}
                 <form method="POST" action="/admin/newsletter/send/{{ nl.id }}" class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit"
