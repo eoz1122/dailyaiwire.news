@@ -52,14 +52,19 @@ def extract_content(url: str):
     downloaded = trafilatura.fetch_url(url)
 
     if not downloaded:
-        # Fallback to Requests
-        import requests
+        # Fallback to Scrapling (Anti-bot Bypass)
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            downloaded = response.text
+            from scrapling import Fetcher
+            # Use auto_match to mimic browser headers/TLS fingerprints perfectly
+            f = Fetcher(auto_match=True)
+            page = f.get(url)  # Scrapling has default built-in timeouts
+            if page.status in (200, 201, 202, 301, 302, 304, 307, 308):
+                downloaded = page.text
+            else:
+                logger.warning("⚠️ Scrapling returned status %s for %s", page.status, url)
+                downloaded = None
         except Exception as e:
-            logger.warning("⚠️ Request failed for %s: %s", url, e)
+            logger.warning("⚠️ Scrapling failed for %s: %s", url, type(e).__name__)
             downloaded = None
 
     if downloaded:
