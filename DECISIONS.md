@@ -611,3 +611,15 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Trigger**: Articles were being dropped due to "Insufficient Data" because scrapers were increasingly blocked by WAFs. 
 
 **Rollback**: Remove `scrapling` from `fetcher/content.py` and restore `requests.get()`. Remove the `rss_summary` logic from `fetcher/sources.py` and `fetcher/ai_processor.py`.
+
+---
+
+## 2026-03-29T19:27:00+02:00 - Self-Hosted RSS-Bridge for Twitter
+
+**Decision**: Replaced all unreliable external Nitter mirrors (which Twitter actively blocks) with a self-hosted `RSS-Bridge` Docker container running locally on the VPS. 
+
+**Changes**:
+- `docker-compose.yml` (VPS only): Spun up `rssbridge/rss-bridge:latest` tracking on `127.0.0.1:8333`.
+- `scripts/seed_twitter_sources.py`: Removed public mirror scraper and rewritten to generate bridge URLs (`/?action=display&bridge=Twitter...`) pointing to `127.0.0.1:8333`. Emptied the DB of old Nitter URLs and inserted 12 local bridge URLs.
+
+**Rollback**: Tear down the Docker container `docker compose down`, restore the Nitter check block in `seed_twitter_sources.py`, and re-run to repopulate the DB with public mirrors.
