@@ -623,3 +623,17 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 - `scripts/seed_twitter_sources.py`: Removed public mirror scraper and rewritten to generate bridge URLs (`/?action=display&bridge=Twitter...`) pointing to `127.0.0.1:8333`. Emptied the DB of old Nitter URLs and inserted 12 local bridge URLs.
 
 **Rollback**: Tear down the Docker container `docker compose down`, restore the Nitter check block in `seed_twitter_sources.py`, and re-run to repopulate the DB with public mirrors.
+
+---
+
+## 2026-03-30T00:25:00+02:00 - RSS-Bridge Scraper Bypass & Semantic Deduplication Fix
+
+**Decision**: The `dailyaiwire_fetcher` was failing to insert Twitter articles because the new RSS-Bridge endpoints didn't trigger the `pre_extracted_content` bypass logic, routing tweets to `trafilatura` (which failed on the generic Atom feed UI). Additionally, the semantic deduplication engine was throwing 404 errors due to calling a deprecated Gemini 1.5 API.
+
+**Changes**:
+- `fetcher/sources.py`: Appended `bridge=Twitter` to the `if 'nitter' in url...` condition. Tweets are now safely routed around the HTML scraper and use their RSS text directly.
+- `remove_duplicates.py`: Bumped `gemini-1.5-flash` to `gemini-2.5-flash` in the explicit model instantiation block.
+
+**Trigger**: Articles successfully found by RSS-Bridge were being dropped by the AI filter due to "Insufficient Data". Deduplication was crashing.
+
+**Rollback**: Revert `fetcher/sources.py` and `remove_duplicates.py` to previous git state.
