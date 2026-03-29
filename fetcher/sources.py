@@ -247,7 +247,7 @@ def fetch_all_sources() -> List[Dict]:
 
                     # TWITTER/NITTER: Capture tweet body directly from RSS entry
                     # to bypass content extraction (tweets are too short for scraping)
-                    if 'nitter' in url or 'twitter.com' in url or 'x.com' in url:
+                    if 'nitter' in url or 'twitter.com' in url or 'x.com' in url or 'bridge=Twitter' in url:
                         if rss_text:
                             article_dict['pre_extracted_content'] = rss_text
 
