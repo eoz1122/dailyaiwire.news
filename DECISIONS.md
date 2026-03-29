@@ -595,3 +595,19 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Trigger**: Closed Jules PR #1 (CODE_ANALYSIS.md / IMPROVEMENT_IDEAS.md). Logging was the only actionable item.
 
 **Rollback**: `git revert` the commit. No DB or config changes.
+
+---
+
+## 2026-03-29T17:21:00+02:00 - Content Extraction Resilience (Scrapling & RSS Fallback)
+
+**Decision**: Replaced the basic `requests` fallback in the content extraction pipeline with `Scrapling` to bypass anti-bot protections (e.g., Cloudflare 403s on `fiercehealthcare.com`). Additionally, implemented a universal RSS summary fallback to rescue articles when full-page scraping fails.
+
+**Changes**:
+- `fetcher/sources.py`: Extracts raw `summary` or `content` from RSS feeds as `rss_summary` for every article. Merged PR #2 logic to use `pre_extracted_content` for Twitter sources.
+- `fetcher/ai_processor.py`: Falls back to `rss_summary` if `trafilatura` yields `< 300` characters, skipping the block entirely if the RSS provides `>= 150` characters. Lowered minimum floor for tweets to 50 chars.
+- `fetcher/content.py`: Replaced `requests.get` fallback with `scrapling.Fetcher(auto_match=True)` to mimic real browser TLS fingerprints on protected sites.
+- `requirements.txt`: Added `scrapling`, `curl_cffi`, `playwright`, `browserforge`.
+
+**Trigger**: Articles were being dropped due to "Insufficient Data" because scrapers were increasingly blocked by WAFs. 
+
+**Rollback**: Remove `scrapling` from `fetcher/content.py` and restore `requests.get()`. Remove the `rss_summary` logic from `fetcher/sources.py` and `fetcher/ai_processor.py`.
