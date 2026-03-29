@@ -83,6 +83,16 @@ def process_batch(batch: List[Dict]):
 
         # QUALITY CONTROL: Tweets are short by nature - use 50-char floor for them.
         min_content_len = 50 if item.get('pre_extracted_content') else 300
+
+        # FALLBACK: If full scraping failed or returned too little content, try the RSS summary
+        if (not content or len(content) < min_content_len) and not item.get('pre_extracted_content'):
+            rss_fallback = item.get('rss_summary', '')
+            if len(rss_fallback) >= 150:  # Relaxed floor since summaries are dense
+                logger.info("♻️ Falling back to RSS Summary for '%s' (%d chars)", item['title'], len(rss_fallback))
+                content = rss_fallback
+                # Override min length since we accepted the fallback
+                min_content_len = 150
+
         if not content or len(content) < min_content_len:
             logger.info("📉 Low Content Signal (%d chars). Skipping: %s", len(content) if content else 0, item['title'])
             log_processing_attempt(item['link'], status="SKIPPED_LOW_CONTENT")

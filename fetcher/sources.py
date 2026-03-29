@@ -232,19 +232,24 @@ def fetch_all_sources() -> List[Dict]:
                         "published": dt_published.isoformat()
                     }
 
+                    # UNIVERSAL RSS CONTENT FALLBACK
+                    # Capture the RSS body or summary to use if full-page scraping fails (paywalls/bot blocks)
+                    rss_text = ''
+                    if hasattr(entry, 'content') and entry.content:
+                        rss_text = entry.content[0].get('value', '')
+                    if not rss_text:
+                        rss_text = getattr(entry, 'summary', '')
+                    if rss_text:
+                        import re as _re
+                        rss_text = _re.sub(r'<[^>]+>', '', rss_text).strip()
+                    if rss_text:
+                        article_dict['rss_summary'] = rss_text
+
                     # TWITTER/NITTER: Capture tweet body directly from RSS entry
                     # to bypass content extraction (tweets are too short for scraping)
                     if 'nitter' in url or 'twitter.com' in url or 'x.com' in url:
-                        tweet_body = ''
-                        if hasattr(entry, 'content') and entry.content:
-                            tweet_body = entry.content[0].get('value', '')
-                        if not tweet_body:
-                            tweet_body = getattr(entry, 'summary', '')
-                        if tweet_body:
-                            import re as _re
-                            tweet_body = _re.sub(r'<[^>]+>', '', tweet_body).strip()
-                        if tweet_body:
-                            article_dict['pre_extracted_content'] = tweet_body
+                        if rss_text:
+                            article_dict['pre_extracted_content'] = rss_text
 
                     unique_articles[link] = article_dict
                     added_count += 1
