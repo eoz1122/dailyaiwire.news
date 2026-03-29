@@ -423,13 +423,15 @@ Google Gemini.{% endif %}{% endblock %}
                     <!-- Regular Article Card Body -->
                     <p class="text-zinc-400 text-base mb-3 leading-relaxed line-clamp-none">
                         <strong class="text-sm uppercase tracking-widest text-blue-600 font-black">THE GIST:</strong>
-                        {{ art.gist.replace('**', '') }}
+                        {{ (art.gist or '') | replace('**', '') }}
                     </p>
 
+                    {% if art.why_it_matters %}
                     <div class="text-base font-medium text-zinc-300 leading-snug mb-4 flex-grow line-clamp-none">
                         <span class="text-blue-600 font-black uppercase tracking-widest text-sm">IMPACT:</span>
-                        {{ art.why_it_matters.replace('**', '') }}
+                        {{ art.why_it_matters | replace('**', '') }}
                     </div>
+                    {% endif %}
 
                     <div class="mt-auto pt-3 border-t border-zinc-800">
                         <div class="flex items-center flex-wrap gap-2">
