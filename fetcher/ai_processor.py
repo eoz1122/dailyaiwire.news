@@ -70,12 +70,20 @@ def process_batch(batch: List[Dict]):
 
             continue
 
-        content, og_image, author = extract_content(item['link'])
-        item['scraped_image'] = og_image  # Attach to batch item for save_to_db
+        # TWITTER/NITTER: Use pre-extracted tweet body instead of scraping
+        if item.get('pre_extracted_content'):
+            content = item['pre_extracted_content']
+            og_image = ''
+            author = item.get('original_author', '')
+        else:
+            content, og_image, author = extract_content(item['link'])
+
+        item['scraped_image'] = og_image
         item['original_author'] = author
 
-        # QUALITY CONTROL: If scraper got nothing (<300 chars), SKIP IT.
-        if not content or len(content) < 300:
+        # QUALITY CONTROL: Tweets are short by nature - use 50-char floor for them.
+        min_content_len = 50 if item.get('pre_extracted_content') else 300
+        if not content or len(content) < min_content_len:
             logger.info("📉 Low Content Signal (%d chars). Skipping: %s", len(content) if content else 0, item['title'])
             log_processing_attempt(item['link'], status="SKIPPED_LOW_CONTENT")
             skipped_low_quality += 1

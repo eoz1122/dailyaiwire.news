@@ -225,12 +225,28 @@ def fetch_all_sources() -> List[Dict]:
                     if is_ignored_source(real_source):
                         continue
 
-                    unique_articles[link] = {
+                    article_dict = {
                         "title": title,
                         "source": real_source,
                         "link": link,
                         "published": dt_published.isoformat()
                     }
+
+                    # TWITTER/NITTER: Capture tweet body directly from RSS entry
+                    # to bypass content extraction (tweets are too short for scraping)
+                    if 'nitter' in url or 'twitter.com' in url or 'x.com' in url:
+                        tweet_body = ''
+                        if hasattr(entry, 'content') and entry.content:
+                            tweet_body = entry.content[0].get('value', '')
+                        if not tweet_body:
+                            tweet_body = getattr(entry, 'summary', '')
+                        if tweet_body:
+                            import re as _re
+                            tweet_body = _re.sub(r'<[^>]+>', '', tweet_body).strip()
+                        if tweet_body:
+                            article_dict['pre_extracted_content'] = tweet_body
+
+                    unique_articles[link] = article_dict
                     added_count += 1
 
             logger.info("   ↳ %d entries found. %d new, %d skipped (old).", len(entries), added_count, skipped_count)
