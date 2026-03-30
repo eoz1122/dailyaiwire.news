@@ -19,14 +19,29 @@
         })();
     </script>
 
-    <!-- Google Analytics -->
+    <!-- Google Analytics & Consent Mode -->
     {% if config_ga_id %}
+    <script>
+        // Define dataLayer and the gtag function.
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+
+        // Set default consent to 'denied' as a placeholder
+        // Update this to 'granted' if the user explicitly consents via the CMP
+        gtag('consent', 'default', {
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied',
+            'analytics_storage': 'denied',
+            'wait_for_update': 500
+        });
+    </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ config_ga_id }}"></script>
     <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-        gtag('config', '{{ config_ga_id }}');
+        gtag('config', '{{ config_ga_id }}', {
+            'cookie_flags': 'SameSite=None;Secure'
+        });
     </script>
     {% endif %}
 
