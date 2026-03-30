@@ -229,7 +229,7 @@ def linkedin_rss_feed():
             social_parts.append(hashtags_str)
 
         a['clean_summary'] = "\n\n".join(social_parts)
-        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}?utm_source=rss&utm_medium=feed&utm_campaign=linkedin_rss"
+        a['link'] = f"https://dailyaiwire.news/article/{a['slug']}?utm_source=linkedin&utm_medium=social&utm_campaign=linkedin_rss"
         articles.append(a)
 
     # Inject published editorials (blog_posts) into the LinkedIn feed
@@ -275,7 +275,7 @@ def linkedin_rss_feed():
         social_parts.append('#DailyAIWire #AI #Opinion')
 
         e['clean_summary'] = "\n\n".join(social_parts)
-        e['link'] = f"https://dailyaiwire.news/lab/{e['slug']}?utm_source=rss&utm_medium=feed&utm_campaign=linkedin_rss"
+        e['link'] = f"https://dailyaiwire.news/lab/{e['slug']}?utm_source=linkedin&utm_medium=social&utm_campaign=linkedin_rss"
         # Ensure required fields exist for rss.xml template compatibility
         e.setdefault('title', e.get('title', 'Editorial'))
         e.setdefault('category', 'Editorial')
