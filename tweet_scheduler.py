@@ -34,7 +34,7 @@ from remove_duplicates import remove_duplicates
 logger.debug("[6.5/6] Remove Duplicates imported.")
 
 DB_PATH = "news.db"
-INTERVAL_SECONDS = int(os.getenv('SCHEDULER_INTERVAL_SECONDS', '7200'))  # 2 hours
+INTERVAL_SECONDS = int(os.getenv('SCHEDULER_INTERVAL_SECONDS', '2100'))  # 35 mins (Max ~41 posts/day safely under X limit)
 QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
