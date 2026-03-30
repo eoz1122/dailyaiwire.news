@@ -26,13 +26,13 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
 
-        // Set default consent to 'denied' as a placeholder
-        // Update this to 'granted' if the user explicitly consents via the CMP
+        // Set default consent to 'granted' for analytics so Real-Time tracking works globally.
+        // If a user in the EU clicks "Decline" on the CMP banner, it will update to 'denied' automatically.
         gtag('consent', 'default', {
             'ad_storage': 'denied',
             'ad_user_data': 'denied',
             'ad_personalization': 'denied',
-            'analytics_storage': 'denied',
+            'analytics_storage': 'granted',
             'wait_for_update': 500
         });
     </script>
