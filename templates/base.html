@@ -24,7 +24,7 @@
     <script>
         // Define dataLayer and the gtag function.
         window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
+        function gtag() { dataLayer.push(arguments); }
 
         // Set default consent to 'granted' for analytics so Real-Time tracking works globally.
         // If a user in the EU clicks "Decline" on the CMP banner, it will update to 'denied' automatically.
@@ -108,8 +108,13 @@
     </script>
 
     <!-- Additional SEO -->
+    {% if request.args.get('page') or request.args.get('category') %}
+    <meta name="robots" content="noindex, follow">
+    {% else %}
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-    <meta name="googlebot" content="index, follow">
+    {% endif %}
+    <meta name="googlebot"
+        content="{% if request.args.get('page') or request.args.get('category') %}noindex, follow{% else %}index, follow{% endif %}">
     <link rel="alternate" type="application/rss+xml" title="DailyAIWire.news RSS Feed"
         href="https://dailyaiwire.news/rss">
 
@@ -124,8 +129,10 @@
     <!-- Google Fonts — non-blocking via media=print swap (no deprecated onload API) -->
     <link rel="stylesheet" media="print" onload="this.media='all'"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap">
-    <noscript><link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap"></noscript>
+    <noscript>
+        <link rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Outfit:wght@500;700&display=swap">
+    </noscript>
 
     {% block head_extra %}{% endblock %}
     <style>
@@ -201,9 +208,9 @@
             border: 1px solid var(--border-color);
             /* Scope away from 'all' to avoid animating layout-triggering properties */
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                        border-color 0.3s ease,
-                        background-color 0.3s ease;
+                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s ease,
+                background-color 0.3s ease;
             contain: layout style;
         }
 
@@ -480,7 +487,9 @@
                     <a href="/" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Wire</a>
                     <a href="/lab" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Lab</a>
                     <a href="/podcast" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Podcast</a>
-                    <a href="/subscribe" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all uppercase text-[11px] tracking-widest">Subscribe →</a>
+                    <a href="/subscribe"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all uppercase text-[11px] tracking-widest">Subscribe
+                        →</a>
                 </nav>
             </div>
 
@@ -742,8 +751,9 @@
                 </p>
 
                 <form action="/subscribe" method="POST" class="space-y-4">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <input type="email" name="email" placeholder="Enter your business email" required autocomplete="email"
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <input type="email" name="email" placeholder="Enter your business email" required
+                        autocomplete="email"
                         class="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 px-4 py-4 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm font-bold text-center placeholder:text-zinc-500 min-h-[44px]">
                     <button type="submit"
                         class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs py-4 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5 min-h-[44px]">

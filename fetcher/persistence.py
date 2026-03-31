@@ -53,11 +53,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         headline = str(art.get('headline', '')).lower()
         analysis = str(art.get('deep_analysis', ''))
 
-        # 2. Transparency & Attribution Injection (EU AI Act)
-        footer = "\n\n_Context: This intelligence report was compiled by the DailyAIWire Strategy Engine. Verified for Art. 50 Compliance._"
-        if footer not in analysis:
-            art['deep_analysis'] = analysis + footer
-            analysis = art['deep_analysis'].lower()
+        # EU AI Act transparency: displayed in-page UI only, not in metadata/schema
 
         blacklist = [
             "source content missing",
