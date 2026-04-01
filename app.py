@@ -427,8 +427,15 @@ def check_emergency_mode():
 # --- Health Check (F-23) ---
 @app.route('/health')
 def health_check():
-    """Uptime probe for load balancers and monitoring."""
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}, 200
+    """Uptime probe with active database verification."""
+    try:
+        conn = get_db_connection()
+        conn.execute('SELECT 1').fetchone()
+        conn.close()
+        return {"status": "ok", "database": "connected", "timestamp": datetime.utcnow().isoformat()}, 200
+    except Exception as e:
+        app.logger.error("Healthcheck DB failure: %s", e)
+        return {"status": "error", "message": "Database connection failed"}, 503
 
 
 if __name__ == '__main__':
