@@ -9,7 +9,7 @@ import random
 import sqlite3
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 
 from slugify import slugify
@@ -30,10 +30,18 @@ VALID_CATEGORIES = {
 _EMBEDDING_TIMEOUT = 30  # R2-04: Max seconds for embedding service calls
 
 
+# DRIP-FEED: Minutes to add per subsequent article from the same source in one batch.
+_SOURCE_SPREAD_MINUTES = 150
+
+
 def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0, audio_gen=None):
     """Persist processed articles to the database with all post-save hooks."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    # DRIP-FEED: Track how many articles from each source we have saved in this batch.
+    # Offset 0 = publish now (or original time), offset 1 = +150 min, etc.
+    source_publish_offsets: dict = {}
 
     for art in processed_articles:
         # 1. Status Check (New 2026 Guardrail)
@@ -288,6 +296,33 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             art['category'] = 'Tools'
 
         try:
+            # --- DRIP-FEED: Calculate spread published_at ---
+            _source_key = (original.get('source') or 'unknown').strip().lower()
+            _offset_count = source_publish_offsets.get(_source_key, 0)
+            source_publish_offsets[_source_key] = _offset_count + 1
+
+            _now_utc = datetime.now(timezone.utc)
+            _original_published_str = original.get('published')
+            try:
+                _orig_dt = datetime.fromisoformat(_original_published_str.replace('Z', '+00:00')) if _original_published_str else _now_utc
+                if _orig_dt.tzinfo is None:
+                    _orig_dt = _orig_dt.replace(tzinfo=timezone.utc)
+            except (ValueError, AttributeError):
+                _orig_dt = _now_utc
+
+            # Base time is the later of: original publish time or now (never backdate)
+            _base_dt = max(_orig_dt, _now_utc)
+            _final_published_dt = _base_dt + timedelta(minutes=_SOURCE_SPREAD_MINUTES * _offset_count)
+            _final_published = _final_published_dt.strftime('%Y-%m-%dT%H:%M:%S+00:00')
+
+            if _offset_count > 0:
+                logger.info(
+                    "🗓️ Drip-feed: '%s' from '%s' scheduled +%dh (offset %d)",
+                    art.get('headline'), _source_key,
+                    (_SOURCE_SPREAD_MINUTES * _offset_count) // 60, _offset_count
+                )
+            # --- END DRIP-FEED ---
+
             # Generate Audio Reads
             am, af = None, None
             if audio_gen:
@@ -321,7 +356,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 original.get('source'),
                 original.get('link'),
                 json.dumps(art),
-                original.get('published'),
+                _final_published,
                 am,
                 af,
                 json.dumps(art.get('hashtags', [])),
