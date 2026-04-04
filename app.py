@@ -183,7 +183,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
 
         query = (
-            "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays, source "
+            "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays, source, source_url "
             f"FROM articles{where_clause} "
             f"ORDER BY {order_col} {order_dir} LIMIT ? OFFSET ?"
         )
