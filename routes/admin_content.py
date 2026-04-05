@@ -169,29 +169,39 @@ def admin_newsletter_preview():
     """Renders the newsletter template with mock data for design review."""
     mock_articles = [
         {
+            "id": 101,
             "category": "Artificial Intelligence",
             "title": "Gemini 2.5: The Dawn of True Reasoning Agents",
-            "gist": "Google's latest sweep of the Gemini architecture introduces self-correcting logic loops, allowing the model to 'think' twice before responding, effectively eliminating most hallucinations in complex coding tasks.",
+            "gist": "Google's latest sweep of the Gemini architecture introduces self-correcting logic loops...",
             "slug": "gemini-2.5-reasoning-agents"
         },
         {
+            "id": 102,
             "category": "Robotics",
             "title": "Figure 02 Integrates OpenAI Vision for Factory Precision",
-            "gist": "The second generation Figure robot now utilizes a specialized vision-language model from OpenAI to identify and sort microscopic manufacturing defects with 99.8% accuracy.",
+            "gist": "The second generation Figure robot now utilizes a specialized vision-language model...",
             "slug": "figure-02-openai-vision"
         },
         {
+            "id": 103,
             "category": "Open Source",
             "title": "Llama 4 Release Signals the End of Proprietary Moats",
-            "gist": "Meta's upcoming 400B parameter model is rumored to outperform GPT-5 across all reasoning benchmarks, forcing a massive pivot in the business models of closed-source giants.",
+            "gist": "Meta's upcoming 400B parameter model is rumored to outperform GPT-5...",
             "slug": "llama-4- proprietary-moats"
         }
     ]
 
+    mock_metadata = {
+        "101": "This represents a definitive shift away from pure conversational AI towards true autonomous agents, massively lowering the cost of reasoning.",
+        # Article 102 will purposefully fall back to gist because it has no metadata
+        "103": "Open Source is crossing the rubicon. As parameter counts increase, Meta is commoditizing the model layer, forcing competitors to pivot their moats to data and compute."
+    }
+
     return render_template('email/briefing.html',
                            subject="[PREVIEW] The Intelligence Briefing: Llama 4 and the Future of Moats",
                            intro_text="This week was a transition from AI as a tool to AI as a teammate. The release of Gemini 2.5 and the rumors surrounding Llama 4 suggest that the scaling laws are still very much in effect, but the 'intelligence' is now moving into the reasoning layer. We are seeing models that don't just predict the next token, but predict the next *intended* outcome.",
-                           articles=mock_articles)
+                           articles=mock_articles,
+                           article_metadata=mock_metadata)
 
 
 # --- Editorials ---
