@@ -202,21 +202,32 @@
             {% for art in articles %}
             <div class="article-card">
                 <div class="article-category">{{ art.category }}</div>
-                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing" class="article-title">{{ art.title }}</a>
-                <div class="article-gist">{{ art.gist }}</div>
-                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing" class="article-link">Read Full Intelligence ➔</a>
+                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
+                    class="article-title">{{ art.title }}</a>
+                <div class="article-gist">
+                    {% if article_metadata and article_metadata.get(art.id|string) %}
+                    {{ article_metadata.get(art.id|string) }}
+                    {% else %}
+                    {{ art.gist }}
+                    {% endif %}
+                </div>
+                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
+                    class="article-link">Read Full Intelligence ➔</a>
             </div>
             {% endfor %}
 
             <!-- Referral Block -->
-            <div style="margin: 0 20px 32px; padding: 32px; background-color: #eff6ff; border-radius: 24px; border: 1px solid #bfdbfe; text-align: center;">
-                <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #2563eb; margin-bottom: 12px;">Share the Signal</div>
+            <div
+                style="margin: 0 20px 32px; padding: 32px; background-color: #eff6ff; border-radius: 24px; border: 1px solid #bfdbfe; text-align: center;">
+                <div
+                    style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #2563eb; margin-bottom: 12px;">
+                    Share the Signal</div>
                 <p style="font-size: 15px; line-height: 1.6; color: #27272a; margin: 0 0 20px;">
                     Know someone who should be reading this?<br>
                     Forward this email or share the link below.
                 </p>
                 <a href="https://dailyaiwire.news/subscribe?utm_source=newsletter&utm_medium=email&utm_campaign=referral"
-                   style="display: inline-block; background-color: #2563eb; color: #ffffff; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; padding: 14px 32px; border-radius: 100px;">
+                    style="display: inline-block; background-color: #2563eb; color: #ffffff; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; padding: 14px 32px; border-radius: 100px;">
                     Share → dailyaiwire.news/subscribe
                 </a>
             </div>

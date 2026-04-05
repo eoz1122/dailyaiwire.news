@@ -111,6 +111,11 @@ def build_email_html(newsletter_id, template='email/briefing.html', recipient_em
         placeholders = ', '.join(['?'] * len(article_ids))
         cursor.execute(f"SELECT * FROM articles WHERE id IN ({placeholders})", article_ids)
         articles = [dict(row) for row in cursor.fetchall()]
+        
+    try:
+        article_metadata = json.loads(nl['article_metadata']) if nl['article_metadata'] else {}
+    except Exception:
+        article_metadata = {}
     
     conn.close()
     
@@ -126,6 +131,7 @@ def build_email_html(newsletter_id, template='email/briefing.html', recipient_em
                                subject=nl['subject'], 
                                intro_text=nl['intro_text'].replace('\n', '<br>'), 
                                articles=articles,
+                               article_metadata=article_metadata,
                                tracking_pixel_url=tracking_url)
 
 def send_newsletter(newsletter_id, is_apology=False):
