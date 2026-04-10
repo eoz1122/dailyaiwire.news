@@ -57,6 +57,7 @@ def rss_feed():
                     dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     dt = datetime.strptime(ts[:10], '%Y-%m-%d')
+            dt = dt.replace(tzinfo=None)
             
             a['pub_date_obj'] = dt
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
@@ -116,6 +117,7 @@ def rss_feed():
                     dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     dt = datetime.strptime(ts[:10], '%Y-%m-%d')
+            dt = dt.replace(tzinfo=None)
             
             p['pub_date_obj'] = dt
             p['pub_date_rss'] = formatdate(float(dt.timestamp()))
@@ -199,6 +201,7 @@ def linkedin_rss_feed():
                     dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     dt = datetime.strptime(ts[:10], '%Y-%m-%d')
+            dt = dt.replace(tzinfo=None)
 
             a['pub_date_obj'] = dt
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
@@ -269,6 +272,7 @@ def linkedin_rss_feed():
                     dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
                 except ValueError:
                     dt = datetime.strptime(ts[:10], '%Y-%m-%d')
+            dt = dt.replace(tzinfo=None)
             e['pub_date_obj'] = dt
             e['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except Exception:
