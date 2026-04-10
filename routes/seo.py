@@ -48,12 +48,16 @@ def rss_feed():
     for art in articles_db:
         a = dict(art)
         try:
-            clean_date = a['published_at'].replace('T', ' ').split('.')[0]
-            try:
-                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
-
+            ts = a['published_at']
+            if 'T' in ts:
+                ts = ts.split('.')[0].replace('Z', '')
+                dt = datetime.fromisoformat(ts)
+            else:
+                try:
+                    dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    dt = datetime.strptime(ts[:10], '%Y-%m-%d')
+            
             a['pub_date_obj'] = dt
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except Exception:
@@ -103,12 +107,16 @@ def rss_feed():
     for post in lab_posts:
         p = dict(post)
         try:
-            clean_date = p['published_at'].replace('T', ' ').split('.')[0]
-            try:
-                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
-
+            ts = p['published_at']
+            if 'T' in ts:
+                ts = ts.split('.')[0].replace('Z', '')
+                dt = datetime.fromisoformat(ts)
+            else:
+                try:
+                    dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    dt = datetime.strptime(ts[:10], '%Y-%m-%d')
+            
             p['pub_date_obj'] = dt
             p['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except Exception:
@@ -182,11 +190,15 @@ def linkedin_rss_feed():
     for art in articles_db:
         a = dict(art)
         try:
-            clean_date = a['published_at'].replace('T', ' ').split('.')[0]
-            try:
-                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
+            ts = a['published_at']
+            if 'T' in ts:
+                ts = ts.split('.')[0].replace('Z', '')
+                dt = datetime.fromisoformat(ts)
+            else:
+                try:
+                    dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    dt = datetime.strptime(ts[:10], '%Y-%m-%d')
 
             a['pub_date_obj'] = dt
             a['pub_date_rss'] = formatdate(float(dt.timestamp()))
@@ -248,11 +260,15 @@ def linkedin_rss_feed():
     for row in editorial_rows:
         e = dict(row)
         try:
-            clean_date = e['published_at'].replace('T', ' ').split('.')[0]
-            try:
-                dt = datetime.strptime(clean_date, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                dt = datetime.strptime(clean_date[:10], '%Y-%m-%d')
+            ts = e['published_at']
+            if 'T' in ts:
+                ts = ts.split('.')[0].replace('Z', '')
+                dt = datetime.fromisoformat(ts)
+            else:
+                try:
+                    dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    dt = datetime.strptime(ts[:10], '%Y-%m-%d')
             e['pub_date_obj'] = dt
             e['pub_date_rss'] = formatdate(float(dt.timestamp()))
         except Exception:
