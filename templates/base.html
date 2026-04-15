@@ -20,7 +20,7 @@
     </script>
 
     <!-- Google Analytics & Consent Mode -->
-    {% if config_ga_id %}
+    {% if config_ga_id and not request.path.startswith('/admin') and not request.path.startswith('/login') %}
     <script>
         // Define dataLayer and the gtag function.
         window.dataLayer = window.dataLayer || [];
@@ -487,7 +487,7 @@
                     <a href="/" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Wire</a>
                     <a href="/lab" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Lab</a>
                     <a href="/podcast" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Podcast</a>
-                    <a href="/subscribe"
+                    <a href="/subscribe" data-newsletter-trigger="true"
                         class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all uppercase text-[11px] tracking-widest">Subscribe
                         →</a>
                 </nav>
@@ -538,7 +538,7 @@
                 <a href="/" class="hover:text-blue-600 transition-colors py-2 px-1">Wire</a>
                 <a href="/lab" class="hover:text-blue-600 transition-colors py-2 px-1">Lab</a>
                 <a href="/podcast" class="hover:text-blue-600 transition-colors py-2 px-1">Podcast</a>
-                <a href="/subscribe" class="text-blue-500 hover:text-blue-400 transition-colors py-2 px-1">Subscribe</a>
+                <a href="/subscribe" data-newsletter-trigger="true" class="text-blue-500 hover:text-blue-400 transition-colors py-2 px-1">Subscribe</a>
             </nav>
             <!-- Mobile Search -->
             <form action="/" method="GET" class="md:hidden px-3 pb-3">
@@ -789,13 +789,19 @@
             const pageEnteredAt = Date.now();
             const MIN_DWELL_MS = 5000; // Must be on page 5s before eligible
 
+            window.openNewsletterModal = function () {
+                if (!modal) {
+                    return false;
+                }
+                shown = true;
+                modal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95', 'invisible');
+                modal.classList.add('opacity-100', 'scale-100');
+                return true;
+            };
+
             function showModal() {
                 if (shown) return;
-                shown = true;
-                if (modal) {
-                    modal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95', 'invisible');
-                    modal.classList.add('opacity-100', 'scale-100');
-                }
+                window.openNewsletterModal();
             }
 
             function closeModal() {
@@ -806,6 +812,14 @@
                 }
                 localStorage.setItem('newsletter_popup_closed', new Date().getTime());
             }
+
+            document.querySelectorAll('[data-newsletter-trigger="true"]').forEach((link) => {
+                link.addEventListener('click', (event) => {
+                    if (window.openNewsletterModal && window.openNewsletterModal()) {
+                        event.preventDefault();
+                    }
+                });
+            });
 
             if (!isTouch) {
                 // Exit-intent: fires when cursor moves toward browser chrome (y < 10px)
