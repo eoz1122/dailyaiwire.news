@@ -1,5 +1,16 @@
 # DailyAIWire.news - VPS Deployment Guide
 
+## Current Production Baseline
+
+Verified on 2026-04-16:
+
+- Production app path: `/home/dailyai/dailyaiwire.news`
+- Process manager: Supervisor
+- Active Supervisor programs: `dailyaiwire`, `dailyaiwire_fetcher`
+- Active Google credential path: `/home/dailyai/.secrets/google-cloud.json`
+- Default deploy model: push committed code to GitHub, pull on VPS, restart Supervisor services
+- Avoid direct local-to-VPS sync of uncommitted files. That was the main source of drift during cleanup.
+
 ## 🚀 Quick Deploy to Ubuntu VPS
 
 ### 1. Initial Server Setup
@@ -25,7 +36,7 @@ su - dailyai
 ```bash
 # Clone your repository
 cd /home/dailyai
-git clone https://github.com/yourusername/dailyaiwire.news.git
+git clone https://github.com/eoz1122/dailyaiwire.news.git
 cd dailyaiwire.news
 
 # Create virtual environment
@@ -50,13 +61,22 @@ python fetcher.py
 ### 3b. Setup Audio Generation (Google TTS)
 
 1. Go to Google Cloud Console and enable **Cloud Text-to-Speech API**.
-2. Create time a **Service Account** and generate a **JSON Key**.
-3. Upload the key file to the server (e.g., `google_credentials.json`).
+2. Create a **Service Account** and generate a **JSON Key**.
+3. Store the key outside the repo:
+
+```bash
+mkdir -p /home/dailyai/.secrets
+mv google-cloud.json /home/dailyai/.secrets/google-cloud.json
+chmod 600 /home/dailyai/.secrets/google-cloud.json
+```
+
 4. Update `.env`:
 
 ```bash
-GOOGLE_APPLICATION_CREDENTIALS=/home/dailyai/dailyaiwire/google_credentials.json
+GOOGLE_APPLICATION_CREDENTIALS=/home/dailyai/.secrets/google-cloud.json
 ```
+
+Do not keep the credential JSON in the repo root.
 
 ### 4. Configure Gunicorn
 
@@ -106,9 +126,37 @@ sudo supervisorctl start dailyaiwire
 sudo supervisorctl status
 ```
 
-### 5b. Configure Twitter Scheduler (Optional)
+### 5b. Configure Fetcher Supervisor Service
 
-To run the social media scheduler independently (posts every 1 hour):
+Production currently runs the fetcher as a long-lived Supervisor program, not from cron.
+
+Create `/etc/supervisor/conf.d/dailyaiwire_fetcher.conf`:
+
+```ini
+[program:dailyaiwire_fetcher]
+directory=/home/dailyai/dailyaiwire.news
+command=/home/dailyai/dailyaiwire.news/venv/bin/python fetcher.py --loop
+user=dailyai
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stderr_logfile=/home/dailyai/dailyaiwire.news/logs/fetcher-error.log
+stdout_logfile=/home/dailyai/dailyaiwire.news/logs/fetcher.log
+```
+
+Start services:
+
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start dailyaiwire dailyaiwire_fetcher
+sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
+```
+
+### 5c. Configure Twitter Scheduler (Optional)
+
+This is not part of the current production baseline. Only enable it if you intentionally decouple social posting from the fetcher loop.
 
 Create `/etc/supervisor/conf.d/tweet_scheduler.conf`:
 
@@ -127,7 +175,7 @@ Start service:
 
 ```bash
 sudo supervisorctl update
-sudo supervisorctl start dailyaiwire-twitter
+sudo supervisorctl start tweet_scheduler
 ```
 
 ### 6. Configure Nginx
@@ -185,13 +233,11 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 
 Follow prompts and select option 2 (redirect HTTP to HTTPS).
 
-### 8. Setup Cron Job for Fetcher
+### 8. Legacy Cron Fallback
 
-```bash
-crontab -e
-```
+Production currently uses `dailyaiwire_fetcher` under Supervisor. Do not enable cron and Supervisor for the same fetcher workload at the same time.
 
-Add this line to run fetcher every hour:
+If you ever need a temporary fallback one-shot fetch job, use cron deliberately and remove it once Supervisor is restored:
 
 ```cron
 0 * * * * cd /home/dailyai/dailyaiwire.news && /home/dailyai/dailyaiwire.news/venv/bin/python fetcher.py >> /home/dailyai/dailyaiwire.news/logs/fetcher.log 2>&1
@@ -206,15 +252,32 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-### 10. Direct Deployment (Quick Patch)
+### 10. Recommended Production Deploy
 
 ```bash
-# Push changes to GitHub
+# Commit and push first
 git push origin main
 
-# SSH and Pull
-ssh dailyai@72.62.95.46 "cd /home/dailyai/dailyaiwire.news && git pull && sudo supervisorctl restart dailyaiwire"
+# SSH to the VPS
+ssh dailyai@72.62.95.46
+
+# Pull committed code
+cd /home/dailyai/dailyaiwire.news
+git pull origin main
+
+# Refresh Python deps if requirements changed
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Restart app and fetcher
+sudo supervisorctl restart dailyaiwire
+sudo supervisorctl restart dailyaiwire_fetcher
+
+# Verify
+sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
 ```
+
+Do not rsync or copy uncommitted local files directly into production.
 
 ---
 
@@ -228,7 +291,8 @@ git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
 sudo supervisorctl restart dailyaiwire
-sudo supervisorctl restart tweet_scheduler
+sudo supervisorctl restart dailyaiwire_fetcher
+sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
 ```
 
 ---
@@ -237,14 +301,16 @@ sudo supervisorctl restart tweet_scheduler
 
 ```bash
 # Check app status
-sudo supervisorctl status dailyaiwire
+sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
 
 # View logs
-tail -f /home/dailyai/dailyaiwire/logs/gunicorn-error.log
-tail -f /home/dailyai/dailyaiwire/logs/fetcher.log
+tail -f /home/dailyai/dailyaiwire.news/logs/gunicorn-error.log
+tail -f /home/dailyai/dailyaiwire.news/logs/fetcher.log
+tail -f /home/dailyai/dailyaiwire.news/logs/supervisor-error.log
 
 # Restart services
 sudo supervisorctl restart dailyaiwire
+sudo supervisorctl restart dailyaiwire_fetcher
 sudo systemctl restart nginx
 
 # Check Nginx
@@ -276,7 +342,7 @@ Create `/home/dailyai/backup_db.sh`:
 BACKUP_DIR="/home/dailyai/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
-cp /home/dailyai/dailyaiwire/news.db $BACKUP_DIR/news_$DATE.db
+cp /home/dailyai/dailyaiwire.news/news.db $BACKUP_DIR/news_$DATE.db
 # Keep only last 7 days
 find $BACKUP_DIR -name "news_*.db" -mtime +7 -delete
 ```
@@ -319,6 +385,7 @@ sudo supervisorctl start dailyaiwire
 
 For issues, check logs first:
 
-- Gunicorn: `/home/dailyai/dailyaiwire/logs/gunicorn-error.log`
-- Fetcher: `/home/dailyai/dailyaiwire/logs/fetcher.log`
+- Gunicorn: `/home/dailyai/dailyaiwire.news/logs/gunicorn-error.log`
+- Fetcher: `/home/dailyai/dailyaiwire.news/logs/fetcher.log`
+- Supervisor: `/home/dailyai/dailyaiwire.news/logs/supervisor-error.log`
 - Nginx: `/var/log/nginx/error.log`

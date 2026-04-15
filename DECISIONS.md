@@ -637,3 +637,25 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Trigger**: Articles successfully found by RSS-Bridge were being dropped by the AI filter due to "Insufficient Data". Deduplication was crashing.
 
 **Rollback**: Revert `fetcher/sources.py` and `remove_duplicates.py` to previous git state.
+
+---
+
+## 2026-04-16T13:15:00+02:00 - Production Baseline Reconciled After VPS Cleanup
+
+**Context**: Repository history, VPS state, and deployment docs had drifted apart after repeated direct local-to-VPS deploys. Production had to be reconciled against the live server before any branch or cleanup decisions could be trusted.
+
+**Decision**:
+1. Treat `/home/dailyai/dailyaiwire.news` as the production app root and `/home/dailyai/staging.dailyaiwire.news` as the staging app root.
+2. Treat Supervisor as the runtime source of truth for production. Verified active services are `dailyaiwire` and `dailyaiwire_fetcher`.
+3. Move the active Google credential out of the repo and into `/home/dailyai/.secrets/google-cloud.json`, with `.env` pointing to the external secret path.
+4. Quarantine the extra `n8n-indexting` key outside the repo and keep it separate from the app credential path.
+5. Archive production cleanup artifacts under `/home/dailyai/vps-cleanup-backups/` instead of deleting them in place.
+6. Collapse stale Git branches. GitHub now keeps only `main` and `staging`. The older `deploy`, `iron-judo-v1`, AI scratch branches, and other stale refs were removed after confirming their history was either redundant or preserved locally.
+7. Update `DEPLOYMENT.md` to document the real production model: committed Git deploys, Supervisor-managed fetcher, and external secret storage.
+
+**Trigger**: VPS audit and branch cleanup performed on 2026-04-15 and 2026-04-16.
+
+**Rollback**:
+- Restore the app credential path by moving `/home/dailyai/.secrets/google-cloud.json` back into the repo only if an emergency rollback absolutely requires it, then update `.env` accordingly and restart Supervisor services.
+- Restore archived VPS files from `/home/dailyai/vps-cleanup-backups/` if a moved artifact turns out to be needed.
+- Recreate deleted Git branches from their last known commit hashes if a removed historical branch is needed again.
