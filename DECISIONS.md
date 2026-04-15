@@ -678,3 +678,25 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `deploy_to_vps.sh` and `.github/workflows/deploy-production.yml` to the prior simpler deploy model if the new workflow proves incompatible.
 - Use `./deploy_to_vps.sh --ref <previous-sha> --allow-reset` for application rollback on the VPS.
+
+---
+
+## 2026-04-16T14:20:00+02:00 - DailyAIWire Deploy User Gets Narrow Supervisor Sudoers
+
+**Context**: The first live run of the hardened deploy script updated production code but failed at the restart step because `dailyai` could not run `sudo supervisorctl` non-interactively and also could not talk to the root-owned Supervisor socket directly. That left the deploy path short of the intended one-command standard.
+
+**Decision**:
+1. Keep the shared VPS least-privilege model and do not grant `dailyai` broad sudo or unrestricted `supervisorctl` access.
+2. Add a dedicated `/etc/sudoers.d/dailyaiwire-supervisor` rule that allows only these four commands without a password:
+   - `/usr/bin/supervisorctl restart dailyaiwire`
+   - `/usr/bin/supervisorctl status dailyaiwire`
+   - `/usr/bin/supervisorctl restart dailyaiwire_fetcher`
+   - `/usr/bin/supervisorctl status dailyaiwire_fetcher`
+3. Update `deploy_to_vps.sh` to probe Supervisor access before touching Git and to use `sudo -n` so a missing sudoers rule fails fast instead of prompting mid-deploy.
+4. Document the exact sudoers contract in `DEPLOYMENT.md` so future deploys do not depend on remembered shell state.
+
+**Trigger**: First live production deploy of the hardened script on 2026-04-16 exposed that the previous restart assumption was incompatible with the actual VPS permissions model.
+
+**Rollback**:
+- Remove `/etc/sudoers.d/dailyaiwire-supervisor` with `visudo` or delete the file and revalidate sudoers if the rule needs to be withdrawn.
+- Revert the `deploy_to_vps.sh` permission probe if the VPS is later restructured around direct Supervisor access for the deploy user.

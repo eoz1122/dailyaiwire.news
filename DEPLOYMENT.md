@@ -254,6 +254,21 @@ sudo ufw enable
 
 ### 10. Recommended Production Deploy
 
+VPS prerequisite for non-root deploys:
+
+```sudoers
+Cmnd_Alias DAILYAIWIRE_SUPERVISOR = /usr/bin/supervisorctl restart dailyaiwire, /usr/bin/supervisorctl status dailyaiwire, /usr/bin/supervisorctl restart dailyaiwire_fetcher, /usr/bin/supervisorctl status dailyaiwire_fetcher
+dailyai ALL=(root) NOPASSWD: DAILYAIWIRE_SUPERVISOR
+```
+
+Validate it once after installation:
+
+```bash
+sudo visudo -cf /etc/sudoers.d/dailyaiwire-supervisor
+```
+
+Do not grant `dailyai` general `supervisorctl` access or broad passwordless sudo. Keep the rule limited to the two DailyAIWire programs above.
+
 ```bash
 # Commit and push first
 git push origin main
@@ -316,7 +331,8 @@ cd /home/dailyai/dailyaiwire.news
 
 ```bash
 # Check app status
-sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
+sudo -n supervisorctl status dailyaiwire
+sudo -n supervisorctl status dailyaiwire_fetcher
 
 # View logs
 tail -f /home/dailyai/dailyaiwire.news/logs/gunicorn-error.log
@@ -324,8 +340,8 @@ tail -f /home/dailyai/dailyaiwire.news/logs/fetcher.log
 tail -f /home/dailyai/dailyaiwire.news/logs/supervisor-error.log
 
 # Restart services
-sudo supervisorctl restart dailyaiwire
-sudo supervisorctl restart dailyaiwire_fetcher
+sudo -n supervisorctl restart dailyaiwire
+sudo -n supervisorctl restart dailyaiwire_fetcher
 sudo systemctl restart nginx
 
 # Check Nginx
@@ -343,6 +359,7 @@ sudo systemctl status nginx
 - [ ] Regular system updates: `apt update && apt upgrade`
 - [ ] Monitor logs regularly
 - [ ] Backup database daily
+- [ ] Validate `/etc/sudoers.d/dailyaiwire-supervisor` with `sudo visudo -cf /etc/sudoers.d/dailyaiwire-supervisor`
 
 ---
 

@@ -12,6 +12,9 @@ ALLOW_RESET=0
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/health}"
 MAX_HEALTH_ATTEMPTS="${MAX_HEALTH_ATTEMPTS:-20}"
 HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-2}"
+SUPERVISORCTL_BIN="${SUPERVISORCTL_BIN:-/usr/bin/supervisorctl}"
+SUDO_BIN="${SUDO_BIN:-/usr/bin/sudo}"
+SUPERVISOR_ACCESS_MODE=""
 
 usage() {
     cat <<'EOF'
@@ -45,6 +48,37 @@ fail() {
 run() {
     log "+ $*"
     "$@"
+}
+
+detect_supervisor_access() {
+    if "$SUPERVISORCTL_BIN" status dailyaiwire >/dev/null 2>&1; then
+        SUPERVISOR_ACCESS_MODE="direct"
+        return
+    fi
+
+    if "$SUDO_BIN" -n "$SUPERVISORCTL_BIN" status dailyaiwire >/dev/null 2>&1; then
+        SUPERVISOR_ACCESS_MODE="sudo"
+        return
+    fi
+
+    fail "Cannot control Supervisor as $(whoami). Grant NOPASSWD sudo for '$SUPERVISORCTL_BIN restart dailyaiwire', '$SUPERVISORCTL_BIN status dailyaiwire', '$SUPERVISORCTL_BIN restart dailyaiwire_fetcher', and '$SUPERVISORCTL_BIN status dailyaiwire_fetcher', or run the deploy as a user with direct Supervisor access."
+}
+
+run_supervisor() {
+    local action="$1"
+    local program="$2"
+
+    case "$SUPERVISOR_ACCESS_MODE" in
+        direct)
+            run "$SUPERVISORCTL_BIN" "$action" "$program"
+            ;;
+        sudo)
+            run "$SUDO_BIN" -n "$SUPERVISORCTL_BIN" "$action" "$program"
+            ;;
+        *)
+            fail "Supervisor access mode is not initialized."
+            ;;
+    esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -90,6 +124,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     fail "Tracked local changes detected in $APP_DIR. Refusing to deploy."
 fi
 
+detect_supervisor_access
+
 PREVIOUS_SHA="$(git rev-parse HEAD)"
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
@@ -122,18 +158,18 @@ fi
 
 run bash -lc 'source venv/bin/activate && pip install --disable-pip-version-check -r requirements.txt --quiet'
 
-run sudo supervisorctl restart dailyaiwire
+run_supervisor restart dailyaiwire
 
 if [[ "$RESTART_FETCHER" -eq 1 ]]; then
-    run sudo supervisorctl restart dailyaiwire_fetcher
+    run_supervisor restart dailyaiwire_fetcher
 elif [[ "$FETCHER_CHANGED" -eq 1 ]]; then
     log "Fetcher-related files changed, but fetcher restart was skipped by design."
     log "If this deploy needs the new fetcher code, rerun with --with-fetcher."
 fi
 
-run sudo supervisorctl status dailyaiwire
+run_supervisor status dailyaiwire
 if [[ "$RESTART_FETCHER" -eq 1 ]]; then
-    run sudo supervisorctl status dailyaiwire_fetcher
+    run_supervisor status dailyaiwire_fetcher
 fi
 
 attempt=1
