@@ -700,3 +700,28 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Remove `/etc/sudoers.d/dailyaiwire-supervisor` with `visudo` or delete the file and revalidate sudoers if the rule needs to be withdrawn.
 - Revert the `deploy_to_vps.sh` permission probe if the VPS is later restructured around direct Supervisor access for the deploy user.
+
+---
+
+## 2026-04-16T01:50:32+02:00 - Semantic Search Stack Pinned for Reproducible Deploys
+
+**Context**: Production semantic search and Qdrant indexing were working only because `qdrant-client`, `sentence-transformers`, `transformers`, and `huggingface_hub` had been installed manually on the VPS. They were not declared in `requirements.txt`, and the production venv had drifted into `pip check` mismatches through newer transitive installs of `grpcio-tools` and `typer`.
+
+**Decision**:
+1. Add the semantic-search runtime packages the app imports to `requirements.txt`:
+   - `qdrant-client==1.12.1`
+   - `sentence-transformers==5.2.3`
+   - `transformers==5.3.0`
+   - `huggingface-hub==1.6.0`
+   - `torch==2.10.0`
+2. Pin the previously drifting transitive packages that were causing `pip check` failures while keeping the existing `click`, `grpcio`, and `protobuf` pins intact:
+   - `grpcio-tools==1.71.2`
+   - `typer==0.23.1`
+3. Validate the full candidate file in an isolated Python 3.12 venv on the VPS before changing the live environment.
+4. Align the production venv to the validated candidate and require `pip check` to return clean before considering the dependency baseline fixed.
+
+**Trigger**: Post-cleanup dependency audit on 2026-04-16 showed that the repo could not reproduce production semantic-search features and that the live venv contained stale dependency drift even after the invalid-distribution cleanup.
+
+**Rollback**:
+- Reinstall the previous package versions explicitly if the new semantic-search pin set causes runtime regressions, especially `grpcio-tools` and `typer`.
+- Restore the previous `requirements.txt` and rerun `venv/bin/python -m pip install -r requirements.txt` if this pin set proves incompatible with future deploys.
