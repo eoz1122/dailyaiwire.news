@@ -261,23 +261,43 @@ git push origin main
 # SSH to the VPS
 ssh dailyai@72.62.95.46
 
-# Pull committed code
+# Deploy the exact ref now on main
 cd /home/dailyai/dailyaiwire.news
-git pull origin main
+./deploy_to_vps.sh --ref origin/main
+```
 
-# Refresh Python deps if requirements changed
-source venv/bin/activate
-pip install -r requirements.txt
+This defaults to a web-only deploy. If fetcher-related code changed and you intentionally want the fetcher restarted too:
 
-# Restart app and fetcher
-sudo supervisorctl restart dailyaiwire
-sudo supervisorctl restart dailyaiwire_fetcher
+```bash
+./deploy_to_vps.sh --ref origin/main --with-fetcher
+```
 
-# Verify
-sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
+For an intentional rollback to a previous commit:
+
+```bash
+./deploy_to_vps.sh --ref <previous-sha> --allow-reset
 ```
 
 Do not rsync or copy uncommitted local files directly into production.
+
+### 10b. GitHub Actions Production Deploy
+
+For a more standard audited deploy path, use the manual `Deploy Production` workflow in GitHub Actions.
+
+Required GitHub environment or repository secrets:
+
+- `PROD_HOST`
+- `PROD_USER`
+- `PROD_SSH_KEY`
+
+Recommended usage:
+
+1. Push the commit you want to deploy.
+2. Open GitHub Actions.
+3. Run `Deploy Production`.
+4. Deploy the exact ref or SHA you want.
+5. Leave `restart_fetcher` off for normal web-only deploys.
+6. Turn `restart_fetcher` on only when fetcher code or runtime dependencies changed.
 
 ---
 
@@ -287,12 +307,7 @@ When you push code changes:
 
 ```bash
 cd /home/dailyai/dailyaiwire.news
-git pull origin main
-source venv/bin/activate
-pip install -r requirements.txt
-sudo supervisorctl restart dailyaiwire
-sudo supervisorctl restart dailyaiwire_fetcher
-sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
+./deploy_to_vps.sh --ref origin/main
 ```
 
 ---

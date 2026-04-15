@@ -1,0 +1,64 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref or commit SHA to deploy
+        required: true
+        default: main
+        type: string
+      restart_fetcher:
+        description: Restart dailyaiwire_fetcher as part of this deploy
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy exact ref to production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Resolve deploy SHA
+        id: meta
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+
+      - name: Add production host to known_hosts
+        run: ssh-keyscan -H "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy without fetcher restart
+        if: ${{ inputs.restart_fetcher == false }}
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          DEPLOY_SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          ssh "${PROD_USER}@${PROD_HOST}" bash -s -- --ref "${DEPLOY_SHA}" < deploy_to_vps.sh
+
+      - name: Deploy with fetcher restart
+        if: ${{ inputs.restart_fetcher == true }}
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          DEPLOY_SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          ssh "${PROD_USER}@${PROD_HOST}" bash -s -- --ref "${DEPLOY_SHA}" --with-fetcher < deploy_to_vps.sh

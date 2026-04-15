@@ -659,3 +659,22 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 - Restore the app credential path by moving `/home/dailyai/.secrets/google-cloud.json` back into the repo only if an emergency rollback absolutely requires it, then update `.env` accordingly and restart Supervisor services.
 - Restore archived VPS files from `/home/dailyai/vps-cleanup-backups/` if a moved artifact turns out to be needed.
 - Recreate deleted Git branches from their last known commit hashes if a removed historical branch is needed again.
+
+---
+
+## 2026-04-16T13:45:00+02:00 - Production Deploy Standardized Around Exact Refs and Web-Only Defaults
+
+**Context**: The existing VPS deploy script only pulled `main`, restarted `dailyaiwire`, and relied on manual operator judgement. It had no health verification, no explicit rollback path, and no CI-backed production deploy entrypoint.
+
+**Decision**:
+1. Harden `deploy_to_vps.sh` to deploy an exact git ref or commit SHA instead of implicitly deploying "whatever main is now".
+2. Make web-only deploys the default operational mode. `dailyaiwire_fetcher` is restarted only when explicitly requested with `--with-fetcher`.
+3. Add a `/health` verification step to the deploy flow so a deploy fails fast if the app does not come back cleanly.
+4. Block accidental non-fast-forward deploys unless the operator explicitly passes `--allow-reset` for an intentional rollback.
+5. Add a manual GitHub Actions workflow, `Deploy Production`, that streams the hardened deploy script to the VPS over SSH and records a repeatable deploy path around exact refs.
+
+**Trigger**: Deployment process review after branch cleanup and VPS reconciliation exposed that the old deploy path was still below standard operational practice.
+
+**Rollback**:
+- Revert `deploy_to_vps.sh` and `.github/workflows/deploy-production.yml` to the prior simpler deploy model if the new workflow proves incompatible.
+- Use `./deploy_to_vps.sh --ref <previous-sha> --allow-reset` for application rollback on the VPS.
