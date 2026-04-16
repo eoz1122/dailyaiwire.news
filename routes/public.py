@@ -12,6 +12,7 @@ from flask_login import current_user
 
 from extensions import limiter
 from db import get_db_connection
+from services.editorials import get_db_blog_posts
 import logging
 
 logger = logging.getLogger('public')
@@ -19,23 +20,11 @@ logger = logging.getLogger('public')
 public_bp = Blueprint('public', __name__)
 
 
-def _fetch_editorials(conn):
-    """Fetch published editorials from blog_posts and map to article-like dicts."""
-    try:
-        rows = conn.execute('''
-            SELECT id, title, slug, subtitle, content, author_name, author_title,
-                   published_at, meta_description, is_published
-            FROM blog_posts
-            WHERE is_published = 1 AND published_at IS NOT NULL
-            ORDER BY published_at DESC
-            LIMIT 10
-        ''').fetchall()
-    except Exception:
-        return []
-
+def _fetch_editorials():
+    """Fetch published editorials and map them to article-like dicts."""
+    rows = get_db_blog_posts(published_only=True)[:10]
     editorials = []
-    for row in rows:
-        r = dict(row)
+    for r in rows:
         editorials.append({
             'id': f"editorial_{r['id']}",
             'title': r['title'],
@@ -88,9 +77,10 @@ def index():
 
     ITEMS_PER_PAGE = 9
     # Homepage page 1 has a newsletter card injected, so 8 + 1 = 9 = 3 clean rows
-    HOMEPAGE_GRID_SIZE = 8
+    HOMEPAGE_GRID_CARD_SLOTS = 8
 
     search_mode = 'none'
+    homepage_grid_article_slots = HOMEPAGE_GRID_CARD_SLOTS
 
     if q:
         # --- Phase 1: Semantic Search (Qdrant) with keyword fallback ---
@@ -126,7 +116,7 @@ def index():
     elif cat_arg:
         if cat_arg == 'Editorial':
             # Special handling: editorial category filter shows only editorials
-            editorials = _fetch_editorials(conn)
+            editorials = _fetch_editorials()
             offset = (page - 1) * ITEMS_PER_PAGE
             total_arts = len(editorials)
             grid = editorials[offset:offset + ITEMS_PER_PAGE]
@@ -145,7 +135,12 @@ def index():
         published_condition = 'is_published = 1 AND replace(published_at, "T", " ") <= datetime("now")'
 
         # Fetch editorials to merge into the feed
-        editorials = _fetch_editorials(conn)
+        editorials = _fetch_editorials()
+        homepage_grid_editorials = editorials[1:3]
+        homepage_grid_article_slots = max(
+            0,
+            HOMEPAGE_GRID_CARD_SLOTS - len(homepage_grid_editorials),
+        )
 
         if page == 1:
             # --- Carousel: Pinned-first hybrid logic ---
@@ -209,20 +204,39 @@ def index():
                     ORDER BY DATE(published_at) DESC,
                              (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
                     LIMIT ?
-                ''', all_carousel_ids + [HOMEPAGE_GRID_SIZE]).fetchall()
+                ''', all_carousel_ids + [homepage_grid_article_slots]).fetchall()
             else:
-                grid = conn.execute(f'SELECT * FROM articles WHERE {published_condition} ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET 10', (HOMEPAGE_GRID_SIZE,)).fetchall()
+                grid = conn.execute(
+                    f'''
+                    SELECT * FROM articles
+                    WHERE {published_condition}
+                    ORDER BY DATE(published_at) DESC,
+                             (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
+                    LIMIT ? OFFSET 10
+                    ''',
+                    (homepage_grid_article_slots,),
+                ).fetchall()
 
-            # Merge remaining editorials into grid (skip first, already in carousel)
+            # Merge remaining editorials into the fixed 8-card homepage budget.
             grid = list(grid)
-            for ed in editorials[1:3]:  # Up to 2 more editorials in grid
-                grid.insert(min(3, len(grid)), ed)
+            insertion_index = min(3, len(grid))
+            grid[insertion_index:insertion_index] = homepage_grid_editorials
+            grid = grid[:HOMEPAGE_GRID_CARD_SLOTS]
 
             total_arts_count = conn.execute(f'SELECT COUNT(*) FROM articles WHERE {published_condition}').fetchone()[0]
             total_arts = max(0, total_arts_count - len(carousel))
         else:
-            db_offset = 10 + ((page - 1) * ITEMS_PER_PAGE)
-            grid = conn.execute('SELECT * FROM articles WHERE is_published = 1 ORDER BY DATE(published_at) DESC, (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC LIMIT ? OFFSET ?', (ITEMS_PER_PAGE, db_offset)).fetchall()
+            db_offset = 10 + homepage_grid_article_slots + ((page - 2) * ITEMS_PER_PAGE)
+            grid = conn.execute(
+                '''
+                SELECT * FROM articles
+                WHERE is_published = 1
+                ORDER BY DATE(published_at) DESC,
+                         (importance_score * COALESCE(compass_score, 0.7)) DESC, id DESC
+                LIMIT ? OFFSET ?
+                ''',
+                (ITEMS_PER_PAGE, db_offset),
+            ).fetchall()
             carousel = []
             total_arts_count = conn.execute('SELECT COUNT(*) FROM articles WHERE is_published = 1').fetchone()[0]
             total_arts = max(0, total_arts_count - 10)
@@ -238,7 +252,16 @@ def index():
 
     conn.close()
 
-    total_pages = math.ceil(total_arts / ITEMS_PER_PAGE) if total_arts > 0 else 1
+    if not q and not cat_arg:
+        if total_arts <= homepage_grid_article_slots:
+            total_pages = 1
+        else:
+            remaining_pages = math.ceil(
+                (total_arts - homepage_grid_article_slots) / ITEMS_PER_PAGE
+            )
+            total_pages = 1 + remaining_pages
+    else:
+        total_pages = math.ceil(total_arts / ITEMS_PER_PAGE) if total_arts > 0 else 1
 
     processed_grid = []
     for a in grid:

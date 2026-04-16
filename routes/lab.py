@@ -5,34 +5,17 @@ Lab/editorial blog index and single post pages.
 from flask import Blueprint, render_template, abort
 
 from db import get_db_connection
-from lab_posts import get_lab_posts, get_lab_post as get_lab_post_from_file
+from lab_posts import get_lab_post as get_lab_post_from_file
+from services.editorials import (
+    EDITORIAL_FALLBACK_IMAGE,
+    get_combined_lab_posts,
+)
 
 lab_bp = Blueprint('lab', __name__)
 
-
-def get_combined_lab_posts():
-    """Fetch posts from both lab_posts.py and the blog_posts DB table."""
-    posts = list(get_lab_posts())
-
-    conn = get_db_connection()
-    try:
-        rows = conn.execute('SELECT * FROM blog_posts').fetchall()
-        for r in rows:
-            p = dict(r)
-            if not p.get('image'):
-                p['image'] = '/static/fallbacks/editorial_0.jpg'
-            posts.append(p)
-    except Exception:
-        pass
-    conn.close()
-
-    posts.sort(key=lambda x: x.get('published_at', ''), reverse=True)
-    return posts
-
-
 @lab_bp.route('/lab')
 def lab_index():
-    posts = get_combined_lab_posts()
+    posts = get_combined_lab_posts(published_only=True)
     return render_template('lab_index.html', posts=posts)
 
 
@@ -48,7 +31,7 @@ def lab_post(slug):
             if row:
                 post = dict(row)
                 if not post.get('image'):
-                    post['image'] = '/static/fallbacks/editorial_0.jpg'
+                    post['image'] = EDITORIAL_FALLBACK_IMAGE
         except Exception:
             pass
         conn.close()

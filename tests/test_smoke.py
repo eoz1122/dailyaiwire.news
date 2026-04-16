@@ -43,6 +43,10 @@ class TestPublicRoutes:
         resp = client.get('/?category=Tools')
         assert resp.status_code == 200
 
+    def test_homepage_with_editorial_category(self, client):
+        resp = client.get('/?category=Editorial')
+        assert resp.status_code == 200
+
     def test_homepage_pagination(self, client):
         resp = client.get('/?page=2')
         assert resp.status_code == 200
@@ -351,4 +355,3 @@ class TestArticleSEOEnhancements:
         assert resp.status_code == 200
         assert b'application/ld+json' in resp.data
         assert b'NewsArticle' in resp.data
-

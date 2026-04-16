@@ -82,7 +82,7 @@
         content="{% block twitter_image %}https://dailyaiwire.news/static/og-image-v2.png{% endblock %}">
 
     <!-- AI Search Engine Optimization -->
-    <meta name="ai-content-declaration" content="human-created">
+    <meta name="ai-content-declaration" content="ai-assisted-human-reviewed">
     <meta name="citation-policy" content="allow-with-attribution">
     <link rel="alternate" type="application/ld+json" href="{{ url_for('static', filename='schema.json') }}">
 
@@ -93,10 +93,11 @@
       "@type": "NewsMediaOrganization",
       "name": "DailyAIWire.news",
       "url": "https://dailyaiwire.news",
-      "logo": "https://dailyaiwire.news/static/favicon.png",
+      "logo": "https://dailyaiwire.news/static/img/brand/logo_nodes.png",
       "description": "High-signal AI intelligence curated daily by AI-driven systems with expert oversight. Deep analysis on LLMs, robotics, automation tools, and business AI trends.",
       "sameAs": [
-        "https://twitter.com/dailyaiwire"
+        "https://x.com/DailyAIWireNews",
+        "https://www.linkedin.com/company/110891956"
       ],
       "publishingPrinciples": "https://dailyaiwire.news/about",
       "contactPoint": {
@@ -116,7 +117,7 @@
     <meta name="googlebot"
         content="{% if request.args.get('page') or request.args.get('category') %}noindex, follow{% else %}index, follow{% endif %}">
     <link rel="alternate" type="application/rss+xml" title="DailyAIWire.news RSS Feed"
-        href="https://dailyaiwire.news/rss">
+        href="https://dailyaiwire.news/rss.xml">
 
     <!-- Preconnect: max 3 to avoid Lighthouse warning -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -582,8 +583,8 @@
                     <span class="text-xl font-bold tracking-tighter brand-font">DailyAI<span
                             class="blue-accent">Wire</span></span>
                     <p class="text-zinc-500 mt-4 text-sm leading-relaxed">An AI-first intelligence platform.
-                        Every article, summary, and audio narration is orchestrated by <strong>Google
-                            Gemini</strong> and expert-vetted for quality.</p>
+                        Every article, summary, and audio narration is <strong>AI-assisted, human-reviewed</strong>
+                        and powered by <strong>Google Gemini</strong>.</p>
                 </div>
                 <div>
                     <h3
@@ -622,7 +623,7 @@
                                 </svg>
                                 LinkedIn
                             </a></li>
-                        <li><a href="/rss"
+                        <li><a href="/rss.xml"
                                 class="hover:text-blue-600 transition-colors uppercase italic flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -639,13 +640,13 @@
                     <strong class="text-zinc-300">DailyAIWire Intelligence Wire:</strong> Every summary, analysis, and
                     audio narration on this site is powered by <strong class="text-blue-500">Gemini 2.5
                         Flash</strong>.
-                    We leverage AI-orchestration with human oversight to bring you real-time intelligence at
-                    scale.
+                    Our public output is <strong class="text-zinc-300">AI-assisted, human-reviewed</strong> so you can
+                    understand where automation ends and editorial accountability begins.
                     <a href="/how-it-works" class="text-zinc-300 underline hover:text-white ml-2">View our
                         Automation Disclosure</a>.
                 </p>
                 <div class="text-zinc-600 text-[10px] tracking-[0.3em] uppercase font-bold">
-                    &copy; {{ current_year }} DailyAIWire.news // AI-First Intelligence & Expert Curation
+                    &copy; {{ current_year }} DailyAIWire.news // AI-Assisted Intelligence & Human Review
                 </div>
             </div>
         </div>

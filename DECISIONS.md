@@ -743,3 +743,87 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Reinstall the previous package versions explicitly if the new semantic-search pin set causes runtime regressions, especially `grpcio-tools` and `typer`.
 - Restore the previous `requirements.txt` and rerun `venv/bin/python -m pip install -r requirements.txt` if this pin set proves incompatible with future deploys.
+
+---
+
+## 2026-04-16T17:20:32+02:00 - Site Health Hardening for Lab, RSS, and Public Metadata
+
+**Context**: Live verification on 2026-04-15 found that `/lab` and `/rss` were returning `500` in production, while the public HTML referenced a missing `/static/schema.json` asset and article JSON-LD pointed to a missing `/static/logo.png`. The editorial data flow also had schema drift: some code paths assumed `blog_posts.is_published` existed, while older databases did not have that column.
+
+**Decision**:
+1. Add a shared editorial loader in `services/editorials.py` to centralize `blog_posts` reads and make them resilient to schema drift.
+2. Filter public editorial surfaces down to complete, publishable records only:
+   - require `slug`
+   - require `title`
+   - require `published_at`
+   - require `is_published = 1` only when that column exists
+3. Use the shared loader for:
+   - `/lab`
+   - `/rss` and `/rss.xml`
+   - homepage editorial ingestion
+4. Harden public output so incomplete editorial records cannot crash templates:
+   - guard `published_at` rendering in `templates/lab_index.html`
+   - fall back from `subtitle` to `meta_description`
+5. Restore machine-facing assets and metadata consistency:
+   - add `static/schema.json`
+   - repoint organization/article logo URLs to `static/img/brand/logo_nodes.png`
+   - change `ai-content-declaration` from `human-created` to `ai-assisted-human-reviewed`
+   - standardize public RSS references on `/rss.xml`
+6. Add regression tests covering:
+   - unpublished editorials not breaking `/lab`
+   - unpublished editorials not leaking into `/rss`
+   - `static/schema.json` being served
+
+**Trigger**: Production route audit and Lighthouse preparation on 2026-04-15 surfaced a cluster of site-health issues that were all rooted in schema drift, unsafe editorial assumptions, and missing machine-facing assets.
+
+**Rollback**:
+- Revert `services/editorials.py` and restore the previous route-local editorial queries if the shared loader causes unexpected editorial visibility changes.
+- Remove `static/schema.json` and revert logo/meta changes if external consumers depend on the previous metadata contract.
+- Revert `tests/test_site_health.py` only if the public contract for drafts and schema assets is intentionally changed in a future redesign.
+
+---
+
+## 2026-04-16T17:33:14+02:00 - Public AI Disclosure Copy Standardized to One Phrase
+
+**Context**: After switching the machine-readable `ai-content-declaration` tag to `ai-assisted-human-reviewed`, the visible copy still mixed several older labels such as `expert curated`, `expert-vetted`, `AI-orchestration`, and `machine-generated`. That made the public disclosure story inconsistent across the homepage footer, `/about`, and `/how-it-works`.
+
+**Decision**:
+1. Standardize visible disclosure copy on the phrase `AI-assisted, human-reviewed`.
+2. Apply that phrase across:
+   - homepage footer copy
+   - `/about`
+   - `/how-it-works`
+3. Remove older wording that implied a different review standard or a fully machine-generated output path.
+4. Add regression tests that verify:
+   - the homepage keeps the `ai-assisted-human-reviewed` meta tag
+   - public disclosure pages render `AI-assisted, human-reviewed`
+   - legacy disclosure phrases do not reappear
+
+**Trigger**: Manual review on 2026-04-16 showed that the machine-readable disclosure had already been corrected, but visible copy had not been brought into alignment.
+
+**Rollback**:
+- Revert the disclosure-copy updates in `templates/base.html`, `templates/about.html`, and `templates/how_it_works.html` if the editorial team wants a different public wording.
+- Update `tests/test_site_health.py` in the same change if the disclosure phrase is intentionally renamed in the future.
+
+---
+
+## 2026-04-16T18:03:05+02:00 - Homepage Grid Budget Fixed at Nine Visible Tiles
+
+**Context**: The homepage uses a 3-column grid with a newsletter subscribe tile injected into page 1. The route was also injecting editorial cards into the same grid without reducing the number of regular article cards, which produced a 10th tile and broke the layout. The same route still had an older `_fetch_editorials(conn)` call on the `Editorial` category path, causing `/?category=Editorial` to return `500`.
+
+**Decision**:
+1. Treat homepage page 1 as a fixed 9-tile layout:
+   - 1 subscribe tile
+   - 8 content-card slots total
+2. Reduce homepage page-1 regular article fetches by the number of injected editorial cards so the content-card budget stays capped at 8.
+3. Keep page-2 and later offsets aligned with the number of real article rows actually shown on page 1 to avoid skipping article records.
+4. Fix the stale `Editorial` category route call by using `_fetch_editorials()` with its current signature.
+5. Add regressions covering:
+   - homepage page-1 grid staying within the 9-tile layout
+   - `/?category=Editorial` returning `200`
+
+**Trigger**: Local reproduction and live screenshots on 2026-04-16 showed the homepage rendering an extra card row and confirmed that the live `/lab` and editorial surfaces were still inconsistent with the branch fixes.
+
+**Rollback**:
+- Revert the homepage slot-budget logic in `routes/public.py` if the product intentionally moves back to a denser front-page layout.
+- Revert the new tests in `tests/test_site_health.py` and `tests/test_smoke.py` only if the homepage grid contract or editorial category behavior is deliberately changed later.

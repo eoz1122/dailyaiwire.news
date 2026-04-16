@@ -22,7 +22,7 @@
                     <div class="p-8 md:w-2/3 flex flex-col justify-center">
                         <div class="flex items-center space-x-2 mb-3">
                             <div class="text-blue-600 text-[10px] font-black uppercase tracking-[0.2em]">Lab Report //
-                                {{ post.published_at[:10] }}</div>
+                                {{ post.published_at[:10] if post.published_at else 'Undated' }}</div>
                         </div>
                         <div class="flex items-center space-x-3 mb-4">
                             <div class="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden border border-zinc-700">
@@ -45,7 +45,7 @@
                         <h2 class="text-3xl font-bold mb-4 group-hover:text-blue-600 transition-colors">
                             <a href="/lab/{{ post.slug }}">{{ post.title }}</a>
                         </h2>
-                        <p class="text-zinc-400 mb-6 leading-relaxed">{{ post.subtitle }}</p>
+                        <p class="text-zinc-400 mb-6 leading-relaxed">{{ post.subtitle or post.meta_description or '' }}</p>
                         <a href="/lab/{{ post.slug }}"
                             class="inline-flex items-center text-blue-600 font-bold uppercase text-[10px] tracking-widest hover:translate-x-2 transition-transform">
                             Enter the Lab <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor"

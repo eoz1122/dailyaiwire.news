@@ -9,30 +9,12 @@ from email.utils import formatdate
 from flask import Blueprint, render_template, Response, make_response, current_app
 
 from db import get_db_connection
-from lab_posts import get_lab_posts, get_lab_post
+from services.editorials import get_combined_lab_posts
 import logging
 
 logger = logging.getLogger('seo')
 
 seo_bp = Blueprint('seo', __name__)
-
-
-def get_combined_lab_posts():
-    """Fetch posts from both lab_posts.py and the blog_posts DB table."""
-    posts = list(get_lab_posts())
-
-    conn = get_db_connection()
-    try:
-        rows = conn.execute('SELECT * FROM blog_posts').fetchall()
-        for r in rows:
-            posts.append(dict(r))
-    except Exception:
-        pass  # Table might not exist yet
-    conn.close()
-
-    posts.sort(key=lambda x: x.get('published_at', ''), reverse=True)
-    return posts
-
 
 @seo_bp.route('/rss.xml')
 @seo_bp.route('/feed')
@@ -71,6 +53,7 @@ def rss_feed():
             img_url = f"https://dailyaiwire.news{img_url}"
         a['enclosure_url'] = img_url
         a['enclosure_type'] = "image/jpeg" if "png" not in img_url.lower() else "image/png"
+        a['enclosure_length'] = "0"
 
         # Social Copy
         question = a.get('thought_provoking_question', '')
@@ -104,7 +87,7 @@ def rss_feed():
         articles.append(a)
 
     # 2. Process Lab Posts
-    lab_posts = get_combined_lab_posts()
+    lab_posts = get_combined_lab_posts(published_only=True)
     for post in lab_posts:
         p = dict(post)
         try:
@@ -132,7 +115,6 @@ def rss_feed():
         p['enclosure_type'] = "image/jpeg"
         p['enclosure_length'] = "0"
 
-        question = p.get('thought_provoking_question', '')
         subtitle = p.get('subtitle', '')
         hashtags = " ".join(p.get('hashtags', [])) if isinstance(p.get('hashtags'), list) else ""
 
@@ -152,7 +134,9 @@ def rss_feed():
     articles = articles[:25]
 
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
-    return Response(xml, mimetype='application/xml')
+    response = Response(xml, mimetype='application/rss+xml')
+    response.headers["X-Robots-Tag"] = "noindex, follow"
+    return response
 
 
 @seo_bp.route('/rss/linkedin')
@@ -306,7 +290,9 @@ def linkedin_rss_feed():
     articles = articles[:50]
 
     xml = render_template('rss.xml', articles=articles, build_date=formatdate())
-    return Response(xml, mimetype='application/xml')
+    response = Response(xml, mimetype='application/rss+xml')
+    response.headers["X-Robots-Tag"] = "noindex, follow"
+    return response
 
 
 @seo_bp.route('/sitemap.xml', methods=['GET'])
@@ -379,7 +365,7 @@ def sitemap_core():
 
     # Lab Posts (always in core — editorial content)
     try:
-        lab_posts = get_combined_lab_posts()
+        lab_posts = get_combined_lab_posts(published_only=True)
         for post in lab_posts:
             url = f"{base_url}/lab/{post['slug']}"
             try:
