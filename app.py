@@ -323,13 +323,13 @@ def add_security_headers(response):
     # Tailwind is now compiled to /static/css/tailwind.min.css — unsafe-eval removed.
     csp = (
         "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' https://unpkg.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.googlesyndication.com https://*.cloudflareinsights.com https://fundingchoicesmessages.google.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudflareinsights.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' https: data: blob:; "
         "media-src 'self' https: data: blob:; "
         "connect-src 'self' https: https://*.cloudflareinsights.com; "
-        "frame-src 'self' https: https://*.googlesyndication.com https://open.spotify.com; "
+        "frame-src 'self' https: https://open.spotify.com; "
         "form-action 'self' https://api.web3forms.com;"
     )
     response.headers['Content-Security-Policy'] = csp

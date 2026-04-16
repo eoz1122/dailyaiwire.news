@@ -83,6 +83,7 @@
 </div>
 
 {% block head_extra %}
+{% if config_ga_id %}
 <script>
     // Fire conversion tracking on page load
     document.addEventListener('DOMContentLoaded', function () {
@@ -110,5 +111,6 @@
         console.log('Newsletter signup tracked:', isExisting ? 'Existing' : 'New');
     });
 </script>
+{% endif %}
 {% endblock %}
 {% endblock %}

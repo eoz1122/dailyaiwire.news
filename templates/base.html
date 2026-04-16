@@ -5,33 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://*.googletagmanager.com https://*.google-analytics.com https://ep2.adtrafficquality.google https://pagead2.googlesyndication.com https://fundingchoicesmessages.google.com https://*.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https: data: blob:; connect-src 'self' https: https://*.cloudflareinsights.com;">
-
-    <!-- Google CMP (Funding Choices) -->
-    <script async src="https://fundingchoicesmessages.google.com/i/pub-5494088572540096?ers=1"></script>
-    <script>
-        (function () {
-            function signals() {
-                window.googleFC = window.googleFC || {};
-                window.googleFC.callbackQueue = window.googleFC.callbackQueue || [];
-            }
-            signals();
-        })();
-    </script>
+        content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://*.googletagmanager.com https://*.google-analytics.com https://*.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https: data: blob:; connect-src 'self' https: https://*.cloudflareinsights.com;">
 
     <!-- Google Analytics & Consent Mode -->
-    {% if config_ga_id and not request.path.startswith('/admin') and not request.path.startswith('/login') %}
+    {% set enable_analytics = config_ga_id and not request.path.startswith('/admin') and not request.path.startswith('/login') %}
+    {% if enable_analytics %}
     <script>
         // Define dataLayer and the gtag function.
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
 
-        // Set default consent to 'granted' for analytics so Real-Time tracking works globally.
-        // If a user in the EU clicks "Decline" on the CMP banner, it will update to 'denied' automatically.
+        // Set default consent state for analytics.
         gtag('consent', 'default', {
-            'ad_storage': 'denied',
-            'ad_user_data': 'denied',
-            'ad_personalization': 'denied',
             'analytics_storage': 'granted',
             'wait_for_update': 500
         });
@@ -46,7 +31,6 @@
     {% endif %}
 
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <meta name="google-adsense-account" content="ca-pub-5494088572540096">
     <meta name="google-site-verification" content="7MuDoXIqwOwoiIqWMZr5h__pxLcNAnFo-vRqGcHqqWU">
 
     <!-- Primary Meta Tags -->
@@ -848,9 +832,6 @@
         });
     </script>
 
-    <!-- AdSense (deferred to after paint) -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5494088572540096"
-        crossorigin="anonymous"></script>
 </body>
 
 </html>
