@@ -1,0 +1,595 @@
+{
+  "name": "LinkedIn RSS Trigger Production",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 3
+            }
+          ]
+        },
+        "feedUrl": "https://dailyaiwire.news/rss/linkedin"
+      },
+      "id": "rss-trigger-1",
+      "name": "RSS Feed Trigger",
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 8
+      },
+      "id": "limit-1",
+      "name": "Limit to 8 Articles",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "loop-1",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.processedIds = staticData.processedIds || [];\n\nconst articleId = $json.link;\nif (!articleId) {\n  return [];\n}\n\nif (staticData.processedIds.includes(articleId)) {\n  return [];\n}\n\nstaticData.processedIds.push(articleId);\nif (staticData.processedIds.length > 200) {\n  staticData.processedIds = staticData.processedIds.slice(-200);\n}\n\nreturn [{ json: { ...$json, articleId } }];"
+      },
+      "id": "dedupe-1",
+      "name": "Skip Already Processed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fmt-1",
+              "name": "postText",
+              "value": "={{ (() => { const title = ($json.title || 'Latest AI Update').toString().trim(); const categoryValue = (($json.categories && $json.categories[0]) || $json.category || 'AI News').toString().trim(); const raw = ($json.contentSnippet || '').toString().replace(/\\r/g, '').trim(); const paragraphs = raw.split(/\\n\\n/).map(p => p.trim()).filter(Boolean); const firstParagraph = paragraphs[0] || ''; const whyMatch = raw.match(/Why it matters:\\s*([\\s\\S]*?)(?:\\n\\n🤔|\\n\\n#|$)/i); const questionMatch = raw.match(/🤔\\s*([\\s\\S]*?)(?:\\n\\n#|$)/); const why = whyMatch ? whyMatch[1].trim() : ''; const question = questionMatch ? questionMatch[1].trim() : ''; const lastParagraph = paragraphs[paragraphs.length - 1] || ''; const directHashTags = raw.match(/#[A-Za-z][A-Za-z0-9]+/g) || []; const bareTags = directHashTags.length ? [] : (lastParagraph.split(/\\s+/).filter(Boolean).filter(token => /^#?[A-Za-z][A-Za-z0-9]+$/.test(token))); const normalizedSpecificTags = (directHashTags.length ? directHashTags : (bareTags.length >= 3 ? bareTags : [])).map(tag => tag.startsWith('#') ? tag : `#${tag}`).filter((v, i, a) => v && a.indexOf(v) === i); const categoryTagBase = categoryValue.replace(/[^A-Za-z0-9]+/g, ''); const fallbackTags = ['#DailyAIWire', '#AI', categoryTagBase ? `#${categoryTagBase}` : ''].filter((v, i, a) => v && a.indexOf(v) === i); const tags = (normalizedSpecificTags.length ? normalizedSpecificTags : fallbackTags).join(' '); const parts = [title, `🛰️ [${categoryValue.toUpperCase()}]`]; if (firstParagraph) parts.push(firstParagraph); if (why) parts.push(`Why it matters:\\n${why}`); if (question) parts.push(`🤔 ${question}`); if (tags) parts.push(tags); parts.push('📡 Follow DailyAIWire for high-signal AI news.'); return parts.filter(Boolean).join('\\n\\n').slice(0, 2500); })() }}",
+              "type": "string"
+            },
+            {
+              "id": "fmt-2",
+              "name": "postUrl",
+              "value": "={{ $json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "fmt-3",
+              "name": "articleTitle",
+              "value": "={{ ($json.title || 'Latest AI Update').toString().slice(0, 200) }}",
+              "type": "string"
+            },
+            {
+              "id": "fmt-4",
+              "name": "articleDescription",
+              "value": "={{ (($json.contentSnippet || '').toString().replace(/\\s+/g, ' ').trim()).slice(0, 300) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "format-post-1",
+      "name": "Format Post Content",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ ($json.enclosure && $json.enclosure.url) ? $json.enclosure.url : 'https://dailyaiwire.news/static/fallbacks/tools_0.jpg' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-thumb-1",
+      "name": "Download Thumbnail Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        220
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "if-binary-1",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "leftValue": "={{ $binary.data?.fileName || '' }}",
+              "rightValue": ""
+            }
+          ]
+        }
+      },
+      "id": "if-thumb-1",
+      "name": "Has Thumbnail Binary?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/images?action=initializeUpload",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Linkedin-Version",
+              "value": "202604"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"initializeUploadRequest\": {\n    \"owner\": \"urn:li:organization:110891956\"\n  }\n}",
+        "options": {}
+      },
+      "id": "init-li-image-1",
+      "name": "Initialize LinkedIn Image Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1920,
+        120
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "5jdnWFpHaXXQgmOa",
+          "name": "LinkedIn account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const init = $('Initialize LinkedIn Image Upload').first();\nconst formatted = $('Format Post Content').first();\nconst downloaded = $('Download Thumbnail Image').first();\n\nif (!init?.json?.value?.uploadUrl || !init?.json?.value?.image) {\n  throw new Error('LinkedIn image initializeUpload did not return uploadUrl/image');\n}\n\nif (!downloaded?.binary?.data) {\n  throw new Error('Thumbnail download did not return binary data');\n}\n\nreturn [{\n  json: {\n    ...formatted.json,\n    uploadUrl: init.json.value.uploadUrl,\n    linkedInImageUrn: init.json.value.image\n  },\n  binary: downloaded.binary\n}];"
+      },
+      "id": "combine-context-1",
+      "name": "Combine Image Upload Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "={{ $binary.data.mimeType || 'image/jpeg' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "upload-li-image-1",
+      "name": "Upload LinkedIn Image Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2400,
+        120
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "if-upload-gt-1",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $json.statusCode || 0 }}",
+              "rightValue": 199
+            },
+            {
+              "id": "if-upload-lt-1",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              },
+              "leftValue": "={{ $json.statusCode || 0 }}",
+              "rightValue": 300
+            }
+          ]
+        }
+      },
+      "id": "if-upload-ok-1",
+      "name": "Image Upload Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "wait-image-1",
+      "name": "Wait 2s for LinkedIn Image",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        120
+      ],
+      "webhookId": "li-image-wait-2s-trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Combine Image Upload Context').first();\n\nreturn [{\n  json: {\n    author: 'urn:li:organization:110891956',\n    commentary: item.json.postText,\n    visibility: 'PUBLIC',\n    distribution: {\n      feedDistribution: 'MAIN_FEED',\n      targetEntities: [],\n      thirdPartyDistributionChannels: []\n    },\n    content: {\n      article: {\n        source: item.json.postUrl,\n        thumbnail: item.json.linkedInImageUrn,\n        title: item.json.articleTitle,\n        description: item.json.articleDescription\n      }\n    },\n    lifecycleState: 'PUBLISHED',\n    isReshareDisabledByAuthor: false\n  }\n}];"
+      },
+      "id": "build-article-payload-1",
+      "name": "Build Article Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Format Post Content').first();\n\nreturn [{\n  json: {\n    author: 'urn:li:organization:110891956',\n    commentary: item.json.postText,\n    visibility: 'PUBLIC',\n    distribution: {\n      feedDistribution: 'MAIN_FEED',\n      targetEntities: [],\n      thirdPartyDistributionChannels: []\n    },\n    content: {\n      article: {\n        source: item.json.postUrl,\n        title: item.json.articleTitle,\n        description: item.json.articleDescription\n      }\n    },\n    lifecycleState: 'PUBLISHED',\n    isReshareDisabledByAuthor: false\n  }\n}];"
+      },
+      "id": "build-text-payload-1",
+      "name": "Build Fallback Article Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Linkedin-Version",
+              "value": "202604"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "create-li-post-1",
+      "name": "Create LinkedIn Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3360,
+        320
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "5jdnWFpHaXXQgmOa",
+          "name": "LinkedIn account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 15,
+        "unit": "minutes"
+      },
+      "id": "wait-between-1",
+      "name": "Wait 15mins Between Posts",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3600,
+        320
+      ],
+      "webhookId": "li-between-posts-15m-trigger"
+    }
+  ],
+  "connections": {
+    "RSS Feed Trigger": {
+      "main": [
+        [
+          {
+            "node": "Limit to 8 Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to 8 Articles": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Skip Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Already Processed": {
+      "main": [
+        [
+          {
+            "node": "Format Post Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Post Content": {
+      "main": [
+        [
+          {
+            "node": "Download Thumbnail Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Thumbnail Image": {
+      "main": [
+        [
+          {
+            "node": "Has Thumbnail Binary?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Thumbnail Binary?": {
+      "main": [
+        [
+          {
+            "node": "Initialize LinkedIn Image Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Fallback Article Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize LinkedIn Image Upload": {
+      "main": [
+        [
+          {
+            "node": "Combine Image Upload Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Image Upload Context": {
+      "main": [
+        [
+          {
+            "node": "Upload LinkedIn Image Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload LinkedIn Image Binary": {
+      "main": [
+        [
+          {
+            "node": "Image Upload Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Upload Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Wait 2s for LinkedIn Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Fallback Article Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2s for LinkedIn Image": {
+      "main": [
+        [
+          {
+            "node": "Build Article Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Article Payload": {
+      "main": [
+        [
+          {
+            "node": "Create LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Fallback Article Payload": {
+      "main": [
+        [
+          {
+            "node": "Create LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Wait 15mins Between Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 15mins Between Posts": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "270c68f897332b7f036122a46bc796bdf1164e861cf33478a2e9f2d242936361"
+  }
+}

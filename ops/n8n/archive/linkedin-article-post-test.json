@@ -1,0 +1,382 @@
+{
+  "name": "LinkedIn Article Post Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-1",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://dailyaiwire.news/rss/linkedin",
+        "options": {}
+      },
+      "id": "rss-read-1",
+      "name": "RSS Read",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "limit-1",
+      "name": "Limit to 1 Article",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fmt-1",
+              "name": "postText",
+              "value": "={{ (() => { const toBold = (t) => [...t].map(c => { const code = c.codePointAt(0); if (code >= 65 && code <= 90) return String.fromCodePoint(code + 120211); if (code >= 97 && code <= 122) return String.fromCodePoint(code + 120205); if (code >= 48 && code <= 57) return String.fromCodePoint(code + 120734); return c; }).join(''); const boldTitle = toBold($json.title || 'Latest AI Update'); const categoryValue = ($json.categories && $json.categories[0]) || $json.category || 'AI News'; const category = `🛰️ [${String(categoryValue).toUpperCase()}]`; const trackedLink = $json.link; const footer = '📡 Follow DailyAIWire for autonomous AI news'; return `${boldTitle}\\n\\n${category}\\n\\n${$json.contentSnippet || ''}\\n\\n${footer}\\n\\n🔗 ${trackedLink}`; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "fmt-2",
+              "name": "postUrl",
+              "value": "={{ $json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "fmt-3",
+              "name": "articleTitle",
+              "value": "={{ ($json.title || 'Latest AI Update').toString().slice(0, 200) }}",
+              "type": "string"
+            },
+            {
+              "id": "fmt-4",
+              "name": "articleDescription",
+              "value": "={{ (($json.contentSnippet || '').toString().replace(/\\s+/g, ' ').trim()).slice(0, 300) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "format-post-1",
+      "name": "Format Post Content",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ ($json.enclosure && $json.enclosure.url) ? $json.enclosure.url : 'https://dailyaiwire.news/static/fallbacks/tools_0.jpg' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-thumb-1",
+      "name": "Download Thumbnail Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/images?action=initializeUpload",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Linkedin-Version",
+              "value": "202604"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"initializeUploadRequest\": {\n    \"owner\": \"urn:li:organization:110891956\"\n  }\n}",
+        "options": {}
+      },
+      "id": "init-li-image-1",
+      "name": "Initialize LinkedIn Image Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1440,
+        300
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "5jdnWFpHaXXQgmOa",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const init = $('Initialize LinkedIn Image Upload').first();\nconst formatted = $('Format Post Content').first();\nconst downloaded = $('Download Thumbnail Image').first();\n\nif (!init?.json?.value?.uploadUrl || !init?.json?.value?.image) {\n  throw new Error('LinkedIn image initializeUpload did not return uploadUrl/image');\n}\n\nif (!downloaded?.binary?.data) {\n  throw new Error('Thumbnail download did not return binary data');\n}\n\nreturn [{\n  json: {\n    ...formatted.json,\n    uploadUrl: init.json.value.uploadUrl,\n    linkedInImageUrn: init.json.value.image\n  },\n  binary: downloaded.binary\n}];"
+      },
+      "id": "combine-context-1",
+      "name": "Combine Image Upload Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.uploadUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "={{ $binary.data.mimeType || 'image/jpeg' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "upload-li-image-1",
+      "name": "Upload LinkedIn Image Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "wait-image-1",
+      "name": "Wait 2s for LinkedIn Image",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        300
+      ],
+      "webhookId": "li-image-wait-2s"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Combine Image Upload Context').first();\n\nreturn [{\n  json: {\n    author: 'urn:li:organization:110891956',\n    commentary: item.json.postText,\n    visibility: 'PUBLIC',\n    distribution: {\n      feedDistribution: 'MAIN_FEED',\n      targetEntities: [],\n      thirdPartyDistributionChannels: []\n    },\n    content: {\n      article: {\n        source: item.json.postUrl,\n        thumbnail: item.json.linkedInImageUrn,\n        title: item.json.articleTitle,\n        description: item.json.articleDescription\n      }\n    },\n    lifecycleState: 'PUBLISHED',\n    isReshareDisabledByAuthor: false\n  }\n}];"
+      },
+      "id": "build-payload-1",
+      "name": "Build LinkedIn Post Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Linkedin-Version",
+              "value": "202604"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "create-li-post-1",
+      "name": "Create LinkedIn Article Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2640,
+        300
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "5jdnWFpHaXXQgmOa",
+          "name": "LinkedIn account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Limit to 1 Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to 1 Article": {
+      "main": [
+        [
+          {
+            "node": "Format Post Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Post Content": {
+      "main": [
+        [
+          {
+            "node": "Download Thumbnail Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Thumbnail Image": {
+      "main": [
+        [
+          {
+            "node": "Initialize LinkedIn Image Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize LinkedIn Image Upload": {
+      "main": [
+        [
+          {
+            "node": "Combine Image Upload Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Image Upload Context": {
+      "main": [
+        [
+          {
+            "node": "Upload LinkedIn Image Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload LinkedIn Image Binary": {
+      "main": [
+        [
+          {
+            "node": "Wait 2s for LinkedIn Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2s for LinkedIn Image": {
+      "main": [
+        [
+          {
+            "node": "Build LinkedIn Post Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LinkedIn Post Payload": {
+      "main": [
+        [
+          {
+            "node": "Create LinkedIn Article Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "270c68f897332b7f036122a46bc796bdf1164e861cf33478a2e9f2d242936361"
+  }
+}
