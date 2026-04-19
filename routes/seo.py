@@ -452,16 +452,10 @@ def sitemap_archive():
 
 @seo_bp.route('/robots.txt')
 def robots():
-    """Serves the standard robots.txt file."""
-    lines = [
-        "User-agent: *",
-        "Allow: /",
-        "Disallow: /admin/",
-        "Disallow: /login",
-        "",
-        "Sitemap: https://dailyaiwire.news/sitemap.xml"
-    ]
-    return Response("\n".join(lines), mimetype="text/plain")
+    """Serve robots.txt from static to keep a single source of truth."""
+    response = current_app.send_static_file('robots.txt')
+    response.headers["Cache-Control"] = "public, max-age=3600, s-maxage=3600"
+    return response
 
 
 @seo_bp.route('/favicon.ico')

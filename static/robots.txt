@@ -1,26 +1,25 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
-Disallow: /*.json$
+Disallow: /login
+Disallow: /api/
+Disallow: /*?*
 
-# AI Crawlers
+# AI crawlers (explicitly allowed for public content)
 User-agent: GPTBot
 Allow: /
-
 User-agent: ChatGPT-User
 Allow: /
-
 User-agent: CCBot
 Allow: /
-
 User-agent: anthropic-ai
 Allow: /
-
 User-agent: Claude-Web
 Allow: /
-
 User-agent: PerplexityBot
 Allow: /
 
-# Sitemap
+# Sitemaps
 Sitemap: https://dailyaiwire.news/sitemap.xml
+Sitemap: https://dailyaiwire.news/sitemap-core.xml
+Sitemap: https://dailyaiwire.news/sitemap-archive.xml
