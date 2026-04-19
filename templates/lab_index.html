@@ -17,6 +17,8 @@
                 <div class="md:flex">
                     <div class="md:w-1/3">
                         <img src="{{ post.image }}" alt="{{ post.title }}"
+                            decoding="async"
+                            onerror="this.onerror=null;this.src='/static/fallbacks/editorial_0.jpg';"
                             class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500">
                     </div>
                     <div class="p-8 md:w-2/3 flex flex-col justify-center">

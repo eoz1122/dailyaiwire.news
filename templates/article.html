@@ -150,44 +150,9 @@
         background-color: var(--genui-brand-hex);
     }
 
-    /* ═══ SIGNAL elements (sentiment-driven — hero + intensity badge only) ═══ */
+    /* ═══ SIGNAL elements (sentiment-driven hero treatment) ═══ */
     .genui-article .genui-hero-overlay {
         background: var(--genui-hero-gradient);
-    }
-
-    .genui-article .genui-intensity-badge {
-        background: rgba(var(--genui-signal), 0.15);
-        border-color: rgba(var(--genui-signal), 0.4);
-        color: var(--genui-signal-hex);
-    }
-
-    .genui-article .genui-signal-ping {
-        background-color: var(--genui-signal-hex);
-    }
-
-    /* Intensity: Critical pulse effect */
-        {
-        % if intensity=='critical' %
-    }
-
-    @keyframes genui-critical-pulse {
-
-        0%,
-        100% {
-            box-shadow: 0 0 0 0 rgba(var(--genui-signal), 0.4);
-        }
-
-        50% {
-            box-shadow: 0 0 20px 4px rgba(var(--genui-signal), 0.15);
-        }
-    }
-
-    .genui-article .genui-intensity-badge {
-        animation: genui-critical-pulse 2s ease-in-out infinite;
-    }
-
-        {
-        % endif %
     }
 
     /* Dynamic Component: code_block — removed (caused markdown-like appearance) */
@@ -248,9 +213,702 @@
         {
         % endif %
     }
+
+    .genui-article .genui-meta-row > * {
+        min-width: 0;
+    }
+
+    .genui-article .genui-eli5-copy,
+    .genui-article .genui-audio-buttons,
+    .genui-article .genui-deep-analysis,
+    .genui-article .genui-body-copy {
+        min-width: 0;
+    }
+
+    .genui-article .genui-reading-flow {
+        max-width: 46rem;
+    }
+
+    .genui-article .genui-reading-deck {
+        margin-bottom: 2rem;
+        padding-bottom: 1.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .genui-article .genui-reading-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.9rem;
+        color: var(--genui-brand-dark);
+        font-size: 0.6875rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .genui-article .genui-reading-kicker {
+        color: var(--text-primary);
+        font-size: clamp(1.3rem, 2vw, 1.8rem);
+        font-weight: 650;
+        line-height: 1.6;
+        letter-spacing: -0.02em;
+        text-wrap: pretty;
+    }
+
+    .genui-article .genui-flow-section {
+        margin-top: 2.5rem;
+        padding-top: 1.75rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .genui-article .genui-flow-heading {
+        display: block;
+        margin-bottom: 1rem;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .genui-article .genui-source-banner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 1rem 1.5rem;
+        padding: 1rem 0 1.15rem;
+        margin-bottom: 2rem;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .genui-article .genui-source-kicker {
+        margin-bottom: 0.45rem;
+        color: var(--text-secondary);
+        font-size: 0.6875rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .genui-article .genui-source-name {
+        color: var(--text-primary);
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+    }
+
+    .genui-article .genui-source-note {
+        margin-top: 0.35rem;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        line-height: 1.45;
+        max-width: 28rem;
+    }
+
+    .genui-article .genui-source-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7rem;
+        padding: 0.95rem 1.15rem;
+        border-radius: 999px;
+        background: var(--genui-brand-dark);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        box-shadow: 0 12px 30px rgba(var(--genui-brand), 0.22);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .genui-article .genui-source-cta:hover {
+        background: var(--genui-brand-hex);
+        box-shadow: 0 14px 32px rgba(var(--genui-brand), 0.3);
+        transform: translateY(-1px);
+    }
+
+    @keyframes chameleon {
+
+        0%,
+        100% {
+            color: var(--genui-brand-hex);
+            opacity: 1;
+        }
+
+        25% {
+            color: #a855f7;
+            opacity: 1;
+        }
+
+        50% {
+            color: #ec4899;
+            opacity: 1;
+        }
+
+        75% {
+            color: #22c55e;
+            opacity: 1;
+        }
+
+        90% {
+            opacity: 0.15;
+        }
+    }
+
+    .genui-article .chameleon-cursor {
+        display: inline-block;
+        margin-left: 0.1em;
+        font-weight: 900;
+        animation: chameleon 4s infinite;
+    }
+
+    .genui-article .genui-sidebar-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        border: 1px solid var(--border-color);
+        border-radius: 1.75rem;
+        background: linear-gradient(180deg, rgba(var(--genui-brand), 0.035), transparent 100%);
+    }
+
+    .genui-article .genui-sidebar-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+    }
+
+    .genui-article .genui-sidebar-kicker {
+        color: var(--text-secondary);
+        font-size: 0.6875rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .genui-article .genui-sidebar-title {
+        color: var(--text-primary);
+        font-size: 1.35rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+    }
+
+    .genui-article .genui-sidebar-note {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        max-width: 24rem;
+    }
+
+    .genui-article .genui-sidebar-form {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .genui-article .genui-sidebar-input {
+        width: 100%;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .genui-article .genui-sidebar-input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .genui-article .genui-sidebar-input:focus {
+        outline: none;
+        border-color: rgba(var(--genui-brand), 0.4);
+        box-shadow: 0 0 0 4px rgba(var(--genui-brand), 0.08);
+    }
+
+    .genui-article .genui-sidebar-submit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 3rem;
+        padding: 0.9rem 1.15rem;
+        border-radius: 999px;
+        background: var(--genui-brand-dark);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 10px 28px rgba(var(--genui-brand), 0.18);
+    }
+
+    .genui-article .genui-sidebar-submit:hover {
+        background: var(--genui-brand-hex);
+        transform: translateY(-1px);
+        box-shadow: 0 12px 30px rgba(var(--genui-brand), 0.24);
+    }
+
+    .genui-article .genui-sidebar-meta {
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        line-height: 1.5;
+    }
+
+    .genui-article .genui-sidebar-divider {
+        height: 1px;
+        background: var(--border-color);
+    }
+
+    .genui-article .genui-share-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .genui-article .genui-share-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.7rem;
+        min-height: 3rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .genui-article .genui-share-link svg {
+        width: 0.95rem;
+        height: 0.95rem;
+        color: var(--text-secondary);
+        transition: color 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .genui-article .genui-share-link-text {
+        line-height: 1.15;
+    }
+
+    .genui-article .genui-share-link:hover {
+        border-color: rgba(var(--genui-brand), 0.24);
+        background: rgba(var(--genui-brand), 0.05);
+        color: var(--genui-brand-hex);
+    }
+
+    .genui-article .genui-share-link:hover svg {
+        color: var(--genui-brand-hex);
+    }
+
+    .genui-article .genui-postscript {
+        margin-top: 4rem;
+        padding-top: 3rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .genui-article .genui-subscribe-strip {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        gap: 1.25rem 2rem;
+        align-items: center;
+        padding: 1.5rem 0;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .genui-article .genui-subscribe-kicker,
+    .genui-article .genui-digest-kicker {
+        color: var(--text-secondary);
+        font-size: 0.6875rem;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .genui-article .genui-subscribe-title,
+    .genui-article .genui-digest-title {
+        margin-top: 0.45rem;
+        color: var(--text-primary);
+        font-size: clamp(1.5rem, 2.2vw, 2rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        line-height: 1.02;
+        text-wrap: balance;
+    }
+
+    .genui-article .genui-subscribe-note,
+    .genui-article .genui-digest-note {
+        margin-top: 0.65rem;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.65;
+        max-width: 36rem;
+    }
+
+    .genui-article .genui-subscribe-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .genui-article .genui-subscribe-input {
+        width: 100%;
+        min-height: 3rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .genui-article .genui-subscribe-input::placeholder {
+        color: var(--text-secondary);
+    }
+
+    .genui-article .genui-subscribe-input:focus {
+        outline: none;
+        border-color: rgba(var(--genui-brand), 0.4);
+        box-shadow: 0 0 0 4px rgba(var(--genui-brand), 0.08);
+    }
+
+    .genui-article .genui-subscribe-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 3rem;
+        padding: 0.9rem 1.2rem;
+        border-radius: 999px;
+        background: var(--genui-brand-dark);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 10px 28px rgba(var(--genui-brand), 0.18);
+        white-space: nowrap;
+    }
+
+    .genui-article .genui-subscribe-button:hover {
+        background: var(--genui-brand-hex);
+        transform: translateY(-1px);
+        box-shadow: 0 12px 30px rgba(var(--genui-brand), 0.24);
+    }
+
+    .genui-article .genui-subscribe-meta {
+        margin-top: 0.7rem;
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        line-height: 1.5;
+    }
+
+    .genui-article .genui-digest-section {
+        margin-top: 4rem;
+        padding-top: 3rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .genui-article .genui-digest-head {
+        margin-bottom: 1.5rem;
+    }
+
+    .genui-article .genui-digest-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem 1.5rem;
+    }
+
+    .genui-article .genui-digest-link {
+        display: grid;
+        grid-template-columns: 6.25rem minmax(0, 1fr);
+        gap: 0.95rem;
+        align-items: start;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-color);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .genui-article .genui-digest-link:hover {
+        transform: translateY(-1px);
+        border-color: rgba(var(--genui-brand), 0.22);
+    }
+
+    .genui-article .genui-digest-thumb {
+        aspect-ratio: 4 / 3;
+        border-radius: 1rem;
+        overflow: hidden;
+        background: rgba(var(--genui-brand), 0.05);
+    }
+
+    .genui-article .genui-digest-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+
+    .genui-article .genui-digest-link:hover .genui-digest-thumb img {
+        transform: scale(1.03);
+    }
+
+    .genui-article .genui-digest-meta {
+        min-width: 0;
+    }
+
+    .genui-article .genui-digest-category {
+        color: var(--genui-brand-hex);
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .genui-article .genui-digest-item-title {
+        margin-top: 0.5rem;
+        color: var(--text-primary);
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        transition: color 0.2s ease;
+    }
+
+    .genui-article .genui-digest-link:hover .genui-digest-item-title {
+        color: var(--genui-brand-hex);
+    }
+
+    .genui-article .genui-digest-item-gist {
+        margin-top: 0.45rem;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        line-height: 1.55;
+    }
+
+    @media (max-width: 640px) {
+        .genui-article {
+            overflow-x: clip;
+        }
+
+        .genui-article .genui-hero-shell {
+            height: 19rem;
+            margin-bottom: 2rem;
+            border-radius: 1.75rem;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+        }
+
+        .genui-article .genui-hero-copy {
+            inset-inline: 0;
+            bottom: 0;
+            padding: 1rem;
+        }
+
+        .genui-article .genui-hero-title {
+            font-size: clamp(1.55rem, 6vw, 2.1rem);
+            line-height: 0.98;
+            max-width: 12ch;
+            letter-spacing: -0.04em;
+            text-wrap: balance;
+        }
+
+        .genui-article .genui-meta-row {
+            gap: 0.5rem 0.875rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.6875rem;
+            letter-spacing: 0.14em;
+        }
+
+        .genui-article .genui-audio-card {
+            padding: 0.875rem;
+        }
+
+        .genui-article .genui-audio-controls {
+            gap: 0.625rem;
+        }
+
+        .genui-article .genui-audio-header {
+            margin-bottom: 0.75rem;
+        }
+
+        .genui-article .genui-audio-waveform {
+            height: 2.5rem;
+            margin-bottom: 0.875rem;
+        }
+
+        .genui-article .genui-audio-static-wave {
+            transform: scaleY(0.7);
+            transform-origin: center;
+        }
+
+        .genui-article .genui-audio-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+        }
+
+        .genui-article .genui-audio-buttons .audio-btn {
+            justify-content: center;
+            min-width: 0;
+            padding: 0.5rem 0.625rem;
+            font-size: 0.5625rem;
+            letter-spacing: 0.16em;
+        }
+
+        .genui-article .genui-audio-time {
+            align-self: center;
+            font-size: 0.5625rem;
+        }
+
+        .genui-article .genui-gist-box {
+            padding: 1.25rem;
+            border-left-width: 3px;
+            border-radius: 1.25rem;
+        }
+
+        .genui-article .genui-gist-body,
+        .genui-article .genui-deep-analysis,
+        .genui-article .genui-body-copy,
+        .genui-article .genui-key-detail {
+            font-size: 1rem;
+            line-height: 1.75rem;
+        }
+
+        .genui-article .genui-eli5-card {
+            padding: 1.25rem;
+            gap: 1rem;
+        }
+
+        .genui-article .genui-eli5-body {
+            font-size: 1rem;
+            line-height: 1.9;
+        }
+
+        .genui-article .genui-section-heading {
+            font-size: 0.95rem;
+            letter-spacing: 0.16em;
+        }
+
+        .genui-article .genui-reading-flow {
+            max-width: none;
+        }
+
+        .genui-article .genui-reading-deck {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.25rem;
+        }
+
+        .genui-article .genui-reading-kicker {
+            font-size: 1.05rem;
+            line-height: 1.72;
+        }
+
+        .genui-article .genui-flow-section {
+            margin-top: 1.8rem;
+            padding-top: 1.25rem;
+        }
+
+        .genui-article .genui-source-banner {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 0.9rem 0 1.1rem;
+        }
+
+        .genui-article .genui-source-name {
+            font-size: 0.95rem;
+        }
+
+        .genui-article .genui-source-note {
+            font-size: 0.78rem;
+            line-height: 1.5;
+        }
+
+        .genui-article .genui-source-cta {
+            width: 100%;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+        }
+
+        .genui-article .genui-primary-cta,
+        .genui-article .genui-secondary-cta {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.18em;
+        }
+
+        .genui-article .genui-postscript,
+        .genui-article .genui-digest-section {
+            margin-top: 2.5rem;
+            padding-top: 1.8rem;
+        }
+
+        .genui-article .genui-subscribe-strip {
+            grid-template-columns: 1fr;
+            padding: 1.1rem 0 1.2rem;
+            gap: 1rem;
+        }
+
+        .genui-article .genui-subscribe-title,
+        .genui-article .genui-digest-title {
+            font-size: 1.3rem;
+        }
+
+        .genui-article .genui-subscribe-note,
+        .genui-article .genui-digest-note {
+            font-size: 0.84rem;
+        }
+
+        .genui-article .genui-subscribe-form {
+            grid-template-columns: 1fr;
+        }
+
+        .genui-article .genui-subscribe-button {
+            width: 100%;
+        }
+
+        .genui-article .genui-digest-grid {
+            grid-template-columns: 1fr;
+            gap: 0.9rem;
+        }
+
+        .genui-article .genui-digest-link {
+            grid-template-columns: 5.25rem minmax(0, 1fr);
+            gap: 0.8rem;
+        }
+
+        .genui-article .genui-sidebar-rail {
+            padding: 1.25rem;
+            border-radius: 1.4rem;
+        }
+
+        .genui-article .genui-sidebar-title {
+            font-size: 1.15rem;
+        }
+
+        .genui-article .genui-sidebar-note {
+            font-size: 0.82rem;
+        }
+
+    }
 </style>
 
-<div class="genui-article container mx-auto px-4 py-12 max-w-4xl transition-colors duration-1000">
+<div class="genui-article container mx-auto px-3 sm:px-4 py-6 sm:py-12 max-w-4xl transition-colors duration-1000">
     <!-- Breadcrumb / Back Navigation -->
     <a href="/"
         class="inline-flex items-center space-x-2 text-zinc-500 hover:text-blue-600 transition-colors mb-8 font-bold text-xs uppercase tracking-widest">
@@ -262,30 +920,21 @@
 
     <!-- Hero Section -->
     <div
-        class="relative w-full h-[400px] mb-12 rounded-3xl overflow-hidden border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+        class="genui-hero-shell relative w-full h-[360px] sm:h-[400px] mb-8 sm:mb-12 rounded-3xl overflow-hidden border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
         <img src="{{ article.image if article.image.startswith('http') or article.image.startswith('/') else '/' + article.image }}"
             alt="{{ article.title }}" class="w-full h-full object-cover"
             onerror="this.src='/static/fallbacks/tools_0.jpg'">
         <div class="absolute inset-0 genui-hero-overlay"></div>
-        <div class="absolute bottom-10 left-10 pr-10">
-            <div class="flex items-center gap-3 mb-4">
+        <div data-mobile-article-hero="true"
+            class="genui-hero-copy absolute left-0 right-0 bottom-0 p-5 sm:left-10 sm:right-10 sm:bottom-10 sm:p-0 sm:pr-10">
+            <div class="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap">
                 <div
-                    class="inline-block px-4 py-1.5 genui-accent-bg text-white text-xs font-black uppercase tracking-[0.2em] rounded-full shadow-xl">
+                    class="inline-block px-3 py-1 sm:px-4 sm:py-1.5 genui-accent-bg text-white text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-[0.2em] rounded-full shadow-xl">
                     {{ article.category }}
                 </div>
-                {% if intensity in ['critical', 'high'] %}
-                <div
-                    class="genui-intensity-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border">
-                    <span class="relative flex h-1.5 w-1.5">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full genui-signal-ping opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 genui-signal-ping"></span>
-                    </span>
-                    {{ intensity | upper }}
-                </div>
-                {% endif %}
             </div>
-            <h1 class="text-4xl md:text-5xl font-black leading-tight text-white max-w-3xl hero-title drop-shadow-2xl">
+            <h1 data-mobile-article-title="tight"
+                class="genui-hero-title text-[1.65rem] sm:text-4xl md:text-5xl font-black leading-[0.98] sm:leading-tight text-white max-w-[12ch] sm:max-w-3xl hero-title drop-shadow-2xl">
                 {{ article.title }}
             </h1>
         </div>
@@ -293,15 +942,16 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <!-- Main Content (8 cols) -->
-        <div class="lg:col-span-8">
+        <div class="lg:col-span-8 min-w-0">
             <div
-                class="flex flex-wrap items-center gap-4 md:gap-6 mb-8 text-zinc-500 text-sm font-bold uppercase tracking-widest">
-                <span class="whitespace-nowrap">Source: <a
+                data-mobile-article-meta="true"
+                class="genui-meta-row flex flex-wrap items-center gap-x-3 gap-y-2 md:gap-6 mb-6 sm:mb-8 text-zinc-500 text-[11px] sm:text-sm font-bold uppercase tracking-[0.16em] sm:tracking-widest">
+                <span class="sm:whitespace-nowrap">Source: <a
                         href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
                         target="_blank" class="text-blue-600 hover:underline">{{ article.source }}</a></span>
 
                 {% if article.original_author %}
-                <span class="whitespace-nowrap">Original Author: <span class="text-zinc-300">{{ article.original_author
+                <span class="sm:whitespace-nowrap">Original Author: <span class="text-zinc-300">{{ article.original_author
                         }}</span></span>
                 {% endif %}
 
@@ -309,10 +959,10 @@
                 default('', true)).split() | length %}
                 {% set read_mins = (word_count / 200) | round(0, 'ceil') | int %}
                 {% if read_mins > 0 %}
-                <span class="whitespace-nowrap text-zinc-600">{{ read_mins }} min read</span>
+                <span class="sm:whitespace-nowrap text-zinc-600">{{ read_mins }} min read</span>
                 {% endif %}
 
-                <span class="whitespace-nowrap text-zinc-600">Intelligence Analysis by <span
+                <span class="sm:whitespace-nowrap text-zinc-600">Intelligence Analysis by <span
                         class="text-blue-600">Gemini</span></span>
             </div>
 
@@ -325,8 +975,8 @@
             <div id="audio-sentinel"></div>
 
             <div id="audio-wrapper" class="mb-12 transition-all duration-500 ease-in-out">
-                <div
-                    class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden group shadow-2xl">
+                <div data-mobile-article-audio="compact"
+                    class="genui-audio-card bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 relative overflow-hidden group shadow-2xl">
 
                     <!-- Dynamic Background Pulse -->
                     <div
@@ -334,28 +984,28 @@
                     </div>
 
                     <!-- Header -->
-                    <div class="flex items-center justify-between mb-4 relative z-10">
+                    <div class="genui-audio-header flex items-start sm:items-center justify-between gap-3 mb-4 relative z-10">
                         <div class="flex items-center gap-2">
                             <span class="relative flex h-2 w-2">
                                 <span
                                     class="animate-ping absolute inline-flex h-full w-full rounded-full genui-ping opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-2 w-2 genui-ping"></span>
                             </span>
-                            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                            <h3 class="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-[0.2em] text-zinc-400">
                                 Sonic Intelligence</h3>
                         </div>
                         <button id="speed-toggle" onclick="toggleSpeed()"
-                            class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">
+                            class="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">
                             1.0x
                         </button>
                     </div>
 
                     <!-- Waveform Visualizer -->
                     <div id="waveform"
-                        class="w-full h-16 mb-6 relative z-10 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
+                        class="genui-audio-waveform w-full h-10 sm:h-16 mb-4 sm:mb-6 relative z-10 opacity-80 hover:opacity-100 transition-opacity cursor-pointer">
                         <!-- Static Placeholder Waveform -->
                         <div id="static-waveform"
-                            class="absolute inset-0 flex items-center justify-between gap-[2px] pointer-events-none">
+                            class="genui-audio-static-wave absolute inset-0 flex items-center justify-between gap-[2px] pointer-events-none">
                             <div class="w-1 bg-zinc-700/50 rounded-full h-4"></div>
                             <div class="w-1 bg-zinc-700/50 rounded-full h-8"></div>
                             <div class="w-1 bg-zinc-700/50 rounded-full h-6"></div>
@@ -406,11 +1056,12 @@
                     </div>
 
                     <!-- Controls -->
-                    <div class="flex items-center justify-between relative z-10">
-                        <div class="flex gap-3">
+                    <div data-mobile-article-audio-controls="true"
+                        class="genui-audio-controls flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between relative z-10">
+                        <div class="genui-audio-buttons flex flex-wrap gap-2 sm:gap-3">
                             {% if article.audio_male %}
                             <button onclick="toggleAudio('male')"
-                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
+                                class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
                                 id="btn-play-male" data-src="{{ article.audio_male }}">
                                 <svg id="icon-play-male" class="w-3 h-3 play-icon" fill="currentColor"
                                     viewBox="0 0 24 24">
@@ -425,7 +1076,7 @@
                             {% endif %}
                             {% if article.audio_female %}
                             <button onclick="toggleAudio('female')"
-                                class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
+                                class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-all audio-btn shadow-md"
                                 id="btn-play-female" data-src="{{ article.audio_female }}">
                                 <svg id="icon-play-female" class="w-3 h-3 play-icon" fill="currentColor"
                                     viewBox="0 0 24 24">
@@ -439,7 +1090,7 @@
                             </button>
                             {% endif %}
                         </div>
-                        <div class="text-[10px] font-mono text-zinc-500 font-bold" id="time-display">
+                        <div class="genui-audio-time text-[10px] font-mono text-zinc-500 font-bold" id="time-display">
                             00:00 / 00:00</div>
                     </div>
                 </div>
@@ -655,130 +1306,110 @@
             </script>
             {% endif %}
 
-            <!-- The Gist summary box -->
-            <div class="genui-gist-box p-8 rounded-r-2xl mb-8 light-mode:bg-white light-mode:border-zinc-200 shadow-sm">
-                <h3 class="genui-accent-text font-black uppercase text-xs tracking-widest mb-4">The Gist
-                </h3>
-                <p class="text-xl font-semibold leading-relaxed text-zinc-100">
-                    {{ article.gist.replace('**', '') | add_utm_to_html | safe }}
-                </p>
-            </div>
-
-
-
-            <!-- ELI5 Section (Now Prominent) -->
-            {% if article.eli5 %}
-            <div
-                class="bg-blue-700/10 border border-blue-700/20 rounded-2xl p-6 mb-12 flex items-start space-x-4 shadow-sm">
-                <div class="bg-blue-700 p-2 rounded-lg text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-blue-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">
-                        Explain Like I'm
-                        Five</h3>
-                    <p class="text-zinc-200 text-lg italic leading-relaxed font-medium">
-                        "{{ article.eli5.replace('**', '') | add_utm_to_html | safe }}"
+            <div data-article-reading-flow="editorial" class="genui-reading-flow">
+                <!-- Lead Deck -->
+                <section data-article-summary-tone="adaptive" class="genui-reading-deck">
+                    <div class="genui-reading-eyebrow">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        Signal Summary
+                    </div>
+                    <p class="genui-reading-kicker">
+                        {{ article.gist.replace('**', '') | add_utm_to_html | safe }}
                     </p>
+                </section>
+
+                <!-- ELI5 Section (Now Prominent) -->
+                {% if article.eli5 %}
+                <div data-mobile-article-eli5="true"
+                    class="genui-eli5-card bg-blue-700/10 border border-blue-700/20 rounded-2xl p-5 sm:p-6 mb-8 sm:mb-10 flex flex-col gap-4 sm:flex-row sm:items-start shadow-sm">
+                    <div class="bg-blue-700 p-3 rounded-xl text-white shrink-0 self-start">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="genui-eli5-copy">
+                        <h3 class="text-blue-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">
+                            Explain Like I'm
+                            Five</h3>
+                        <p class="genui-eli5-body text-zinc-200 text-base sm:text-lg italic leading-relaxed font-medium">
+                            "{{ article.eli5.replace('**', '') | add_utm_to_html | safe }}"
+                        </p>
+                    </div>
                 </div>
+                {% endif %}
+
+                <div data-article-source-link="prominent" class="genui-source-banner">
+                    <div>
+                        <div class="genui-source-kicker">Original Reporting</div>
+                        <div class="genui-source-name">{{ article.source }}</div>
+                        <p class="genui-source-note">
+                            Read the original article for full context.
+                        </p>
+                    </div>
+                    <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
+                        target="_blank" rel="noopener"
+                        class="genui-source-cta">
+                        <span>Read Article at Source</span>
+                        <span aria-hidden="true">→</span>
+                    </a>
+                </div>
+
+                <!-- Deep Analysis Section -->
+                <section class="genui-flow-section mb-8">
+                    <h3 data-article-section-marker="text" class="genui-flow-heading">Deep Intelligence Analysis</h3>
+                    <div class="genui-deep-analysis text-zinc-300 text-base sm:text-lg leading-relaxed space-y-4">
+                        {{ article.deep_analysis | replace('\n', '<br>') | add_utm_to_html | safe }}
+                    </div>
+                    <div class="mt-4 flex items-center gap-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-zinc-700" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>AI-assisted intelligence report &middot; EU AI Act Art. 50 compliant</span>
+                    </div>
+                </section>
+
+                <!-- DeepDiagram: Visual Intelligence (Phase 2) -->
+                {% if article.mermaid_diagram %}
+                <section class="genui-flow-section mb-12" id="visual-intelligence">
+                    <h3 data-article-section-marker="text" class="genui-flow-heading">Visual Intelligence</h3>
+                    <div class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 overflow-x-auto">
+                        <pre class="mermaid">{{ article.mermaid_diagram }}</pre>
+                    </div>
+                    <p class="text-zinc-600 text-xs mt-3 uppercase tracking-widest font-bold">Auto-generated diagram ·
+                        AI-interpreted flow</p>
+                </section>
+                {% endif %}
+
+                <!-- Why It Matters Section -->
+                <section class="genui-flow-section mb-8">
+                    <h3 data-article-section-marker="text" class="genui-flow-heading">Impact Assessment</h3>
+                    <p class="genui-body-copy text-zinc-300 text-base sm:text-lg leading-relaxed">
+                        {{ article.why_it_matters }}
+                    </p>
+                </section>
+
+                <!-- Key Details Section -->
+                {% if article.key_details and article.key_details|length > 0 %}
+                <section class="genui-flow-section mb-12">
+                    <h3 data-article-section-marker="text" class="genui-flow-heading">Key Details</h3>
+                    <ul class="{% if 'quick_facts_grid' in triggers %}genui-facts-grid{% else %}space-y-4{% endif %}"><!--
+                        -->{%- for detail in article.key_details -%}
+                        <li class="flex items-start">
+                            {% if 'quick_facts_grid' not in triggers %}
+                            <span class="genui-accent-text mr-3 mt-1 text-lg">●</span>
+                            {% endif %}
+                            <span class="genui-key-detail text-zinc-300 text-base sm:text-lg">{{ detail }}</span>
+                        </li>
+                        {%- endfor -%}<!--
+                    -->
+                    </ul>
+                </section>
+                {% endif %}
             </div>
-            {% endif %}
-
-            <!-- Secondary CTA (After ELI5) -->
-            <div class="mb-12 flex justify-center md:justify-start">
-                <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
-                    target="_blank"
-                    class="inline-flex items-center justify-center w-full md:w-auto px-10 py-5 bg-zinc-800 text-white text-lg font-black uppercase tracking-widest rounded-xl transition-all shadow-lg group"
-                    style="border: 1px solid rgba(var(--genui-brand), 0.3);"
-                    onmouseover="this.style.backgroundColor='var(--genui-brand-dark)';this.style.borderColor='var(--genui-brand-hex)'"
-                    onmouseout="this.style.backgroundColor='';this.style.borderColor=''">
-                    <span>Read Full Story on {{ article.source }}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                        class="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                </a>
-            </div>
-
-            <!-- Deep Analysis Section -->
-            <section class="mb-8">
-                <h3
-                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 genui-section-border pl-4 py-1">
-                    Deep Intelligence Analysis</h3>
-                <div class="genui-deep-analysis text-zinc-300 text-lg leading-relaxed space-y-4">
-                    {{ article.deep_analysis | replace('\n', '<br>') | add_utm_to_html | safe }}
-                </div>
-                <!-- EU AI Act Art. 50 Compliance Badge (in-page only, not in schema) -->
-                <div class="mt-4 flex items-center gap-2 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-zinc-700" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>AI-assisted intelligence report &middot; EU AI Act Art. 50 compliant</span>
-                </div>
-            </section>
-
-            <!-- DeepDiagram: Visual Intelligence (Phase 2) -->
-            {% if article.mermaid_diagram %}
-            <section class="mb-12 mt-8" id="visual-intelligence">
-                <h3
-                    class="text-white font-black uppercase text-lg tracking-widest mb-4 border-l-4 genui-section-border pl-4 py-1">
-                    Visual Intelligence</h3>
-                <div class="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 overflow-x-auto">
-                    <pre class="mermaid">{{ article.mermaid_diagram }}</pre>
-                </div>
-                <p class="text-zinc-600 text-xs mt-3 uppercase tracking-widest font-bold">Auto-generated diagram ·
-                    AI-interpreted flow</p>
-            </section>
-            {% endif %}
-
-            <!-- Why It Matters Section -->
-            <section class="mb-8 mt-10 pt-8 border-t border-zinc-800">
-                <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
-                    Impact
-                    Assessment</h3>
-                <p class="text-zinc-300 text-lg leading-relaxed mb-8">
-                    {{ article.why_it_matters }}
-                </p>
-
-                <!-- Prominent Link to Source -->
-                <a href="{{ article.source_url }}{{ '&' if '?' in article.source_url else '?' }}utm_source=dailyaiwire&utm_medium=smart_referral"
-                    target="_blank"
-                    class="genui-cta-primary inline-flex items-center justify-center w-full md:w-auto px-12 py-6 text-white text-xl font-black uppercase tracking-widest rounded-xl transition-all group">
-                    <span>Read Full Story on {{ article.source }}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                        class="h-6 w-6 ml-3 group-hover:translate-x-1 transition-transform" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                </a>
-            </section>
-
-            <!-- Key Details Section -->
-            {% if article.key_details and article.key_details|length > 0 %}
-            <section class="mb-12">
-                <h3 class="text-white font-black uppercase text-lg tracking-widest mb-4 border-b border-zinc-800 pb-2">
-                    Key
-                    Details</h3>
-                <ul class="{% if 'quick_facts_grid' in triggers %}genui-facts-grid{% else %}space-y-4{% endif %}"><!--
-                    -->{%- for detail in article.key_details -%}
-                    <li class="flex items-start">
-                        <span class="genui-accent-text mr-3 mt-1 text-lg">●</span>
-                        <span class="text-zinc-300 text-lg">{{ detail }}</span>
-                    </li>
-                    {%- endfor -%}<!--
-                -->
-                </ul>
-            </section>
-            {% endif %}
 
             <!-- Key Data Points ticker removed -->
 
@@ -787,7 +1418,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16 pt-12 border-t border-zinc-800">
                 {% if article.bull_case %}
                 <div
-                    class="glass-card p-8 rounded-3xl border-green-500/20 bg-green-500/5 light-mode:bg-green-100 light-mode:border-green-300 transition-colors">
+                    class="glass-card p-6 sm:p-8 rounded-[1.5rem] sm:rounded-3xl border-green-500/20 bg-green-500/5 light-mode:bg-green-100 light-mode:border-green-300 transition-colors">
                     <div class="flex items-center space-x-2 mb-6">
                         <div class="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
@@ -806,7 +1437,7 @@
 
                 {% if article.bear_case %}
                 <div
-                    class="glass-card p-8 rounded-3xl border-red-500/20 bg-red-500/5 light-mode:bg-red-100 light-mode:border-red-300 transition-colors">
+                    class="glass-card p-6 sm:p-8 rounded-[1.5rem] sm:rounded-3xl border-red-500/20 bg-red-500/5 light-mode:bg-red-100 light-mode:border-red-300 transition-colors">
                     <div class="flex items-center space-x-2 mb-6">
                         <div class="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-900" fill="none"
@@ -825,248 +1456,134 @@
             </div>
             {% endif %}
 
-            <!-- Premium Newsletter CTA: Compact & Theme-Aware -->
-            <div class="mt-16 mb-12 px-4 md:px-0">
-                <div
-                    class="bg-black light-mode-bg-white border border-zinc-900 light-mode-border-zinc-200 rounded-[2.5rem] p-8 md:p-14 flex flex-col items-center text-center shadow-3xl transition-colors duration-300">
-                    <!-- Logo Square -->
-                    <div
-                        class="mb-10 w-20 h-20 bg-white light-mode-bg-zinc-50 border light-mode-border-zinc-200 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/10">
-                        <img src="/static/img/brand/logo_nodes.png" alt="DailyAIWire Logo"
-                            class="w-12 h-12 object-contain">
+            <section data-article-lower-tone="editorial" class="genui-postscript">
+                <div data-article-subscribe-strip="true" class="genui-subscribe-strip">
+                    <div>
+                        <div class="genui-subscribe-kicker">Stay on the wire</div>
+                        <h2 class="genui-subscribe-title">Get the next signal in your inbox.</h2>
+                        <p class="genui-subscribe-note">
+                            One concise weekly briefing with direct source links, fast analysis, and no inbox clutter.
+                        </p>
                     </div>
-
-                    <!-- Headline -->
-                    <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-8 leading-[1.1]">
-                        <span class="text-zinc-800 light-mode-text-zinc-400">The Signal,</span> <span
-                            class="text-[#3b82f6]">Not</span><br>
-                        <span class="text-[#3b82f6] relative">the Noise<span class="chameleon-cursor">|</span></span>
-                    </h2>
-
-                    <!-- Social Proof -->
-                    <p
-                        class="text-zinc-500 light-mode-text-zinc-500 text-base md:text-lg max-w-lg mb-10 leading-relaxed font-medium">
-                        Join AI leaders weekly.
-                    </p>
-
-                    <!-- Form -->
-                    <form action="/subscribe" method="POST" class="w-full max-w-md flex flex-col md:flex-row gap-4">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <input type="email" name="email" placeholder="Enter your email..." required autocomplete="email"
-                            aria-label="Email address"
-                            class="flex-grow bg-[#090909] light-mode-bg-zinc-50 border border-zinc-800 light-mode-border-zinc-300 text-white light-mode-text-black px-6 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all placeholder:text-zinc-700 text-sm font-bold">
-                        <button type="submit"
-                            class="bg-[#3b82f6] hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs px-8 py-4 rounded-xl shadow-xl shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                            Join the Wire
-                        </button>
-                    </form>
-
-                    <!-- Legal -->
-                    <p
-                        class="mt-10 text-[9px] text-zinc-700 light-mode-text-zinc-400 font-bold uppercase tracking-[0.4em]">
-                        Unsubscribe anytime. No spam, ever.
-                    </p>
+                    <div>
+                        <form action="/subscribe" method="POST" class="genui-subscribe-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            <input type="email" name="email" placeholder="Email address" required autocomplete="email"
+                                aria-label="Email address" class="genui-subscribe-input">
+                            <button type="submit" class="genui-subscribe-button">Join the Wire</button>
+                        </form>
+                        <p class="genui-subscribe-meta">Free. Unsubscribe anytime.</p>
+                    </div>
                 </div>
-            </div>
-
-            <style>
-                .light-mode .light-mode-bg-white {
-                    background-color: #ededf0 !important;
-                }
-
-                .light-mode .light-mode-bg-zinc-50 {
-                    background-color: #ffffff !important;
-                }
-
-                .light-mode .light-mode-border-zinc-200 {
-                    border-color: #e2e2e8 !important;
-                }
-
-                .light-mode .light-mode-border-zinc-300 {
-                    border-color: #d1d5db !important;
-                }
-
-                .light-mode .light-mode-text-zinc-400 {
-                    color: #52525b !important;
-                }
-
-                .light-mode .light-mode-text-zinc-500 {
-                    color: #6b7280 !important;
-                }
-
-                .light-mode .light-mode-text-black {
-                    color: #000000 !important;
-                }
-            </style>
+            </section>
         </div>
 
         <!-- Sidebar (4 cols) -->
-        <aside class="lg:col-span-4 space-y-8">
-            <!-- Ad Space: Vertical -->
-            <!-- Ad Space: Vertical -->
-            <div class="lg:sticky lg:top-24 space-y-6">
-                <!-- Sticky Newsletter Trap -->
-                <div class="bg-blue-900/5 border border-blue-800/20 rounded-2xl p-6 relative overflow-hidden group">
-                    <div
-                        class="absolute inset-0 bg-gradient-to-b from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-                    </div>
+        <aside data-article-sidebar-tone="editorial" class="lg:col-span-4 min-w-0">
+            <div class="lg:sticky lg:top-24">
+                <div class="genui-sidebar-rail">
+                    <section class="genui-sidebar-section">
+                        <div class="genui-sidebar-kicker">Newsletter</div>
+                        <h3 class="genui-sidebar-title">Get the next signal<span data-article-sidebar-motion="chameleon"
+                                class="chameleon-cursor">|</span></h3>
+                        <p class="genui-sidebar-note">
+                            Weekly AI reporting, concise analysis, and direct links back to the original source.
+                        </p>
 
-                    <h3
-                        class="text-blue-500 font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                        Internal Intelligence
-                    </h3>
-
-                    <h4 class="text-xl font-black text-white mb-2 leading-tight">
-                        Don't Miss the Signal<span class="chameleon-cursor">|</span>
-                    </h4>
-                    <p class="text-zinc-500 text-xs mb-6 font-medium leading-relaxed">
-                        Join AI leaders weekly.
-                    </p>
-
-                    <form action="/subscribe" method="POST" class="w-full relative z-10">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <div class="flex flex-col gap-3">
+                        <form action="/subscribe" method="POST" class="genui-sidebar-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <input type="email" name="email" placeholder="Email address" required autocomplete="email"
-                                class="w-full bg-zinc-100 border border-zinc-200 text-zinc-900 px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-xs font-bold placeholder:text-zinc-400">
-                            <button type="submit"
-                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-[10px] py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">
+                                class="genui-sidebar-input">
+                            <button type="submit" class="genui-sidebar-submit">
                                 Subscribe Free
                             </button>
-                        </div>
-                    </form>
-                    <p
-                        class="mt-4 text-[8px] text-zinc-400 uppercase tracking-widest font-bold text-center hover:text-zinc-300 cursor-pointer">
-                        One-Click Unsubscribe</p>
-                </div>
+                        </form>
+                        <p class="genui-sidebar-meta">Free. Unsubscribe anytime.</p>
+                    </section>
 
-                <!-- Compact Signal Distributor -->
-                <div class="bg-zinc-950/30 p-4 rounded-xl border border-zinc-800/50 relative z-0">
-                    <h3 class="text-zinc-600 font-black uppercase text-[10px] tracking-widest mb-3">Distribute
-                        Signal
-                    </h3>
-                    <div class="grid grid-cols-4 gap-2">
-                        <!-- Twitter Share -->
-                        <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ ('https://dailyaiwire.news/article/' + article.slug + '?utm_source=twitter&utm_medium=social_share&utm_campaign=share_button')|urlencode }}"
-                            target="_blank" rel="noopener"
-                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800 transition-all group"
-                            aria-label="Share on X">
-                            <svg class="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors"
-                                fill="currentColor" viewBox="0 0 24 24">
-                                <path
-                                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
-                                </path>
-                            </svg>
-                        </a>
-                        <!-- LinkedIn Share -->
-                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ ('https://dailyaiwire.news/article/' + article.slug + '?utm_source=linkedin&utm_medium=social_share&utm_campaign=share_button')|urlencode }}"
-                            target="_blank" rel="noopener"
-                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-[#0077b5] hover:bg-[#0077b5]/10 transition-all group"
-                            aria-label="Share on LinkedIn">
-                            <svg class="w-4 h-4 text-zinc-400 group-hover:text-[#0077b5] transition-colors"
-                                fill="currentColor" viewBox="0 0 24 24">
-                                <path
-                                    d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                            </svg>
-                        </a>
-                        <!-- Copy Link -->
-                        <button
-                            onclick="navigator.clipboard.writeText('https://dailyaiwire.news/article/{{ article.slug }}?utm_source=copy_link&utm_medium=dark_social&utm_campaign=share_button'); this.title='Copied!'; setTimeout(() => this.title='Copy Link', 2000);"
-                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-blue-600 hover:bg-blue-600/10 transition-all group"
-                            title="Copy Link" aria-label="Copy Link">
-                            <svg class="w-4 h-4 text-zinc-400 group-hover:text-blue-600 transition-colors" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                        </button>
-                        <!-- Follow X (Compact) -->
-                        <a href="https://x.com/DailyAIWireNews" target="_blank" rel="noopener"
-                            class="col-span-1 flex items-center justify-center p-3 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-white hover:bg-white/5 transition-all group"
-                            aria-label="Follow on X">
-                            <svg class="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors"
-                                fill="currentColor" viewBox="0 0 24 24">
-                                <path
-                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm-1-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm5 7h-2v-6h2v6z">
-                                </path>
-                            </svg>
-                        </a>
-                    </div>
+                    <div class="genui-sidebar-divider"></div>
+
+                    <section class="genui-sidebar-section">
+                        <div class="genui-sidebar-kicker">Share This Report</div>
+                        <p class="genui-sidebar-note">
+                            Share the original reporting and DailyAIWire analysis together.
+                        </p>
+                        <div data-article-share-style="editorial" class="genui-share-grid">
+                            <a href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ ('https://dailyaiwire.news/article/' + article.slug + '?utm_source=twitter&utm_medium=social_share&utm_campaign=share_button')|urlencode }}"
+                                target="_blank" rel="noopener" class="genui-share-link" aria-label="Share on X">
+                                <svg fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+                                    </path>
+                                </svg>
+                                <span class="genui-share-link-text">Post on X</span>
+                            </a>
+                            <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ ('https://dailyaiwire.news/article/' + article.slug + '?utm_source=linkedin&utm_medium=social_share&utm_campaign=share_button')|urlencode }}"
+                                target="_blank" rel="noopener" class="genui-share-link" aria-label="Share on LinkedIn">
+                                <svg fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                                </svg>
+                                <span class="genui-share-link-text">Share on LinkedIn</span>
+                            </a>
+                            <button
+                                onclick="navigator.clipboard.writeText('https://dailyaiwire.news/article/{{ article.slug }}?utm_source=copy_link&utm_medium=dark_social&utm_campaign=share_button'); this.title='Copied!'; setTimeout(() => this.title='Copy Link', 2000);"
+                                class="genui-share-link" title="Copy Link" aria-label="Copy Link">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                    </path>
+                                </svg>
+                                <span class="genui-share-link-text">Copy article link</span>
+                            </button>
+                            <a href="https://x.com/DailyAIWireNews" target="_blank" rel="noopener"
+                                class="genui-share-link" aria-label="Follow on X">
+                                <svg fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z">
+                                    </path>
+                                </svg>
+                                <span class="genui-share-link-text">Follow DailyAIWire</span>
+                            </a>
+                        </div>
+                    </section>
                 </div>
             </div>
-
-            <style>
-                @keyframes chameleon {
-
-                    0%,
-                    100% {
-                        color: #3b82f6;
-                        opacity: 1;
-                    }
-
-                    /* Blue */
-                    25% {
-                        color: #a855f7;
-                        opacity: 1;
-                    }
-
-                    /* Purple */
-                    50% {
-                        color: #ec4899;
-                        opacity: 1;
-                    }
-
-                    /* Pink */
-                    75% {
-                        color: #22c55e;
-                        opacity: 1;
-                    }
-
-                    /* Green */
-                    90% {
-                        opacity: 0;
-                    }
-
-                    /* Blink off */
-                }
-
-                .chameleon-cursor {
-                    animation: chameleon 4s infinite;
-                    font-weight: 900;
-                    margin-left: 2px;
-                }
-            </style>
         </aside>
     </div>
 
     <!-- Related Signals (Internal Linking for SEO) -->
     {% if related_articles %}
-    <div class="mt-20 border-t border-zinc-800 pt-16 mb-24">
-        <h3 class="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-8">Generated Related Signals</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <section data-related-signals-style="digest" class="genui-digest-section mb-24">
+        <div class="genui-digest-head">
+            <div class="genui-digest-kicker">Continue reading</div>
+            <h3 class="genui-digest-title">More reporting around this signal.</h3>
+            <p class="genui-digest-note">
+                Related coverage selected to keep the thread going without dropping you into another card wall.
+            </p>
+        </div>
+        <div class="genui-digest-grid">
             {% for related in related_articles %}
             <a href="/article/{{ related.slug }}"
-                class="group flex flex-col p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800 hover:border-blue-700 hover:bg-zinc-800 transition-all">
+                class="genui-digest-link">
                 {% if related.image %}
-                <div class="h-32 rounded-xl overflow-hidden mb-4">
+                <div class="genui-digest-thumb">
                     <img src="{{ related.image }}" alt="{{ related.title }}" loading="lazy"
-                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onerror="this.parentElement.style.display='none'">
                 </div>
                 {% endif %}
-                <span class="text-xs text-blue-600 font-black uppercase tracking-widest mb-3">{{ related.category
-                    }}</span>
-                <h4 class="text-white font-bold text-lg mb-2 leading-tight group-hover:text-blue-400 transition-colors">
-                    {{ related.title }}</h4>
-                {% if related.gist %}
-                <p class="text-zinc-500 text-sm line-clamp-2">{{ related.gist[:120] }}{% if related.gist|length > 120
-                    %}...{% endif %}</p>
-                {% endif %}
+                <div class="genui-digest-meta">
+                    <div class="genui-digest-category">{{ related.category }}</div>
+                    <h4 class="genui-digest-item-title">{{ related.title }}</h4>
+                    {% if related.gist %}
+                    <p class="genui-digest-item-gist">{{ related.gist[:120] }}{% if related.gist|length > 120
+                        %}...{% endif %}</p>
+                    {% endif %}
+                </div>
             </a>
             {% endfor %}
         </div>
-    </div>
+    </section>
     {% endif %}
 
 </div>

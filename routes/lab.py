@@ -7,8 +7,8 @@ from flask import Blueprint, render_template, abort
 from db import get_db_connection
 from lab_posts import get_lab_post as get_lab_post_from_file
 from services.editorials import (
-    EDITORIAL_FALLBACK_IMAGE,
     get_combined_lab_posts,
+    normalize_editorial_post,
 )
 
 lab_bp = Blueprint('lab', __name__)
@@ -29,14 +29,14 @@ def lab_post(slug):
         try:
             row = conn.execute('SELECT * FROM blog_posts WHERE slug = ?', (slug,)).fetchone()
             if row:
-                post = dict(row)
-                if not post.get('image'):
-                    post['image'] = EDITORIAL_FALLBACK_IMAGE
+                post = normalize_editorial_post(dict(row))
         except Exception:
             pass
         conn.close()
 
     if not post:
         abort(404)
+
+    post = normalize_editorial_post(post)
 
     return render_template('lab_post.html', post=post)

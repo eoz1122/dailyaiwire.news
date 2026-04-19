@@ -7,7 +7,7 @@ lab_posts = [
         "subtitle": "How we built a team of AI agents to handle 500+ invoices a month without a single human touch.",
         "published_at": "2025-12-15",
         "date": "Dec 15, 2025",
-        "image": "/static/lab/tiredless_team.jpg",
+        "image": "/static/lab/n8n_workflow.jpg",
         "thought_provoking_question": "If your accounts payable process relies on humans opening emails, is it really a process?",
         "hashtags": ["#Automation", "#AI", "#FinanceOps", "#n8n", "#BusinessEfficiency"],
         "content": """
@@ -25,7 +25,7 @@ lab_posts = [
 </ul>
 
 <div class="my-8 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
-    <img src="/static/lab/tiredless_team.jpg" alt="The n8n workflow for invoice processing" class="w-full">
+    <img src="/static/lab/n8n_workflow.jpg" alt="The n8n workflow for invoice processing" class="w-full">
     <div class="bg-zinc-900/50 p-4 text-xs text-zinc-500 font-mono border-t border-zinc-800">FIG 1: The invoice processing workflow in n8n.</div>
 </div>
 

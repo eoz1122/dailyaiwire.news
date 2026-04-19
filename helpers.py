@@ -3,7 +3,7 @@ Shared template filters and utility functions — DailyAIWire.news
 Extracted from app.py during Blueprint refactoring.
 """
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def slugify(text):
@@ -34,10 +34,13 @@ def time_ago(dt_str):
             except ValueError:
                 dt = datetime.strptime(dt_str, '%Y-%m-%d')
 
-        if dt.tzinfo:
-            dt = dt.replace(tzinfo=None)
+        # Database timestamps are stored in UTC; treat naive values as UTC.
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         diff = now - dt
         seconds = int(diff.total_seconds())
 
@@ -51,7 +54,11 @@ def time_ago(dt_str):
             return f"{seconds // 3600}h ago"
         if seconds < 604800:
             return f"{seconds // 86400}d ago"
-        return dt.strftime('%b %d')
+        if seconds < 2592000:
+            return f"{seconds // 604800}w ago"
+        if seconds < 31536000:
+            return f"{seconds // 2592000}mo ago"
+        return f"{seconds // 31536000}y ago"
     except Exception:
         return dt_str
 

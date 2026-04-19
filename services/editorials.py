@@ -3,10 +3,14 @@ Shared editorial loaders for DailyAIWire.news.
 Handles schema drift and filters out incomplete or unpublished blog posts.
 """
 
+from pathlib import Path
+from typing import Optional
+
 from db import get_db_connection
 from lab_posts import get_lab_posts
 
 EDITORIAL_FALLBACK_IMAGE = "/static/fallbacks/editorial_0.jpg"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _table_columns(conn, table_name: str) -> set[str]:
@@ -24,7 +28,20 @@ def _table_columns(conn, table_name: str) -> set[str]:
     return columns
 
 
-def _normalize_blog_post(post: dict) -> dict:
+def _normalize_editorial_image(image_path: Optional[str]) -> str:
+    candidate = (image_path or "").strip()
+    if not candidate:
+        return EDITORIAL_FALLBACK_IMAGE
+
+    if candidate.startswith("/static/"):
+        local_path = PROJECT_ROOT / candidate.lstrip("/")
+        if not local_path.exists():
+            return EDITORIAL_FALLBACK_IMAGE
+
+    return candidate
+
+
+def normalize_editorial_post(post: dict) -> dict:
     normalized = dict(post)
     normalized["slug"] = (normalized.get("slug") or "").strip()
     normalized["title"] = (normalized.get("title") or "").strip()
@@ -36,8 +53,7 @@ def _normalize_blog_post(post: dict) -> dict:
     normalized["author_name"] = normalized.get("author_name") or ""
     normalized["author_title"] = normalized.get("author_title") or ""
     normalized["published_at"] = normalized.get("published_at") or ""
-    if not normalized.get("image"):
-        normalized["image"] = EDITORIAL_FALLBACK_IMAGE
+    normalized["image"] = _normalize_editorial_image(normalized.get("image"))
     return normalized
 
 
@@ -83,7 +99,7 @@ def get_db_blog_posts(*, published_only: bool = True) -> list[dict]:
             "ORDER BY published_at DESC, id DESC"
         )
         rows = conn.execute(query).fetchall()
-        return [_normalize_blog_post(dict(row)) for row in rows]
+        return [normalize_editorial_post(dict(row)) for row in rows]
     except Exception:
         return []
     finally:
@@ -91,7 +107,7 @@ def get_db_blog_posts(*, published_only: bool = True) -> list[dict]:
 
 
 def get_combined_lab_posts(*, published_only: bool = True) -> list[dict]:
-    posts = [dict(post) for post in get_lab_posts()]
+    posts = [normalize_editorial_post(dict(post)) for post in get_lab_posts()]
     posts.extend(get_db_blog_posts(published_only=published_only))
     posts.sort(key=lambda post: post.get("published_at") or "", reverse=True)
     return posts

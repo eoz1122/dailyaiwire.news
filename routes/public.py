@@ -291,7 +291,29 @@ def index():
             pass
         categories = sorted(set(categories + ['Editorial']))
 
-    return render_template('index.html', articles=processed_grid, carousel_articles=processed_carousel, page=page, total_pages=total_pages, categories=categories, category=cat_arg, q=q, now_utc=datetime.utcnow(), search_mode=search_mode, trends=trends)
+    response = make_response(
+        render_template(
+            'index.html',
+            articles=processed_grid,
+            carousel_articles=processed_carousel,
+            page=page,
+            total_pages=total_pages,
+            categories=categories,
+            category=cat_arg,
+            q=q,
+            now_utc=datetime.utcnow(),
+            search_mode=search_mode,
+            trends=trends,
+        )
+    )
+
+    host = request.host.split(':')[0].lower()
+    if host in {'127.0.0.1', 'localhost'}:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
+    return response
 
 
 @public_bp.route('/how-it-works')

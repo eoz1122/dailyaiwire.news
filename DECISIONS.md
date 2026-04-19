@@ -5,6 +5,33 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-19T16:55:00+02:00 — Indexing Recovery Mode: Query Noindex + Archive Sitemap Contraction
+
+**Context**: Search Console showed a high excluded/indexed gap on a young domain with fast URL growth. Root cause was crawl-budget dilution from query-string variants and a very large archive sitemap.
+
+**Changes**:
+- `templates/base.html`: Unified robots policy to **noindex, follow** for any URL carrying query parameters (`request.args`), while keeping clean canonical URLs indexable.
+- `templates/index.html`: Removed duplicate homepage robots meta block to eliminate conflicting directives.
+- `app.py`: Added `X-Robots-Tag: noindex, follow` on HTML responses with query params (header-level enforcement for UTM/debug/filter variants).
+- `routes/seo.py`: Introduced recovery constraints for `sitemap-archive.xml`:
+  - cap to `ARCHIVE_SITEMAP_LIMIT = 1200`,
+  - include only recent (`ARCHIVE_RECENCY_DAYS = 180`) or high-quality (`ARCHIVE_MIN_QUALITY_SCORE = 65`) URLs,
+  - keep `CORE_SITEMAP_LIMIT = 500` for top-tier pages.
+- `tests/test_smoke.py`: Added SEO robots tests to verify deterministic single-tag behavior and query noindex enforcement.
+
+**Verification**:
+- `pytest -q tests/test_smoke.py -k "SEORobotsDirectives or TestSEORoutes or TestSitemapCaching"` passed.
+- `pytest -q tests/test_helpers.py tests/test_site_health.py` passed.
+- Local checks confirmed:
+  - query URLs emit `meta robots = noindex, follow`,
+  - query URLs emit `X-Robots-Tag: noindex, follow`,
+  - clean article URLs remain indexable,
+  - `sitemap-archive.xml` reduced to 1200 URLs.
+
+**Rollback**: Revert commit affecting `templates/base.html`, `templates/index.html`, `app.py`, `routes/seo.py`, and `tests/test_smoke.py`. This restores prior indexability behavior and full archive sitemap breadth.
+
+---
+
 ## 2026-03-20T11:27:00+01:00 — Penetration Test Remediation Final Batch (7 Findings, 10 Files)
 
 **Context**: Final sweep to close all 23 pentest findings (23/23 complete).

@@ -218,6 +218,33 @@ class TestSEORoutes:
         assert b'<rss' in resp.data
 
 
+class TestSEORobotsDirectives:
+    """Robots directives should be deterministic and query-safe."""
+
+    def test_search_page_has_single_noindex_meta(self, client):
+        resp = client.get('/?q=ai')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert html.count('<meta name="robots"') == 1
+        assert 'content="noindex, follow"' in html
+        assert resp.headers.get('X-Robots-Tag') == 'noindex, follow'
+
+    def test_article_with_query_params_is_noindex(self, client):
+        resp = client.get('/article/test-article-slug?utm_source=x&utm_medium=y')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert html.count('<meta name="robots"') == 1
+        assert 'content="noindex, follow"' in html
+        assert resp.headers.get('X-Robots-Tag') == 'noindex, follow'
+
+    def test_clean_article_url_stays_indexable(self, client):
+        resp = client.get('/article/test-article-slug')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert html.count('<meta name="robots"') == 1
+        assert 'content="index, follow' in html
+
+
 # ── Phase 3: Answer-Engine API ──────────────────────────────────────
 
 class TestAnswerEngineAPI:

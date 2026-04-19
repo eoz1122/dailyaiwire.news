@@ -348,10 +348,19 @@ def add_security_headers(response):
 def add_header(r):
     # Skip if route handler already set Cache-Control explicitly
     if 'Cache-Control' in r.headers:
+        if (
+            'text/html' in (r.content_type or '')
+            and request.args
+            and 'X-Robots-Tag' not in r.headers
+        ):
+            r.headers['X-Robots-Tag'] = 'noindex, follow'
         return r
     ct = r.content_type or ''
     if 'text/html' in ct:
         r.headers['Cache-Control'] = 'public, max-age=60, s-maxage=300'
+        if request.args and 'X-Robots-Tag' not in r.headers:
+            # Prevent indexing of query-string variants such as UTM/debug URLs.
+            r.headers['X-Robots-Tag'] = 'noindex, follow'
     elif any(t in ct for t in ['image/', 'font/', 'css', 'javascript', 'audio/']):
         r.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     else:

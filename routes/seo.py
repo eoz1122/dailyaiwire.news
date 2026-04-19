@@ -16,6 +16,11 @@ logger = logging.getLogger('seo')
 
 seo_bp = Blueprint('seo', __name__)
 
+CORE_SITEMAP_LIMIT = 500
+ARCHIVE_SITEMAP_LIMIT = 1200
+ARCHIVE_RECENCY_DAYS = 180
+ARCHIVE_MIN_QUALITY_SCORE = 65
+
 @seo_bp.route('/rss.xml')
 @seo_bp.route('/feed')
 @seo_bp.route('/rss')
@@ -345,9 +350,9 @@ def sitemap_core():
             AND replace(published_at, 'T', ' ') <= datetime('now')
             ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
                      published_at DESC
-            LIMIT 500
+            LIMIT ?
         """
-        articles_rows = conn.execute(query).fetchall()
+        articles_rows = conn.execute(query, (CORE_SITEMAP_LIMIT,)).fetchall()
         for art in articles_rows:
             url = f"{base_url}/article/{art['slug']}"
             try:
@@ -388,9 +393,10 @@ def sitemap_core():
 
 @seo_bp.route('/sitemap-archive.xml', methods=['GET'])
 def sitemap_archive():
-    """Archive sitemap: remaining articles not in the core sitemap.
-    
-    Lower priority — Google crawls these after exhausting the core sitemap.
+    """Archive sitemap in recovery mode: constrained set beyond the core tier.
+
+    Goal: reduce crawl-budget waste and raise index quality by exposing only
+    recent or high-quality URLs outside the core top set.
     """
     base_url = "https://dailyaiwire.news"
     pages = []
@@ -399,16 +405,29 @@ def sitemap_archive():
     conn = get_db_connection()
 
     try:
-        # All articles EXCEPT the top 500 (which are in core)
+        # Recovery mode: only recent or high-quality items, capped in size.
         query = """
             SELECT slug, published_at FROM articles
             WHERE is_published = 1
             AND replace(published_at, 'T', ' ') <= datetime('now')
+            AND (
+                replace(published_at, 'T', ' ') >= datetime('now', ?)
+                OR (importance_score * COALESCE(compass_score, 0.7)) >= ?
+            )
             ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
                      published_at DESC
-            LIMIT -1 OFFSET 500
+            LIMIT ? OFFSET ?
         """
-        articles_rows = conn.execute(query).fetchall()
+        recency_window = f"-{ARCHIVE_RECENCY_DAYS} day"
+        articles_rows = conn.execute(
+            query,
+            (
+                recency_window,
+                ARCHIVE_MIN_QUALITY_SCORE,
+                ARCHIVE_SITEMAP_LIMIT,
+                CORE_SITEMAP_LIMIT,
+            ),
+        ).fetchall()
         for art in articles_rows:
             url = f"{base_url}/article/{art['slug']}"
             try:

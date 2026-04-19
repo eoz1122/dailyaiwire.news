@@ -93,13 +93,13 @@
     </script>
 
     <!-- Additional SEO -->
-    {% if request.args.get('page') or request.args.get('category') %}
+    {% if request.args %}
     <meta name="robots" content="noindex, follow">
     {% else %}
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     {% endif %}
     <meta name="googlebot"
-        content="{% if request.args.get('page') or request.args.get('category') %}noindex, follow{% else %}index, follow{% endif %}">
+        content="{% if request.args %}noindex, follow{% else %}index, follow{% endif %}">
     <link rel="alternate" type="application/rss+xml" title="DailyAIWire.news RSS Feed"
         href="https://dailyaiwire.news/rss.xml">
 
@@ -416,14 +416,53 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+
+        :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -48px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-blue);
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 0 0 0.75rem 0.75rem;
+            z-index: 200;
+            transition: top 0.2s ease;
+            text-decoration: none;
+            font-weight: 800;
+        }
+
+        .skip-link:focus-visible {
+            top: 0;
+            outline: none;
+        }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col relative">
+    <a href="#content" class="skip-link">Skip to main content</a>
+
     <!-- PROOF OF LIFE: Server generated this page at {{ now_utc }} UTC -->
 
     <!-- Top Ticker -->
-    <div class="ticker-wrap">
+    <div class="ticker-wrap hidden md:block">
         <div class="ticker-content">
             <span id="local-time" class="mx-4 font-mono text-xs text-blue-500"></span>
             <span class="mx-4 font-bold text-blue-600 uppercase tracking-tighter">BREAKING:</span>
@@ -439,11 +478,11 @@
 
     <!-- Header -->
     <header class="sticky top-0 z-50 backdrop-blur-md">
-        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-8">
-                <a href="/" class="flex items-center space-x-3 group min-h-[44px]" aria-label="DailyAIWire Home">
+        <div class="container mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-4 md:space-x-8">
+                <a href="/" class="flex items-center space-x-2.5 md:space-x-3 group min-h-[44px]" aria-label="DailyAIWire Home">
                     <svg width="40" height="40" viewBox="0 0 100 100"
-                        class="group-hover:rotate-12 transition-transform duration-300">
+                        class="w-8 h-8 md:w-10 md:h-10 group-hover:rotate-12 transition-transform duration-300">
                         <circle cx="50" cy="50" r="8" fill="#2563eb" />
                         <circle cx="20" cy="20" r="6" class="fill-current text-[var(--text-primary)] opacity-50" />
                         <circle cx="80" cy="20" r="6" class="fill-current text-[var(--text-primary)] opacity-50" />
@@ -461,30 +500,32 @@
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
                             <span
-                                class="text-2xl font-bold tracking-tighter brand-font leading-none text-[var(--text-primary)]">DailyAI<span
+                                class="text-xl md:text-2xl font-bold tracking-tighter brand-font leading-none text-[var(--text-primary)]">DailyAI<span
                                     class="blue-accent">Wire</span></span>
                         </div>
-                        <span class="text-[10px] text-zinc-500 font-medium tracking-widest uppercase">AI-First
+                        <span class="hidden sm:block text-[10px] text-zinc-500 font-medium tracking-widest uppercase">AI-First
                             Intelligence Feed</span>
                     </div>
                 </a>
                 <nav class="hidden lg:flex space-x-6 text-sm font-bold tracking-widest text-zinc-400">
-                    <a href="/" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Wire</a>
-                    <a href="/lab" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Lab</a>
-                    <a href="/podcast" class="hover:text-blue-600 transition-colors uppercase py-2 px-1">Podcast</a>
+                    <a href="/" class="hover:text-blue-600 transition-colors uppercase py-2 px-1" {% if request.path=='/' %}aria-current="page"{% endif %}>Wire</a>
+                    <a href="/lab" class="hover:text-blue-600 transition-colors uppercase py-2 px-1" {% if request.path=='/lab' %}aria-current="page"{% endif %}>Lab</a>
+                    <a href="/podcast" class="hover:text-blue-600 transition-colors uppercase py-2 px-1" {% if request.path=='/podcast' %}aria-current="page"{% endif %}>Podcast</a>
                     <a href="/subscribe" data-newsletter-trigger="true"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all uppercase text-[11px] tracking-widest">Subscribe
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all uppercase text-[11px] tracking-widest" {% if request.path=='/subscribe' %}aria-current="page"{% endif %}>Subscribe
                         →</a>
                 </nav>
             </div>
 
             <!-- Mobile Menu Toggle (Implemented as a simple horizontal scroll or stack for now) -->
 
-            <div class="flex items-center space-x-6">
+            <div class="flex items-center space-x-2 md:space-x-6">
 
                 <!-- Search Bar -->
-                <form action="/" method="GET" class="hidden md:flex items-center relative group">
+                <form action="/" method="GET" class="hidden md:flex items-center relative group" role="search">
+                    <label for="home-search-desktop" class="sr-only">Search intelligence</label>
                     <input type="text" name="q" placeholder="Search Intelligence..." value="{{ q or '' }}"
+                        id="home-search-desktop"
                         class="bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full w-48 focus:w-64 focus:border-blue-600 focus:outline-none transition-all duration-300 placeholder:text-zinc-600">
                     <button type="submit" aria-label="Search"
                         class="absolute right-3 text-zinc-600 group-focus-within:text-blue-600 transition-colors">
@@ -498,7 +539,7 @@
                     {% endif %}
                 </form>
                 <button id="theme-toggle" aria-label="Toggle dark mode"
-                    class="p-3 rounded-full hover:bg-zinc-800/20 transition-colors border border-transparent hover:border-zinc-500/20 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                    class="p-2.5 md:p-3 rounded-full hover:bg-zinc-800/20 transition-colors border border-transparent hover:border-zinc-500/20 min-w-[44px] min-h-[44px] flex items-center justify-center">
                     <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20">
                         <path
                             d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z">
@@ -518,18 +559,28 @@
 
         <!-- Mobile Navigation Sub-Header (Visible only on mobile) -->
         <div class="lg:hidden border-t border-[var(--border-color)] bg-[var(--bg-secondary)] backdrop-blur-md">
-            <nav
-                class="flex items-center justify-around p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                <a href="/" class="hover:text-blue-600 transition-colors py-2 px-1">Wire</a>
-                <a href="/lab" class="hover:text-blue-600 transition-colors py-2 px-1">Lab</a>
-                <a href="/podcast" class="hover:text-blue-600 transition-colors py-2 px-1">Podcast</a>
-                <a href="/subscribe" data-newsletter-trigger="true" class="text-blue-500 hover:text-blue-400 transition-colors py-2 px-1">Subscribe</a>
+            <nav data-mobile-top-nav="true" data-mobile-top-nav-layout="grid"
+                class="grid grid-cols-2 gap-2 px-4 py-3 sm:flex sm:items-center sm:gap-3 sm:overflow-x-auto sm:scrollbar-hide">
+                <a href="/"
+                    class="flex items-center justify-center rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] min-h-[40px] transition-colors shrink-0 {% if request.path=='/' %}bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20{% else %}border-zinc-800 text-[var(--text-secondary)] hover:text-blue-600 hover:border-blue-600/40{% endif %}"
+                    {% if request.path=='/' %}aria-current="page"{% endif %}>Wire</a>
+                <a href="/lab"
+                    class="flex items-center justify-center rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] min-h-[40px] transition-colors shrink-0 {% if request.path=='/lab' %}bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20{% else %}border-zinc-800 text-[var(--text-secondary)] hover:text-blue-600 hover:border-blue-600/40{% endif %}"
+                    {% if request.path=='/lab' %}aria-current="page"{% endif %}>Lab</a>
+                <a href="/podcast"
+                    class="flex items-center justify-center rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] min-h-[40px] transition-colors shrink-0 {% if request.path=='/podcast' %}bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20{% else %}border-zinc-800 text-[var(--text-secondary)] hover:text-blue-600 hover:border-blue-600/40{% endif %}"
+                    {% if request.path=='/podcast' %}aria-current="page"{% endif %}>Podcast</a>
+                <a href="/subscribe" data-newsletter-trigger="true"
+                    class="flex items-center justify-center rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] min-h-[40px] transition-colors shrink-0 {% if request.path=='/subscribe' %}bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20{% else %}border-blue-600/40 text-blue-500 hover:text-blue-400 hover:border-blue-500{% endif %}"
+                    {% if request.path=='/subscribe' %}aria-current="page"{% endif %}>Subscribe</a>
             </nav>
             <!-- Mobile Search -->
-            <form action="/" method="GET" class="md:hidden px-3 pb-3">
+            <form action="/" method="GET" class="md:hidden px-4 pb-3 sm:pb-4" role="search">
+                <label for="home-search-mobile" class="sr-only">Search intelligence</label>
                 <div class="relative">
                     <input type="text" name="q" placeholder="Search Intelligence..." value="{{ q or '' }}"
-                        class="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full focus:border-blue-600 focus:outline-none transition-all duration-300 placeholder:text-zinc-600 pr-10">
+                        id="home-search-mobile"
+                        class="w-full bg-zinc-900/50 border border-zinc-800 text-zinc-300 text-[11px] font-bold uppercase tracking-[0.12em] px-4 py-2.5 rounded-full focus:border-blue-600 focus:outline-none transition-all duration-300 placeholder:text-zinc-600 pr-10">
                     <button type="submit" aria-label="Search"
                         class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -542,7 +593,7 @@
         </div>
     </header>
 
-    <main class="flex-grow">
+    <main id="content" class="flex-grow">
         <div class="container mx-auto px-4">
             {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -698,15 +749,20 @@
 
     <!-- Newsletter Pop-up Modal (Site-Wide, 5s delay, 30-day suppress) -->
     <div id="newsletter-modal"
-        class="fixed inset-0 z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-500 scale-95 invisible">
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-500 scale-95 invisible"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-labelledby="newsletter-modal-title"
+        aria-describedby="newsletter-modal-description">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="newsletter-backdrop"></div>
 
         <!-- Modal Content -->
-        <div
+        <div tabindex="-1" id="newsletter-modal-panel"
             class="relative w-full max-w-lg glass-card rounded-3xl overflow-hidden shadow-2xl border border-blue-500/20">
             <!-- Close Button -->
-            <button id="close-newsletter"
+            <button id="close-newsletter" type="button"
                 class="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors z-[110] min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label="Close">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -729,15 +785,17 @@
                     </svg>
                 </div>
 
-                <h3 class="text-2xl md:text-3xl font-black text-white mb-3 tracking-tight">The
+                <h3 id="newsletter-modal-title" class="text-2xl md:text-3xl font-black text-white mb-3 tracking-tight">The
                     Signal, Not the Noise</h3>
-                <p class="text-zinc-400 text-sm mb-8 font-medium leading-relaxed max-w-xs mx-auto">
+                <p id="newsletter-modal-description" class="text-zinc-400 text-sm mb-8 font-medium leading-relaxed max-w-xs mx-auto">
                     Get the top 1% of AI intelligence in a 5-minute read. Join AI leaders weekly.
                 </p>
 
                 <form action="/subscribe" method="POST" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <label for="newsletter-modal-email" class="sr-only">Email address</label>
                     <input type="email" name="email" placeholder="Enter your business email" required
+                        id="newsletter-modal-email"
                         autocomplete="email"
                         class="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 px-4 py-4 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm font-bold text-center placeholder:text-zinc-500 min-h-[44px]">
                     <button type="submit"
@@ -757,6 +815,10 @@
             const modal = document.getElementById('newsletter-modal');
             const closeBtn = document.getElementById('close-newsletter');
             const backdrop = document.getElementById('newsletter-backdrop');
+            const modalPanel = document.getElementById('newsletter-modal-panel');
+            const modalInput = document.getElementById('newsletter-modal-email');
+            let previouslyFocusedElement = null;
+            let modalKeydownHandler = null;
 
             // Check 30-day suppress
             const isClosed = localStorage.getItem('newsletter_popup_closed');
@@ -774,6 +836,37 @@
             const pageEnteredAt = Date.now();
             const MIN_DWELL_MS = 5000; // Must be on page 5s before eligible
 
+            function getFocusableElements() {
+                if (!modal || !modalPanel) {
+                    return [];
+                }
+                return Array.from(
+                    modalPanel.querySelectorAll(
+                        'a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    )
+                ).filter(el => !el.hasAttribute('disabled'));
+            }
+
+            function trapFocus(event) {
+                if (event.key !== 'Tab' || !modalPanel) {
+                    return;
+                }
+                const focusable = getFocusableElements();
+                if (!focusable.length) {
+                    event.preventDefault();
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+
             window.openNewsletterModal = function () {
                 if (!modal) {
                     return false;
@@ -781,6 +874,21 @@
                 shown = true;
                 modal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95', 'invisible');
                 modal.classList.add('opacity-100', 'scale-100');
+                modal.setAttribute('aria-hidden', 'false');
+                previouslyFocusedElement = document.activeElement;
+                modalKeydownHandler = (event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeModal();
+                    } else {
+                        trapFocus(event);
+                    }
+                };
+                document.addEventListener('keydown', modalKeydownHandler);
+                document.body.style.overflow = 'hidden';
+                if (modalInput) {
+                    modalInput.focus();
+                }
                 return true;
             };
 
@@ -793,7 +901,16 @@
                 if (modal) {
                     modal.classList.remove('opacity-100', 'scale-100');
                     modal.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+                    modal.setAttribute('aria-hidden', 'true');
                     setTimeout(() => modal.classList.add('invisible'), 500);
+                    document.body.style.overflow = '';
+                    if (modalKeydownHandler) {
+                        document.removeEventListener('keydown', modalKeydownHandler);
+                        modalKeydownHandler = null;
+                    }
+                    if (previouslyFocusedElement && previouslyFocusedElement.focus) {
+                        previouslyFocusedElement.focus();
+                    }
                 }
                 localStorage.setItem('newsletter_popup_closed', new Date().getTime());
             }

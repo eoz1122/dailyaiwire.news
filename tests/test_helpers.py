@@ -2,7 +2,7 @@
 Unit tests for helpers.py — DailyAIWire.news
 Tests template filters: time_ago, remove_emojis, slugify, add_utm_to_html.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from helpers import time_ago, remove_emojis, slugify, add_utm_to_html
 
@@ -58,33 +58,52 @@ class TestTimeAgo:
         assert time_ago("") == ""
 
     def test_just_now(self):
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         result = time_ago(now)
         assert result in ("Just now", "1m ago")
 
     def test_minutes_ago(self):
-        dt = (datetime.now() - timedelta(minutes=15)).isoformat()
+        dt = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
         result = time_ago(dt)
         assert "m ago" in result
 
     def test_hours_ago(self):
-        dt = (datetime.now() - timedelta(hours=3)).isoformat()
+        dt = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
         result = time_ago(dt)
         assert "h ago" in result
 
     def test_days_ago(self):
-        dt = (datetime.now() - timedelta(days=2)).isoformat()
+        dt = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
         result = time_ago(dt)
         assert "d ago" in result
 
-    def test_old_date_returns_formatted(self):
-        dt = (datetime.now() - timedelta(days=30)).isoformat()
+    def test_weeks_ago(self):
+        dt = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
         result = time_ago(dt)
-        # Should return "Feb 08" or similar month-day format
-        assert "ago" not in result
+        assert "w ago" in result
+
+    def test_months_ago(self):
+        dt = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+        result = time_ago(dt)
+        assert "mo ago" in result
+
+    def test_one_day_plus_hours_rolls_to_days(self):
+        dt = (datetime.now(timezone.utc) - timedelta(hours=30)).isoformat()
+        result = time_ago(dt)
+        assert "d ago" in result
+
+    def test_utc_naive_timestamp_stays_hour_granular_before_24h(self):
+        dt = (datetime.now(timezone.utc) - timedelta(hours=23)).strftime('%Y-%m-%d %H:%M:%S')
+        result = time_ago(dt)
+        assert "h ago" in result
+
+    def test_old_date_returns_years_for_very_old_dates(self):
+        dt = (datetime.now(timezone.utc) - timedelta(days=400)).isoformat()
+        result = time_ago(dt)
+        assert "y ago" in result
 
     def test_future_date(self):
-        dt = (datetime.now() + timedelta(hours=1)).isoformat()
+        dt = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         result = time_ago(dt)
         assert result == "Future"
 

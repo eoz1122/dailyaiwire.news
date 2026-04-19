@@ -57,6 +57,129 @@ class TestSiteHealthRegressions:
         assert resp.status_code == 200
         assert b"Draft Editorial Should Not Render" not in resp.data
 
+    def test_lab_index_card_images_have_editorial_fallback(self, client):
+        resp = client.get("/lab")
+        soup = BeautifulSoup(resp.get_data(as_text=True), "html.parser")
+
+        assert resp.status_code == 200
+
+        card_image = soup.select_one('article img[src^="/static/"]')
+        assert card_image is not None
+        assert (
+            card_image.get("onerror")
+            == "this.onerror=null;this.src='/static/fallbacks/editorial_0.jpg';"
+        )
+
+    def test_legacy_lab_post_does_not_ship_missing_static_image_paths(self, client):
+        resp = client.get("/lab/the-tiredless-team-how-we-automated-our-entire-invoice-lifecycle")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert "/static/lab/tiredless_team.jpg" not in page
+
+    def test_homepage_mobile_category_rail_keeps_selected_topic_visible(self, client):
+        resp = client.get("/?category=Tools")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-mobile-category-rail="true"' in page
+        assert 'data-mobile-selected-category="Tools"' in page
+
+    def test_homepage_cards_include_compact_mobile_signal_lenses_row(self, client):
+        resp = client.get("/?category=Tools")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-mobile-card-lenses="true"' in page
+        assert 'data-desktop-card-lenses="true"' in page
+
+    def test_article_page_emits_mobile_layout_markers(self, client):
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute(
+            """
+            UPDATE articles
+            SET audio_male = ?, audio_female = ?
+            WHERE slug = ?
+            """,
+            (
+                "/static/audio/test_male.mp3",
+                "/static/audio/test_female.mp3",
+                "test-article-slug",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/article/test-article-slug")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-mobile-article-hero="true"' in page
+        assert 'data-mobile-article-title="tight"' in page
+        assert 'data-mobile-article-meta="true"' in page
+        assert 'data-mobile-article-audio="compact"' in page
+        assert 'data-mobile-article-audio-controls="true"' in page
+        assert 'data-mobile-article-eli5="true"' in page
+
+    def test_high_intensity_article_omits_hero_alert_badge(self, client):
+        resp = client.get("/article/test-article-with-diagram")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'genui-intensity-badge inline-flex' not in page
+
+    def test_article_page_uses_editorial_reading_flow(self, client):
+        resp = client.get("/article/test-article-slug")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-article-reading-flow="editorial"' in page
+        assert 'data-article-summary-tone="adaptive"' in page
+        assert 'data-article-source-link="prominent"' in page
+        assert 'data-article-section-marker="text"' in page
+        assert "Read Article at Source" in page
+        assert "Read the original article for full context." in page
+
+    def test_article_sidebar_uses_unified_editorial_rail(self, client):
+        resp = client.get("/article/test-article-slug")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-article-sidebar-tone="editorial"' in page
+        assert 'data-article-share-style="editorial"' in page
+        assert 'data-article-sidebar-motion="chameleon"' in page
+        assert "Post on X" in page
+        assert "Share on LinkedIn" in page
+        assert "Copy article link" in page
+        assert "Follow DailyAIWire" in page
+
+    def test_article_bottom_half_uses_editorial_digest_layout(self, client):
+        resp = client.get("/article/test-article-slug")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-article-lower-tone="editorial"' in page
+        assert 'data-article-subscribe-strip="true"' in page
+        assert 'data-related-signals-style="digest"' in page
+        assert "Continue reading" in page
+
+    def test_mobile_header_uses_explicit_grid_nav_layout(self, client):
+        resp = client.get("/")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-mobile-top-nav="true"' in page
+        assert 'data-mobile-top-nav-layout="grid"' in page
+
+    def test_homepage_hero_carousel_uses_manual_rotation(self, client):
+        resp = client.get("/")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'data-carousel-autoplay="manual"' in page
+        assert 'data-carousel-image-loading="deferred"' in page
+        assert 'data-deferred-slide-image="true"' in page
+
     def test_rss_route_excludes_unpublished_editorials(self, client):
         conn = sqlite3.connect(db_module.DB_PATH)
         _create_blog_posts_table(conn)
