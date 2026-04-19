@@ -3,20 +3,19 @@ Fetcher — AI Batch Processor
 Gemini API batch processing with prompt template, retry logic, and budget tracking.
 """
 import os
-import re
-import json
 import time
 import hashlib
 import logging
 from typing import List, Dict
 
-import google.generativeai as genai
 from dotenv import load_dotenv
 
 import ai_config
 from fetcher.content import extract_content
 from fetcher.spam import is_spam_source
 from fetcher.db_init import log_processing_attempt
+from services.ai_gateway import AIGateway
+from services.ai_schemas import ArticleAnalysis
 
 load_dotenv()
 
@@ -39,13 +38,11 @@ def process_batch(batch: List[Dict]):
         logger.error("❌ GEMINI_API_KEY not found in environment variables.")
         return []
 
-    # Initialize Gemini Client
-    genai.configure(api_key=api_key)
-
-    model = genai.GenerativeModel(
+    gateway = AIGateway(
         model_name=model_name,
-        system_instruction=ai_config.get_system_instruction(),
-        generation_config=ai_config.GENERATION_CONFIG
+        system_instruction=ai_config.get_system_instruction("Strategist"),
+        generation_config=ai_config.GENERATION_CONFIG,
+        logger_name='fetcher.ai',
     )
 
     # Initialize Lead Extractor (The "Iron Judo" Pipeline)
@@ -126,9 +123,6 @@ def process_batch(batch: List[Dict]):
 
         batch_input.append(f"ARTICLE ID: {idx}\nSOURCE TITLE: {item['title']} (Ensure Output is English)\nSOURCE CONTENT: {analysis_context}{research_block}")
 
-        # CRITICAL: Mark as attempted immediately to prevent loops
-        log_processing_attempt(item['link'], status="SENT_TO_API")
-
     if not batch_input:
         logger.warning("⚠️ All articles in this batch were skipped due to low content.")
         return []
@@ -177,8 +171,10 @@ def process_batch(batch: List[Dict]):
         # Retry logic for quota issues (429)
         for attempt in range(5):
             try:
-                response = model.generate_content(
+                validated, response = gateway.generate_structured(
                     prompt,
+                    List[ArticleAnalysis],
+                    prompt_type="article_analysis",
                     generation_config={"response_mime_type": "application/json"},
                     request_options={'timeout': 600}
                 )
@@ -189,14 +185,7 @@ def process_batch(batch: List[Dict]):
                     output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
                     budget.log_request(input_tokens, output_tokens, category="Article Analysis")
 
-                # Cleanup: Strip markdown blocks if Gemini added them
-                raw_json = response.text.strip()
-                if raw_json.startswith("```json"):
-                    raw_json = re.sub(r'^```json\s*', '', raw_json, flags=re.MULTILINE)
-                    raw_json = re.sub(r'\s*```$', '', raw_json, flags=re.MULTILINE)
-
-                clean_json_str = raw_json.replace('**', '')
-                processed = json.loads(clean_json_str, strict=False)
+                processed = [art.model_dump() for art in validated]
 
                 # PROVENANCE: Attach source_content_hash and ai_model_used to each result
                 for art in processed:
@@ -213,8 +202,6 @@ def process_batch(batch: List[Dict]):
                     time.sleep(wait_time)
                     continue
                 logger.error("API Error (%d/5): %s", attempt + 1, e)
-                if "JSON" in str(e) or "control character" in str(e).lower():
-                    logger.debug("Problematic JSON snippet: %s...", raw_json[:200])
                 time.sleep(10)
                 continue
         return []

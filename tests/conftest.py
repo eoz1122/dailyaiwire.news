@@ -93,6 +93,39 @@ def _patch_db(tmp_path_factory):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS ai_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            model TEXT,
+            prompt_type TEXT,
+            prompt_text TEXT,
+            response_text TEXT,
+            cost_estimate REAL
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS processing_attempts (
+            url TEXT PRIMARY KEY,
+            attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS duplicate_review_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            keep_article_id INTEGER NOT NULL,
+            keep_title TEXT,
+            duplicate_article_id INTEGER NOT NULL,
+            duplicate_title TEXT,
+            detection_method TEXT NOT NULL,
+            confidence_score REAL,
+            reason TEXT,
+            status TEXT DEFAULT 'PENDING_REVIEW',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at TIMESTAMP
+        )
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS leads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             domain TEXT,

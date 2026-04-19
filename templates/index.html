@@ -286,7 +286,10 @@ Google Gemini.{% endif %}{% endblock %}
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-4 md:py-5">
-    <div class="category-rail-shell" data-category-rail="true">
+    <div class="category-rail-shell"
+        data-category-rail="true"
+        data-mobile-category-rail="true"
+        data-mobile-selected-category="{{ category or '' }}">
         <div class="category-rail-track -mx-4 px-4 md:mx-0 md:px-0">
             <a href="/"
                 class="category-pill px-4 py-2 rounded-full {% if not category %}bg-blue-600 !text-white shadow-lg shadow-blue-900/20{% else %}bg-zinc-900/50 border border-white/10 text-zinc-500 hover:text-white hover:border-white/25{% endif %} font-black text-[11px] md:text-[12px] uppercase tracking-[0.15em] transition-all">ALL

@@ -55,6 +55,9 @@ logs/
 .coverage
 htmlcov/
 
+# Local vector store runtime state
+qdrant_data/
+
 # Deployment
 *.pid
 *.mp3
