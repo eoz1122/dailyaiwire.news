@@ -178,6 +178,26 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS duplicate_review_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            keep_article_id INTEGER NOT NULL,
+            keep_title TEXT,
+            duplicate_article_id INTEGER NOT NULL,
+            duplicate_title TEXT,
+            detection_method TEXT NOT NULL,
+            confidence_score REAL,
+            reason TEXT,
+            status TEXT DEFAULT 'PENDING_REVIEW',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_duplicate_review_pair
+        ON duplicate_review_queue (keep_article_id, duplicate_article_id, detection_method)
+    ''')
+
     # Lazy migration: Add compass_score column if missing
     try:
         cursor.execute("SELECT compass_score FROM articles LIMIT 1")

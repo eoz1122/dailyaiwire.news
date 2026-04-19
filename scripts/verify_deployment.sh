@@ -19,8 +19,8 @@ else
     echo "❌ requirements.txt is OUTDATED"
 fi
 
-if grep -q "google.genai" "$APP_DIR/remove_duplicates.py"; then
-    echo "✅ remove_duplicates.py uses google.genai"
+if grep -Eq "services\\.ai_gateway|google\\.genai|google\\.generativeai" "$APP_DIR/remove_duplicates.py"; then
+    echo "✅ remove_duplicates.py uses the current AI invocation path"
 else
     echo "❌ remove_duplicates.py is OUTDATED"
 fi

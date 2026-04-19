@@ -854,3 +854,42 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert the homepage slot-budget logic in `routes/public.py` if the product intentionally moves back to a denser front-page layout.
 - Revert the new tests in `tests/test_site_health.py` and `tests/test_smoke.py` only if the homepage grid contract or editorial category behavior is deliberately changed later.
+
+---
+
+## 2026-04-19T17:38:09+02:00 - Centralized Gemini Gateway, Schema Validation, and Non-Destructive AI Dedup
+
+**Context**: The AI audit found three high-risk failure modes in the live intelligence pipeline: (1) raw scraped text was being passed into lead extraction without a hardened policy layer or local schema validation, (2) article processing could mark a URL as processed before a valid Gemini response had been parsed, causing silent content loss, and (3) AI-driven dedup scripts could execute direct `DELETE` statements from model output with no review gate.
+
+**Decision**:
+1. Add a shared Gemini gateway in `services/ai_gateway.py` to centralize:
+   - Gemini invocation
+   - JSON fence cleanup
+   - Pydantic validation
+   - best-effort `ai_logs` persistence
+2. Add shared output schemas in `services/ai_schemas.py` for:
+   - article analysis
+   - lead extraction
+   - duplicate review payloads
+3. Extend `ai_config.py` with specialized roles for:
+   - `LeadExtractor`
+   - `Deduplicator`
+4. Move `fetcher/ai_processor.py` onto the shared gateway and validated article schema.
+5. Remove the premature `SENT_TO_API` state update from `fetcher/ai_processor.py` so a malformed model response no longer blacklists a fresh URL before validation succeeds.
+6. Move `services/lead_extractor.py` onto the shared gateway and validated lead-extraction schema, while explicitly treating page text as untrusted data in the prompt.
+7. Replace destructive AI dedup writes with review queue inserts:
+   - add `duplicate_review_queue`
+   - update `remove_duplicates.py` and `ai_dedup.py` so AI semantic duplicates are flagged for review instead of deleted
+8. Keep the existing fuzzy dedup pass unchanged in this slice to avoid changing the live site’s duplicate-suppression behavior too broadly in one release.
+9. Add focused regression tests covering:
+   - structured Gemini validation
+   - removal of the premature `SENT_TO_API` status
+   - AI dedup review-queue behavior
+
+**Trigger**: Security and architecture audit on 2026-04-19 identified prompt-injection exposure in lead extraction, destructive AI autonomy in deduplication, and weak state handling around Gemini output validation.
+
+**Rollback**:
+- Revert `services/ai_gateway.py`, `services/ai_schemas.py`, and `services/duplicate_review.py` if the shared gateway introduces unexpected provider behavior.
+- Revert `fetcher/ai_processor.py` and `services/lead_extractor.py` if schema validation is found to reject too many valid outputs in production.
+- Revert `remove_duplicates.py`, `ai_dedup.py`, and the `duplicate_review_queue` schema if the team explicitly decides to return to destructive semantic deduplication.
+- Revert `tests/test_ai_governance.py` and `tests/conftest.py` only alongside the production-code rollback so the tests stay aligned with the actual AI contract.

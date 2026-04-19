@@ -3,14 +3,15 @@ import re
 import sqlite3
 import difflib
 import os
-import json
-import time
-import google.generativeai as genai
 from dotenv import load_dotenv
 
-load_dotenv()
+import ai_config
+import db
+from services.ai_gateway import AIGateway
+from services.ai_schemas import DuplicateReviewPayload
+from services.duplicate_review import flag_duplicate_pair
 
-DB_PATH = "news.db"
+load_dotenv()
 
 def tokenize(text):
     if not text: return set()
@@ -28,20 +29,13 @@ def ai_deduplicate(recent_only=True):
     Args:
         recent_only: If True, only checks articles added in the last hour.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
+    if not os.getenv("GEMINI_API_KEY"):
         print("⚠️ Skipping AI Deduplication: GEMINI_API_KEY missing.")
         return
 
     print("🤖 AI Deduplication Agent Scanning for Semantic Duplicates...")
-    
-    try:
-        genai.configure(api_key=api_key)
-    except Exception as e:
-        print(f"❌ Failed to configure Gemini: {e}")
-        return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db.DB_PATH)
     cursor = conn.cursor()
     
     if recent_only:
@@ -60,6 +54,7 @@ def ai_deduplicate(recent_only=True):
         conn.close()
         return
 
+    article_map = {article_id: title for article_id, title in articles}
     titles_list = [f"{a[0]}: {a[1]}" for a in articles]
     
     prompt = """
@@ -70,35 +65,51 @@ def ai_deduplicate(recent_only=True):
     - "OpenAI Sora API Released" and "Sora Video Generation coming to all users"
     - "Nvidia hits all time high" and "NVDA Stock surges to record levels"
     
-    Return a STRICT JSON object with a key "duplicates_to_delete" containing a list of IDs to delete.
-    If multiple IDs refer to the same story, KEEP the NEWEST ID (the one that appears FIRST/HIGHER in the list) AND DELETE the older ones.
+    Return a STRICT JSON object with a key "duplicate_pairs" containing objects with:
+    - keep_id: the NEWEST ID to keep (the one that appears FIRST/HIGHER in the list)
+    - delete_id: the older duplicate ID
+    - reason: short explanation
     
     Format:
     {
-        "duplicates_to_delete": [ID1, ID2, ...]
+        "duplicate_pairs": [
+            {"keep_id": 101, "delete_id": 98, "reason": "same Sora launch story"}
+        ]
     }
     
     HEADLINES:
     """ + "\n".join(titles_list)
 
     try:
-        # Standard SDK Usage matched to fetcher.py environment
-        model = genai.GenerativeModel('gemini-2.5-flash') 
-        
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
+        gateway = AIGateway(
+            model_name='gemini-2.5-flash',
+            system_instruction=ai_config.get_system_instruction("Deduplicator"),
+            generation_config={"response_mime_type": "application/json"},
+            logger_name='remove_duplicates',
         )
-        
-        # Parse JSON
-        data = json.loads(response.text)
-        ids_to_delete = data.get("duplicates_to_delete", [])
-        
-        if ids_to_delete:
-            print(f"⚠️ AI Identified {len(ids_to_delete)} semantic duplicates for removal.")
-            cursor.execute(f"DELETE FROM articles WHERE id IN ({','.join(map(str, ids_to_delete))})")
-            conn.commit()
-            print("✨ Semantic cleanup complete.")
+
+        payload, _response = gateway.generate_structured(
+            prompt,
+            DuplicateReviewPayload,
+            prompt_type="semantic_dedup"
+        )
+
+        duplicate_pairs = payload.duplicate_pairs
+
+        if duplicate_pairs:
+            print(f"⚠️ AI flagged {len(duplicate_pairs)} semantic duplicate pairs for review.")
+            for pair in duplicate_pairs:
+                if pair.keep_id not in article_map or pair.delete_id not in article_map:
+                    continue
+                flag_duplicate_pair(
+                    keep_article_id=pair.keep_id,
+                    keep_title=article_map[pair.keep_id],
+                    duplicate_article_id=pair.delete_id,
+                    duplicate_title=article_map[pair.delete_id],
+                    detection_method="AI_SEMANTIC",
+                    reason=pair.reason,
+                )
+            print("📝 Duplicate review queue updated.")
         else:
             print("✅ AI found no semantic duplicates.")
 
@@ -109,7 +120,7 @@ def ai_deduplicate(recent_only=True):
 
 def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
     """Standard fuzzy deduplication followed by AI semantic check."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db.DB_PATH)
     cursor = conn.cursor()
     
     if recent_only:
