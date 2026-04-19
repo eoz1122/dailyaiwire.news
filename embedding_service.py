@@ -491,7 +491,55 @@ _AD_REFERENCE_TEXTS = [
     "The number one trusted caller ID and spam blocking app now with family protection. Download free for iOS and Android",
     "Protect your family from scam calls with our award-winning AI-powered caller identification and smart blocking technology",
     "Rated 4.8 stars by millions of users worldwide. The most comprehensive call protection and family safety app available today",
+    "Book a personalized demo today and see how our platform can help your team automate workflows faster than ever before",
+    "Read our latest customer success story to learn how enterprise teams cut costs and boosted productivity with our solution",
+    "Register now for our exclusive webinar and discover how to unlock more value from your workflow automation stack",
+    "Try our new AI assistant today and experience faster onboarding, better outcomes, and premium support from day one",
+    "Request pricing now to get a tailored package designed for growing teams that need scalable protection and automation",
 ]
+
+_POLICY_NEWS_TERMS = {
+    "act",
+    "bill",
+    "commission",
+    "compliance",
+    "congress",
+    "directive",
+    "executive order",
+    "framework",
+    "governance",
+    "government",
+    "law",
+    "laws",
+    "parliament",
+    "policy",
+    "regulation",
+    "regulatory",
+    "risk assessment",
+    "senate",
+    "transparency",
+}
+
+_PROMOTIONAL_CTA_TERMS = {
+    "app store",
+    "book a demo",
+    "customers",
+    "download",
+    "enterprise pricing",
+    "free trial",
+    "get started",
+    "ios",
+    "join the millions",
+    "limited time offer",
+    "premium",
+    "pricing",
+    "request pricing",
+    "sign up",
+    "subscribe",
+    "upgrade",
+    "users trust",
+    "webinar",
+}
 
 
 def seed_ad_references() -> int:
@@ -517,6 +565,20 @@ def seed_ad_references() -> int:
     count = client.count(AD_COLLECTION_NAME).count
     print(f"🛡️ Seeded {count} ad-reference vectors into '{AD_COLLECTION_NAME}'.")
     return count
+
+
+def _apply_ad_score_adjustments(title: str, gist: str, why_it_matters: str, score: float) -> float:
+    combined = " ".join(part for part in [title, gist, why_it_matters] if part).lower()
+
+    policy_hits = sum(1 for term in _POLICY_NEWS_TERMS if term in combined)
+    promo_hits = sum(1 for term in _PROMOTIONAL_CTA_TERMS if term in combined)
+
+    # Pure policy/regulation coverage can sit close to corporate PR language.
+    # Apply only a small dampening when there are multiple policy cues and no CTA cues.
+    if policy_hits >= 2 and promo_hits == 0:
+        score -= 0.035
+
+    return round(max(score, 0.0), 3)
 
 
 def score_ad_likelihood(title: str, gist: str, why_it_matters: str = "") -> float:
@@ -553,7 +615,7 @@ def score_ad_likelihood(title: str, gist: str, why_it_matters: str = "") -> floa
 
         # Return max similarity to any ad-reference vector
         max_score = max(r.score for r in results)
-        return round(max_score, 3)
+        return _apply_ad_score_adjustments(title, gist, why_it_matters, max_score)
 
     except Exception as e:
         print(f"⚠️ Ad-likelihood scoring failed (non-blocking): {e}")
