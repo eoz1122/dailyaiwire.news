@@ -5,6 +5,8 @@ Homepage, article pages, static pages, and subscription.
 import json
 import math
 import sqlite3
+import hashlib
+import re
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, make_response
@@ -18,6 +20,46 @@ import logging
 logger = logging.getLogger('public')
 
 public_bp = Blueprint('public', __name__)
+
+VIEW_DEDUPE_MINUTES = 30
+BOT_UA_PATTERN = re.compile(
+    r"(bot|spider|crawl|slurp|headless|facebookexternalhit|whatsapp|telegrambot|"
+    r"linkedinbot|python-requests|curl|wget|uptimerobot|datadog|pingdom)",
+    re.IGNORECASE,
+)
+
+
+def _hash_value(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _extract_client_ip() -> str:
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    if forwarded:
+        first = forwarded.split(',')[0].strip()
+        if first:
+            return first
+    real_ip = (request.headers.get('X-Real-IP') or '').strip()
+    if real_ip:
+        return real_ip
+    remote = (request.remote_addr or '').strip()
+    return remote or 'unknown'
+
+
+def _is_likely_bot(user_agent: str) -> bool:
+    if not user_agent:
+        return True
+    if BOT_UA_PATTERN.search(user_agent):
+        return True
+    purpose = (request.headers.get('Purpose') or request.headers.get('Sec-Purpose') or '').lower()
+    return 'prefetch' in purpose
+
+
+def _visitor_hash() -> str:
+    client_ip = _extract_client_ip()
+    user_agent = (request.headers.get('User-Agent') or '').strip().lower()
+    accept_lang = (request.headers.get('Accept-Language') or '').strip().lower()
+    return _hash_value(f"{client_ip}|{user_agent}|{accept_lang}")
 
 
 def _fetch_editorials():
@@ -372,15 +414,55 @@ def article(slug):
             rd['image'] = '/' + rd['image']
         related_articles.append(rd)
 
-    # Analytics: Increment Views
+    # Analytics: track both raw hits and GA-comparable verified views.
+    conn = None
     try:
         conn = get_db_connection()
-        conn.execute('UPDATE articles SET views = views + 1 WHERE id = ?', (d['id'],))
+        conn.execute('UPDATE articles SET views = COALESCE(views, 0) + 1 WHERE id = ?', (d['id'],))
+
+        # Skip verified counting for non-GET fallbacks.
+        if request.method == 'GET':
+            user_agent = (request.headers.get('User-Agent') or '')[:512]
+            is_bot = 1 if _is_likely_bot(user_agent) else 0
+            visitor_hash = _visitor_hash()
+            ip_hash = _hash_value(_extract_client_ip())
+            counted_verified = 0
+
+            if not is_bot:
+                window_expr = f'-{VIEW_DEDUPE_MINUTES} minutes'
+                recent = conn.execute(
+                    '''
+                    SELECT 1
+                    FROM article_view_events
+                    WHERE article_id = ?
+                      AND visitor_hash = ?
+                      AND viewed_at >= datetime('now', ?)
+                    LIMIT 1
+                    ''',
+                    (d['id'], visitor_hash, window_expr)
+                ).fetchone()
+                if not recent:
+                    conn.execute(
+                        'UPDATE articles SET verified_views = COALESCE(verified_views, 0) + 1 WHERE id = ?',
+                        (d['id'],)
+                    )
+                    counted_verified = 1
+
+            conn.execute(
+                '''
+                INSERT INTO article_view_events (
+                    article_id, visitor_hash, ip_hash, user_agent, path, is_bot, counted_verified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (d['id'], visitor_hash, ip_hash, user_agent, request.path, is_bot, counted_verified)
+            )
+
         conn.commit()
     except Exception as e:
         logger.error("Analytics Error: %s", e)
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
     return render_template('article.html', article=d, related_articles=related_articles)
 

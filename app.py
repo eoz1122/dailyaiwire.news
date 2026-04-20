@@ -92,6 +92,27 @@ def init_db_migrations():
             logger.info("MIGRATION: Adding 'audio_plays' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN audio_plays INTEGER DEFAULT 0')
 
+        try:
+            conn.execute('SELECT verified_views FROM articles LIMIT 1')
+        except sqlite3.OperationalError:
+            logger.info("MIGRATION: Adding 'verified_views' column...")
+            conn.execute('ALTER TABLE articles ADD COLUMN verified_views INTEGER DEFAULT 0')
+
+        # 3b. View events for GA-comparable server-side analytics
+        conn.execute('''CREATE TABLE IF NOT EXISTS article_view_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id INTEGER NOT NULL,
+            visitor_hash TEXT NOT NULL,
+            ip_hash TEXT,
+            user_agent TEXT,
+            path TEXT,
+            is_bot INTEGER DEFAULT 0,
+            counted_verified INTEGER DEFAULT 0,
+            viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_article_view_events_article_visitor_time ON article_view_events(article_id, visitor_hash, viewed_at)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_article_view_events_viewed_at ON article_view_events(viewed_at)')
+
         # 4. Carousel Slots Table (Manual editorial pinning)
         conn.execute('''CREATE TABLE IF NOT EXISTS carousel_slots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,7 +169,7 @@ class MyAdminIndexView(AdminIndexView):
 
         date_filter = request.args.get('date', type=str)
         search_query = request.args.get('q', '', type=str)
-        sort_by = request.args.get('sort', 'date')       # date | views | score
+        sort_by = request.args.get('sort', 'date')       # date | views | verified | score
         sort_dir = request.args.get('dir', 'desc')       # asc | desc
         status_filter = request.args.get('status', '')   # '' | live | offline
 
@@ -156,6 +177,7 @@ class MyAdminIndexView(AdminIndexView):
         sort_column_map = {
             'date':  "replace(published_at, 'T', ' ')",
             'views': 'COALESCE(views, 0)',
+            'verified': 'COALESCE(verified_views, 0)',
             'score': 'COALESCE(importance_score, 0)',
         }
         order_col = sort_column_map.get(sort_by, sort_column_map['date'])
@@ -183,7 +205,7 @@ class MyAdminIndexView(AdminIndexView):
         where_clause = ' WHERE ' + ' AND '.join(conditions) if conditions else ''
 
         query = (
-            "SELECT id, title, category, published_at, slug, importance_score, is_published, views, audio_plays, source, source_url "
+            "SELECT id, title, category, published_at, slug, importance_score, is_published, views, verified_views, audio_plays, source, source_url "
             f"FROM articles{where_clause} "
             f"ORDER BY {order_col} {order_dir} LIMIT ? OFFSET ?"
         )
