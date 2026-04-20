@@ -55,6 +55,45 @@ class TestPublicRoutes:
         resp = client.get('/article/test-article-slug')
         assert resp.status_code == 200
 
+    def test_article_verified_views_dedup_and_bot_filter(self, client):
+        import db as db_module
+        import sqlite3
+
+        def get_counts():
+            conn = sqlite3.connect(db_module.DB_PATH)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT views, verified_views FROM articles WHERE slug = ?",
+                ('test-article-slug',)
+            ).fetchone()
+            conn.close()
+            return int(row['views'] or 0), int(row['verified_views'] or 0)
+
+        before_views, before_verified = get_counts()
+
+        human_headers = {'User-Agent': 'Mozilla/5.0 (DailyAIWire-Test)'}
+        bot_headers = {'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)'}
+
+        resp = client.get('/article/test-article-slug', headers=human_headers)
+        assert resp.status_code == 200
+        h1_views, h1_verified = get_counts()
+        assert h1_views == before_views + 1
+        assert h1_verified == before_verified + 1
+
+        # Same visitor in dedupe window: raw views increments, verified does not.
+        resp = client.get('/article/test-article-slug', headers=human_headers)
+        assert resp.status_code == 200
+        h2_views, h2_verified = get_counts()
+        assert h2_views == h1_views + 1
+        assert h2_verified == h1_verified
+
+        # Bot request should not count as verified.
+        resp = client.get('/article/test-article-slug', headers=bot_headers)
+        assert resp.status_code == 200
+        b_views, b_verified = get_counts()
+        assert b_views == h2_views + 1
+        assert b_verified == h2_verified
+
     def test_article_not_found(self, client):
         resp = client.get('/article/nonexistent-slug-xyz')
         assert resp.status_code == 410
@@ -128,6 +167,11 @@ class TestAdminRoutesAuthenticated:
     def test_admin_dashboard(self, auth_client):
         resp = auth_client.get('/admin/')
         assert resp.status_code == 200
+
+    def test_admin_dashboard_includes_verified_views_column(self, auth_client):
+        resp = auth_client.get('/admin/')
+        assert resp.status_code == 200
+        assert b'Verified' in resp.data
 
     def test_admin_sources(self, auth_client):
         resp = auth_client.get('/admin/sources')
