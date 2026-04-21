@@ -7,12 +7,15 @@ import time
 import sqlite3
 import difflib
 import logging
+import re
 import feedparser
 import requests
 from datetime import datetime, timedelta
 from typing import List, Dict
+from urllib.parse import urlparse
 
 import google.generativeai as genai
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from db import DB_PATH
@@ -28,6 +31,216 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 from budget_tracker import BudgetTracker
 MONTHLY_BUDGET_USD = float(os.getenv("MONTHLY_BUDGET_USD", "10.0"))
 budget = BudgetTracker(monthly_cap_usd=MONTHLY_BUDGET_USD)
+
+GITHUB_MIN_STARS = int(os.getenv("GITHUB_MIN_STARS", "100"))
+GITHUB_CACHE_HOURS = int(os.getenv("GITHUB_CACHE_HOURS", "24"))
+GITHUB_API_TIMEOUT_SECONDS = int(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "8"))
+HF_PAPERS_LIMIT = int(os.getenv("HF_PAPERS_LIMIT", "12"))
+HF_PAPERS_URL = os.getenv("HF_PAPERS_URL", "https://huggingface.co/papers")
+
+_GITHUB_RESERVED_PATHS = {
+    "about", "blog", "collections", "contact", "events", "explore", "features",
+    "login", "marketplace", "new", "notifications", "organizations", "orgs",
+    "pricing", "pulls", "search", "settings", "showcases", "site", "sponsors",
+    "topics", "trending", "users",
+}
+_TRUSTED_GITHUB_OWNERS = {
+    o.strip().lower()
+    for o in os.getenv(
+        "GITHUB_TRUSTED_OWNERS",
+        "openai,anthropic,google,microsoft,nvidia,meta-llama,"
+        "huggingface,pytorch,tensorflow,langchain-ai,kubernetes,vercel,torvalds",
+    ).split(",")
+    if o.strip()
+}
+_HF_PAPER_PATH_RE = re.compile(r"^/papers/(\d{4}\.\d{4,5})$")
+
+
+def _ensure_repo_quality_cache_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS repo_quality_cache (
+            repo_key TEXT PRIMARY KEY,
+            stars INTEGER NOT NULL,
+            checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_repo_quality_cache_checked_at ON repo_quality_cache(checked_at)'
+    )
+    conn.commit()
+
+
+def _extract_github_repo(link: str):
+    """Returns (owner, repo) if the URL points to a GitHub repository."""
+    try:
+        parsed = urlparse(link)
+    except Exception:
+        return None
+
+    host = (parsed.netloc or "").lower().replace("www.", "")
+    if host != "github.com":
+        return None
+
+    parts = [p for p in (parsed.path or "").split("/") if p]
+    if len(parts) < 2:
+        return None
+
+    owner, repo = parts[0], parts[1]
+    if not owner or not repo:
+        return None
+    if owner.lower() in _GITHUB_RESERVED_PATHS:
+        return None
+
+    repo = repo[:-4] if repo.lower().endswith(".git") else repo
+    return owner, repo
+
+
+def _fetch_github_repo_stars_api(owner: str, repo: str):
+    """Fetch stargazers_count from GitHub API. Returns int or None on transient errors."""
+    api_url = f"https://api.github.com/repos/{owner}/{repo}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "DailyAIWire-Fetcher/1.0",
+    }
+    token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        resp = requests.get(api_url, headers=headers, timeout=GITHUB_API_TIMEOUT_SECONDS)
+    except Exception as exc:
+        logger.warning("GitHub stars lookup failed for %s/%s: %s", owner, repo, exc)
+        return None
+
+    if resp.status_code == 200:
+        payload = resp.json() or {}
+        stars = payload.get("stargazers_count")
+        return int(stars) if isinstance(stars, int) else None
+    if resp.status_code == 404:
+        return -1
+    if resp.status_code == 403:
+        logger.warning("GitHub API rate-limited. Skipping quality gate for %s/%s", owner, repo)
+        return None
+
+    logger.warning(
+        "GitHub stars lookup HTTP %s for %s/%s",
+        resp.status_code, owner, repo
+    )
+    return None
+
+
+def _get_cached_repo_stars(conn: sqlite3.Connection, repo_key: str):
+    row = conn.execute(
+        '''
+        SELECT stars
+        FROM repo_quality_cache
+        WHERE repo_key = ?
+          AND checked_at >= datetime('now', ?)
+        ''',
+        (repo_key, f"-{GITHUB_CACHE_HOURS} hours")
+    ).fetchone()
+    if not row:
+        return None
+    return int(row[0])
+
+
+def _set_cached_repo_stars(conn: sqlite3.Connection, repo_key: str, stars: int) -> None:
+    conn.execute(
+        '''
+        INSERT INTO repo_quality_cache (repo_key, stars, checked_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(repo_key) DO UPDATE SET
+            stars = excluded.stars,
+            checked_at = excluded.checked_at
+        ''',
+        (repo_key, int(stars))
+    )
+    conn.commit()
+
+
+def _passes_github_quality_gate(link: str, conn: sqlite3.Connection) -> bool:
+    repo = _extract_github_repo(link)
+    if not repo:
+        return True
+
+    owner, repo_name = repo
+    if owner.lower() in _TRUSTED_GITHUB_OWNERS:
+        return True
+
+    repo_key = f"{owner.lower()}/{repo_name.lower()}"
+    stars = _get_cached_repo_stars(conn, repo_key)
+    if stars is None:
+        stars = _fetch_github_repo_stars_api(owner, repo_name)
+        if stars is not None:
+            _set_cached_repo_stars(conn, repo_key, stars)
+
+    # Fail open if API is temporarily unavailable.
+    if stars is None:
+        return True
+
+    if stars < GITHUB_MIN_STARS:
+        logger.info(
+            "Skipped GitHub repo %s (%d stars < %d)",
+            repo_key, stars, GITHUB_MIN_STARS
+        )
+        return False
+    return True
+
+
+def _extract_huggingface_papers_from_html(html: str, max_items: int = HF_PAPERS_LIMIT) -> List[Dict]:
+    items: List[Dict] = []
+    if not html:
+        return items
+
+    soup = BeautifulSoup(html, "html.parser")
+    seen_links = set()
+
+    for tag in soup.select("a[href^='/papers/']"):
+        href = (tag.get("href") or "").split("#", 1)[0]
+        match = _HF_PAPER_PATH_RE.match(href)
+        if not match:
+            continue
+
+        canonical = f"https://huggingface.co/papers/{match.group(1)}"
+        if canonical in seen_links:
+            continue
+
+        title = " ".join(tag.get_text(" ", strip=True).split())
+        if not title:
+            continue
+        if title.isdigit():
+            continue
+        if title.startswith("·"):
+            continue
+
+        seen_links.add(canonical)
+        items.append(
+            {
+                "title": title,
+                "source": "Hugging Face Papers",
+                "link": canonical,
+                "published": datetime.utcnow().isoformat(),
+            }
+        )
+        if len(items) >= max_items:
+            break
+
+    return items
+
+
+def _fetch_huggingface_papers() -> List[Dict]:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; DailyAIWireBot/1.0; +https://dailyaiwire.news)"
+    }
+    try:
+        resp = requests.get(HF_PAPERS_URL, headers=headers, timeout=12)
+        resp.raise_for_status()
+    except Exception as exc:
+        logger.warning("Hugging Face papers fetch failed: %s", exc)
+        return []
+    return _extract_huggingface_papers_from_html(resp.text, max_items=HF_PAPERS_LIMIT)
 
 
 def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] = []) -> List[Dict]:
@@ -148,6 +361,9 @@ def fetch_all_sources() -> List[Dict]:
     existing_urls = {row[0] for row in cursor.fetchall()}
     conn.close()
 
+    quality_conn = sqlite3.connect(DB_PATH)
+    _ensure_repo_quality_cache_schema(quality_conn)
+
     # GET STATE: Only fetch articles after last scan
     last_scan = get_last_scan_timestamp()
     logger.info("📡 Only scanning news published since: %s", last_scan.strftime('%Y-%m-%d %H:%M:%S'))
@@ -225,6 +441,12 @@ def fetch_all_sources() -> List[Dict]:
                     if is_ignored_source(real_source):
                         continue
 
+                    try:
+                        if not _passes_github_quality_gate(link, quality_conn):
+                            continue
+                    except Exception as gate_exc:
+                        logger.warning("GitHub quality gate error for %s: %s", link, gate_exc)
+
                     article_dict = {
                         "title": title,
                         "source": real_source,
@@ -259,7 +481,19 @@ def fetch_all_sources() -> List[Dict]:
         except Exception as e:
             logger.error("Error fetching %s: %s", source_name, e)
 
+    # Hugging Face papers ingestion improves coverage beyond blog posts only.
+    hf_added = 0
+    for item in _fetch_huggingface_papers():
+        link = item["link"]
+        if link in unique_articles or link in existing_urls:
+            continue
+        unique_articles[link] = item
+        hf_added += 1
+    if hf_added:
+        logger.info("Added %d candidates from Hugging Face papers.", hf_added)
+
     all_articles = list(unique_articles.values())
+    quality_conn.close()
 
     if not all_articles:
         logger.info("📭 No new articles found since last scan.")
