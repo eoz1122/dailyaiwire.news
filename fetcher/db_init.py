@@ -179,6 +179,18 @@ def init_db():
     ''')
 
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS repo_quality_cache (
+            repo_key TEXT PRIMARY KEY,
+            stars INTEGER NOT NULL,
+            checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_repo_quality_cache_checked_at
+        ON repo_quality_cache(checked_at)
+    ''')
+
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS duplicate_review_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             keep_article_id INTEGER NOT NULL,
