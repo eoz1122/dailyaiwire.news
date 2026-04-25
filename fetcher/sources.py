@@ -32,7 +32,8 @@ from budget_tracker import BudgetTracker
 MONTHLY_BUDGET_USD = float(os.getenv("MONTHLY_BUDGET_USD", "10.0"))
 budget = BudgetTracker(monthly_cap_usd=MONTHLY_BUDGET_USD)
 
-GITHUB_MIN_STARS = int(os.getenv("GITHUB_MIN_STARS", "100"))
+# Block only zero-star GitHub repos by default.
+GITHUB_MIN_STARS = int(os.getenv("GITHUB_MIN_STARS", "1"))
 GITHUB_CACHE_HOURS = int(os.getenv("GITHUB_CACHE_HOURS", "24"))
 GITHUB_API_TIMEOUT_SECONDS = int(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "8"))
 HF_PAPERS_LIMIT = int(os.getenv("HF_PAPERS_LIMIT", "12"))
@@ -43,15 +44,6 @@ _GITHUB_RESERVED_PATHS = {
     "login", "marketplace", "new", "notifications", "organizations", "orgs",
     "pricing", "pulls", "search", "settings", "showcases", "site", "sponsors",
     "topics", "trending", "users",
-}
-_TRUSTED_GITHUB_OWNERS = {
-    o.strip().lower()
-    for o in os.getenv(
-        "GITHUB_TRUSTED_OWNERS",
-        "openai,anthropic,google,microsoft,nvidia,meta-llama,"
-        "huggingface,pytorch,tensorflow,langchain-ai,kubernetes,vercel,torvalds",
-    ).split(",")
-    if o.strip()
 }
 _HF_PAPER_PATH_RE = re.compile(r"^/papers/(\d{4}\.\d{4,5})$")
 
@@ -166,8 +158,6 @@ def _passes_github_quality_gate(link: str, conn: sqlite3.Connection) -> bool:
         return True
 
     owner, repo_name = repo
-    if owner.lower() in _TRUSTED_GITHUB_OWNERS:
-        return True
 
     repo_key = f"{owner.lower()}/{repo_name.lower()}"
     stars = _get_cached_repo_stars(conn, repo_key)
