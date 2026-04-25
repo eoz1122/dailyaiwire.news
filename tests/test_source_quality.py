@@ -19,36 +19,36 @@ def test_extract_github_repo_ignores_non_repo_paths():
     assert src._extract_github_repo("https://example.com/openai/openai-python") is None
 
 
-def test_github_quality_gate_rejects_zero_star_repo(monkeypatch):
+def test_github_quality_gate_rejects_below_min_stars_repo(monkeypatch):
     conn = _new_cache_conn()
-    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 1)
-    monkeypatch.setattr(src, "_fetch_github_repo_stars_api", lambda owner, repo: 0)
+    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 10)
+    monkeypatch.setattr(src, "_fetch_github_repo_stars_api", lambda owner, repo: 9)
 
     keep = src._passes_github_quality_gate("https://github.com/foo/bar", conn)
     assert keep is False
 
     row = conn.execute("SELECT stars FROM repo_quality_cache WHERE repo_key = 'foo/bar'").fetchone()
     assert row is not None
-    assert row[0] == 0
+    assert row[0] == 9
     conn.close()
 
 
-def test_github_quality_gate_allows_nonzero_star_repo(monkeypatch):
+def test_github_quality_gate_allows_min_stars_repo(monkeypatch):
     conn = _new_cache_conn()
-    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 1)
-    monkeypatch.setattr(src, "_fetch_github_repo_stars_api", lambda owner, repo: 1)
+    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 10)
+    monkeypatch.setattr(src, "_fetch_github_repo_stars_api", lambda owner, repo: 10)
     assert src._passes_github_quality_gate("https://github.com/foo/bar", conn) is True
     conn.close()
 
 
 def test_github_quality_gate_uses_cache(monkeypatch):
     conn = _new_cache_conn()
-    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 1)
+    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 10)
     calls = {"n": 0}
 
     def _fake_fetch(owner, repo):
         calls["n"] += 1
-        return 7
+        return 12
 
     monkeypatch.setattr(src, "_fetch_github_repo_stars_api", _fake_fetch)
     assert src._passes_github_quality_gate("https://github.com/foo/bar", conn) is True

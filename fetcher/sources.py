@@ -32,8 +32,9 @@ from budget_tracker import BudgetTracker
 MONTHLY_BUDGET_USD = float(os.getenv("MONTHLY_BUDGET_USD", "10.0"))
 budget = BudgetTracker(monthly_cap_usd=MONTHLY_BUDGET_USD)
 
-# Block only zero-star GitHub repos by default.
-GITHUB_MIN_STARS = int(os.getenv("GITHUB_MIN_STARS", "1"))
+# Block very low-signal GitHub repos by default.
+# Default is 10; can be raised (e.g. 15) via GITHUB_MIN_STARS.
+GITHUB_MIN_STARS = int(os.getenv("GITHUB_MIN_STARS", "10"))
 GITHUB_CACHE_HOURS = int(os.getenv("GITHUB_CACHE_HOURS", "24"))
 GITHUB_API_TIMEOUT_SECONDS = int(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "8"))
 HF_PAPERS_LIMIT = int(os.getenv("HF_PAPERS_LIMIT", "12"))
