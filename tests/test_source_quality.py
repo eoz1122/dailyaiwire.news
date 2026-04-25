@@ -1,4 +1,5 @@
 import sqlite3
+from types import SimpleNamespace
 
 from fetcher import sources as src
 
@@ -77,3 +78,72 @@ def test_extract_huggingface_papers_from_html():
     ]
     assert items[0]["source"] == "Hugging Face Papers"
     assert items[0]["title"].startswith("Elucidating the SNR-t Bias")
+
+
+def test_repair_source_urls_updates_known_broken_feed():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE sources (name TEXT, url TEXT)")
+    conn.execute(
+        "INSERT INTO sources (name, url) VALUES (?, ?)",
+        ("Cambridge University AI", "https://www.cam.ac.uk/topics/artificial-intelligence/feed"),
+    )
+    conn.commit()
+
+    repaired = src._repair_source_urls(
+        conn,
+        [("Cambridge University AI", "https://www.cam.ac.uk/topics/artificial-intelligence/feed")],
+    )
+    assert repaired == [("Cambridge University AI", "https://www.cam.ac.uk/taxonomy/term/51032/feed")]
+
+    row = conn.execute("SELECT url FROM sources WHERE name = 'Cambridge University AI'").fetchone()
+    assert row is not None
+    assert row[0] == "https://www.cam.ac.uk/taxonomy/term/51032/feed"
+    conn.close()
+
+
+def test_normalize_source_url_maps_microsoft_research_feed():
+    fixed = src._normalize_source_url(
+        "Microsoft Research",
+        "https://www.microsoft.com/en-us/research/feed/",
+    )
+    assert fixed == "https://azure.microsoft.com/en-us/blog/feed/"
+
+
+def test_build_google_news_context_adds_publisher_and_wire_hint():
+    entry = SimpleNamespace(
+        summary=(
+            '<a href="https://news.google.com/rss/articles/abc">Example title</a>'
+            '&nbsp;&nbsp;<font color="#6f6f6f">Wired</font>'
+        ),
+        published="Sat, 25 Apr 2026 09:39:40 GMT",
+        source={"href": "https://www.wired.com", "title": "Wired"},
+    )
+    context = src._build_google_news_context(entry, "AI Breakthrough Story", "Wired")
+
+    assert "Headline: AI Breakthrough Story" in context
+    assert "Publisher: Wired" in context
+    assert "Publisher URL: https://www.wired.com" in context
+    assert "Context: This came through Google News wire aggregation." in context
+    assert len(context) > 120
+
+
+def test_filter_high_signal_headlines_caps_results_to_dynamic_target(monkeypatch):
+    class _FakeResponse:
+        text = ",".join(str(i) for i in range(16))
+        usage_metadata = SimpleNamespace(prompt_token_count=10, candidates_token_count=6)
+
+    class _FakeModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate_content(self, *args, **kwargs):
+            return _FakeResponse()
+
+    monkeypatch.setattr(src.genai, "GenerativeModel", _FakeModel)
+    monkeypatch.setattr(src.budget, "can_make_request", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(src.budget, "log_request", lambda *_args, **_kwargs: None)
+
+    articles = [{"title": f"Test headline {i}"} for i in range(30)]
+    # target_count for 30 headlines = min(16, max(8, 30//3)) = 10
+    filtered = src.filter_high_signal_headlines(articles, recent_titles=[])
+    assert len(filtered) == 10

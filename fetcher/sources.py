@@ -8,10 +8,11 @@ import sqlite3
 import difflib
 import logging
 import re
+import html
 import feedparser
 import requests
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from urllib.parse import urlparse
 
 import google.generativeai as genai
@@ -47,6 +48,21 @@ _GITHUB_RESERVED_PATHS = {
     "topics", "trending", "users",
 }
 _HF_PAPER_PATH_RE = re.compile(r"^/papers/(\d{4}\.\d{4,5})$")
+
+# Known feed repairs for sources that changed endpoint format.
+_SOURCE_FEED_REPAIRS = {
+    ("Cambridge University AI", "https://www.cam.ac.uk/topics/artificial-intelligence/feed"):
+        "https://www.cam.ac.uk/taxonomy/term/51032/feed",
+    ("DeepMind", "https://deepmind.com/blog/feed/basic/"):
+        "https://deepmind.google/blog/rss.xml",
+    ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"):
+        "https://research.facebook.com/feed/",
+    ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"):
+        "https://azure.microsoft.com/en-us/blog/feed/",
+}
+
+# Some sources are handled by dedicated extractors and should not be fetched as raw RSS feeds.
+_SPECIAL_SOURCE_HANDLERS = {"Papers with Code"}
 
 
 def _ensure_repo_quality_cache_schema(conn: sqlite3.Connection) -> None:
@@ -234,8 +250,98 @@ def _fetch_huggingface_papers() -> List[Dict]:
     return _extract_huggingface_papers_from_html(resp.text, max_items=HF_PAPERS_LIMIT)
 
 
-def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] = []) -> List[Dict]:
+def _normalize_source_url(source_name: str, url: str) -> str:
+    if not url:
+        return ""
+    cleaned = url.strip()
+    return _SOURCE_FEED_REPAIRS.get((source_name, cleaned), cleaned)
+
+
+def _repair_source_urls(conn: sqlite3.Connection, sources: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """Auto-repair known broken source URLs and persist the fixed URL in DB."""
+    repaired = []
+    normalized_sources: List[Tuple[str, str]] = []
+
+    for source_name, url in sources:
+        normalized = _normalize_source_url(source_name, url)
+        normalized_sources.append((source_name, normalized))
+        if normalized and normalized != (url or "").strip():
+            repaired.append((source_name, url, normalized))
+
+    if repaired:
+        for source_name, old_url, new_url in repaired:
+            conn.execute(
+                "UPDATE sources SET url = ? WHERE name = ? AND url = ?",
+                (new_url, source_name, old_url),
+            )
+        conn.commit()
+        for source_name, old_url, new_url in repaired:
+            logger.info("🔧 Repaired source URL for %s: %s -> %s", source_name, old_url, new_url)
+
+    return normalized_sources
+
+
+def _looks_like_feed_response(resp: requests.Response) -> bool:
+    content_type = (resp.headers.get("content-type") or "").lower()
+    if any(tag in content_type for tag in ("xml", "rss", "atom")):
+        return True
+    head = (resp.text or "")[:200].lstrip().lower()
+    return head.startswith("<?xml") or head.startswith("<rss") or head.startswith("<feed")
+
+
+def _fetch_feed_response(url: str, headers: Dict[str, str], source_name: str):
+    timeout = 15 if source_name == "Hacker News (AI)" else 10
+    attempts = 2 if source_name in {"Hacker News (AI)", "Google News"} else 1
+    last_err = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout + (attempt - 1) * 5)
+            resp.raise_for_status()
+            return resp
+        except Exception as req_err:
+            last_err = req_err
+            if attempt < attempts:
+                logger.warning(
+                    "   ⚠️ %s fetch attempt %d/%d failed: %s. Retrying...",
+                    source_name, attempt, attempts, req_err
+                )
+                time.sleep(1.2)
+            else:
+                raise
+    raise last_err  # pragma: no cover
+
+
+def _build_google_news_context(entry, title: str, source_name: str) -> str:
+    summary_html = getattr(entry, "summary", "") or ""
+    text = BeautifulSoup(summary_html, "html.parser").get_text(" ", strip=True)
+    text = html.unescape(" ".join(text.split()))
+
+    published = getattr(entry, "published", "") or ""
+    source_href = ""
+    if hasattr(entry, "source") and isinstance(entry.source, dict):
+        source_href = entry.source.get("href", "") or ""
+
+    context_lines = [
+        f"Headline: {title}",
+        f"Publisher: {source_name or 'Unknown'}",
+    ]
+    if source_href:
+        context_lines.append(f"Publisher URL: {source_href}")
+    if published:
+        context_lines.append(f"Published: {published}")
+    if text:
+        context_lines.append(f"Wire digest: {text}")
+    context_lines.append(
+        "Context: This came through Google News wire aggregation. Use headline-level facts and publisher attribution."
+    )
+    return "\n".join(context_lines)
+
+
+def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> List[Dict]:
     """Uses Gemini to filter for high-value AI news headlines and exclude duplicates/similar stories."""
+    if recent_titles is None:
+        recent_titles = []
     if not articles:
         return []
 
@@ -246,12 +352,15 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
         logger.info("Skipping AI filter (Small batch: %d articles). processing all.", len(articles))
         return articles
 
+    # Increase output size for larger batches to reduce under-publishing on high-volume cycles.
+    target_count = min(16, max(8, len(articles) // 3))
+
     # Bundle headlines for efficient batch checking
     headline_list = "\n".join([f"{idx}: {a['title']}" for idx, a in enumerate(articles)])
     recent_titles_block = "\n".join([f"- {t}" for t in recent_titles]) if recent_titles else "None"
 
     prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to select the TOP 8 MOST NEWSWORTHY and UNIQUE articles.
+    You are an elite AI Intelligence Officer. Your task is to select the TOP {target_count} MOST NEWSWORTHY and UNIQUE articles.
     
     RECENTLY PUBLISHED TITLES (IGNORE ANY NEW ARTICLES THAT ARE DUPLICATES OR SEMANTICALLY SIMILAR TO THESE):
     {recent_titles_block}
@@ -269,7 +378,7 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
     5. BLOCK generic B2B SaaS launches, "All-in-one" marketing tools, and paid wrapper apps.
     6. BLOCK stories about SUICIDE, MURDER, or VIOLENCE unless they are critical geopolitical events (e.g. involving a head of state).
     
-    Return EXACTLY 8 indices of the most important articles.
+    Return up to {target_count} indices of the most important articles.
     
     Example Input:
     - OpenAI releases Sora API [Keep]
@@ -310,11 +419,15 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles: List[str] 
         indices = [int(i.strip()) for i in text.split(',') if i.strip().isdigit()]
 
         filtered = [articles[i] for i in indices if i < len(articles)]
-        logger.info("Filtered down to %d high-signal articles.", len(filtered))
+        if not filtered:
+            logger.warning("AI filter returned no valid indices. Falling back to top %d.", target_count)
+            return articles[:target_count]
+        filtered = filtered[:target_count]
+        logger.info("Filtered down to %d high-signal articles (target=%d).", len(filtered), target_count)
         return filtered
     except Exception as e:
-        logger.error("Headline filtering failed: %s. Proceeding with first 10 articles as fallback.", e)
-        return articles[:10]
+        logger.error("Headline filtering failed: %s. Proceeding with first %d articles as fallback.", e, target_count)
+        return articles[:target_count]
 
 
 def fetch_all_sources() -> List[Dict]:
@@ -325,6 +438,7 @@ def fetch_all_sources() -> List[Dict]:
     try:
         cursor.execute("SELECT name, url FROM sources WHERE is_active = 1 AND url IS NOT NULL AND url != '' AND url != 'None'")
         sources = cursor.fetchall()
+        sources = _repair_source_urls(conn, sources)
     except sqlite3.OperationalError:
         logger.warning("⚠️ 'sources' table not found. Using fallback list.")
         sources = [
@@ -344,6 +458,13 @@ def fetch_all_sources() -> List[Dict]:
     logger.info("📡 Scanning %d active sources...", len(sources))
 
     unique_articles = {}
+    source_health = {
+        "scanned": 0,
+        "connection_errors": 0,
+        "non_feed": 0,
+        "empty_feed": 0,
+        "added": 0,
+    }
 
     # PRE-FETCH: Get existing URLs from DB to avoid re-processing
     conn = sqlite3.connect(DB_PATH)
@@ -360,24 +481,37 @@ def fetch_all_sources() -> List[Dict]:
     logger.info("📡 Only scanning news published since: %s", last_scan.strftime('%Y-%m-%d %H:%M:%S'))
 
     for source_name, url in sources:
+        source_health["scanned"] += 1
+
+        if source_name in _SPECIAL_SOURCE_HANDLERS:
+            logger.info("Skipping direct RSS fetch for %s (handled by dedicated extractor).", source_name)
+            continue
+
         logger.info("Fetching from %s...", source_name)
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
             try:
-                if source_name == "Hacker News (AI)":
-                    resp = requests.get(url, headers=headers, timeout=15)
-                else:
-                    resp = requests.get(url, headers=headers, timeout=10)
-
-                resp.raise_for_status()
+                resp = _fetch_feed_response(url, headers, source_name)
+                if not _looks_like_feed_response(resp):
+                    logger.warning(
+                        "   ⚠️ %s returned non-feed content-type (%s). Skipping source URL: %s",
+                        source_name,
+                        resp.headers.get("content-type", "unknown"),
+                        url,
+                    )
+                    source_health["non_feed"] += 1
+                    continue
                 feed = feedparser.parse(resp.content)
             except Exception as req_err:
                 logger.warning("   ⚠️ Connection error for %s: %s", source_name, req_err)
+                source_health["connection_errors"] += 1
                 continue
 
             entries = feed.entries[:30] if source_name == "Google News" else feed.entries
+            if not entries:
+                source_health["empty_feed"] += 1
 
             skipped_count = 0
             added_count = 0
@@ -464,9 +598,16 @@ def fetch_all_sources() -> List[Dict]:
                         if rss_text:
                             article_dict['pre_extracted_content'] = rss_text
 
+                    # GOOGLE NEWS: avoid scraping consent/redirect pages by using wire context directly.
+                    if source_name == "Google News":
+                        article_dict['pre_extracted_content'] = _build_google_news_context(
+                            entry, title, real_source
+                        )
+
                     unique_articles[link] = article_dict
                     added_count += 1
 
+            source_health["added"] += added_count
             logger.info("   ↳ %d entries found. %d new, %d skipped (old).", len(entries), added_count, skipped_count)
 
         except Exception as e:
@@ -482,6 +623,16 @@ def fetch_all_sources() -> List[Dict]:
         hf_added += 1
     if hf_added:
         logger.info("Added %d candidates from Hugging Face papers.", hf_added)
+        source_health["added"] += hf_added
+
+    logger.info(
+        "📊 Source health: scanned=%d added=%d connection_errors=%d non_feed=%d empty_feed=%d",
+        source_health["scanned"],
+        source_health["added"],
+        source_health["connection_errors"],
+        source_health["non_feed"],
+        source_health["empty_feed"],
+    )
 
     all_articles = list(unique_articles.values())
     quality_conn.close()

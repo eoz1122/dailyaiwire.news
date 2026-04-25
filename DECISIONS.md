@@ -5,6 +5,37 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-25T20:56:00+02:00 - Fetcher Throughput Recovery: Source Auto-Repair + Google Wire Fallback
+
+**Context**: Production logs showed a sharp drop in saved articles despite fetcher uptime. Root causes were (1) stale/broken source feed URLs, (2) non-RSS endpoints returning HTML, (3) Google News consent/redirect pages causing low-content skips, and (4) fixed-size headline filtering (top 8) under high candidate volume.
+
+**Changes**:
+- `fetcher/sources.py`:
+  - Added source URL auto-repair for known broken endpoints (Cambridge, DeepMind legacy URL, Meta legacy URL), with DB persistence.
+  - Added feed-shape validation (`_looks_like_feed_response`) to skip HTML/non-feed responses early.
+  - Added retry wrapper for unstable feeds (`_fetch_feed_response`) with targeted retries for Google News and Hacker News.
+  - Added Google News wire fallback context (`_build_google_news_context`) and set it as `pre_extracted_content` to bypass consent-page scraping failures.
+  - Added source health counters to log scan quality (`scanned`, `added`, `connection_errors`, `non_feed`, `empty_feed`).
+  - Switched headline filter output from fixed top 8 to dynamic target (`min(16, max(8, len(batch)//3))`) with safer fallback behavior.
+- `tests/test_source_quality.py`:
+  - Added tests for source URL repair persistence, Google News context generation, and dynamic filter-cap behavior.
+- `scripts/repair_source_urls.py` [NEW]:
+  - Added idempotent one-off utility to repair known source URLs in DB.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_source_quality.py` -> passed (9 passed).
+- `python3 -m pytest -q tests/test_smoke.py -k "admin_sources"` -> passed (2 passed).
+- `python3 -m py_compile fetcher/sources.py scripts/repair_source_urls.py` -> passed.
+
+**Rollback**:
+- Revert files: `fetcher/sources.py`, `tests/test_source_quality.py`, `scripts/repair_source_urls.py`.
+- If URL repairs were persisted in DB and rollback is needed, run:
+  - `UPDATE sources SET url='https://www.cam.ac.uk/topics/artificial-intelligence/feed' WHERE name='Cambridge University AI';`
+  - `UPDATE sources SET url='https://deepmind.com/blog/feed/basic/' WHERE name='DeepMind';`
+  - `UPDATE sources SET url='https://ai.meta.com/blog/rss.xml' WHERE name='Meta AI (FAIR)';`
+
+---
+
 ## 2026-04-19T16:55:00+02:00 — Indexing Recovery Mode: Query Noindex + Archive Sitemap Contraction
 
 **Context**: Search Console showed a high excluded/indexed gap on a young domain with fast URL growth. Root cause was crawl-budget dilution from query-string variants and a very large archive sitemap.

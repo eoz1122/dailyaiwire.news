@@ -36,9 +36,9 @@ def migrate_sources():
         
         # RESEARCH LABS
         ("OpenAI", "https://openai.com/news/rss.xml", "Research Lab", 1),
-        ("DeepMind", "https://deepmind.com/blog/feed/basic/", "Research Lab", 1),
+        ("DeepMind", "https://deepmind.google/blog/rss.xml", "Research Lab", 1),
         ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml", "Research Lab", 1),
-        ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/", "Research Lab", 1),
+        ("Microsoft Research", "https://azure.microsoft.com/en-us/blog/feed/", "Research Lab", 1),
         ("Anthropic", "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml", "Research Lab", 1),
         ("Cambridge University AI", "https://www.cam.ac.uk/taxonomy/term/51032/feed", "Research Lab", 1),
         
