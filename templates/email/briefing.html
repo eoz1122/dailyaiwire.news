@@ -6,52 +6,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ subject }}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #fcfcfc;
-            color: #0c0c0c;
             margin: 0;
             padding: 0;
+            background-color: #f3f4f6;
+            color: #0f172a;
             -webkit-font-smoothing: antialiased;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .preheader {
+            display: none !important;
+            visibility: hidden;
+            opacity: 0;
+            color: transparent;
+            height: 0;
+            width: 0;
+            overflow: hidden;
+            mso-hide: all;
         }
 
         .wrapper {
             width: 100%;
             table-layout: fixed;
-            background-color: #fcfcfc;
-            padding-bottom: 60px;
+            background-color: #f3f4f6;
+            padding: 32px 0 56px;
         }
 
         .container {
             max-width: 600px;
             margin: 0 auto;
             background-color: #ffffff;
+            border: 1px solid #d4d4d8;
         }
 
-        .header {
-            padding: 60px 20px 40px;
-            text-align: center;
+        .masthead {
+            background-color: #09090b;
+            border-bottom: 3px solid #2563eb;
+            padding: 24px 28px;
+        }
+
+        .masthead-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .logo-cell {
+            width: 52px;
+            vertical-align: middle;
         }
 
         .logo {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 24px;
-            background-color: #f4f4f5;
-            border-radius: 20px;
-            padding: 8px;
-            border: 1px solid #e4e4e7;
+            width: 40px;
+            height: 40px;
+            display: block;
+        }
+
+        .brand-block {
+            vertical-align: middle;
         }
 
         .brand-name {
-            font-size: 24px;
-            font-weight: 900;
-            letter-spacing: -1px;
-            text-transform: uppercase;
-            color: #0c0c0c;
-            margin-bottom: 8px;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: 25px;
+            line-height: 1.1;
+            font-weight: 700;
+            letter-spacing: -0.6px;
+            color: #ffffff;
+            margin: 0 0 4px;
         }
 
         .brand-accent {
@@ -59,183 +83,334 @@
         }
 
         .briefing-tag {
+            font-family: 'IBM Plex Mono', monospace;
             font-size: 10px;
-            font-weight: 900;
-            letter-spacing: 3px;
-            color: #71717a;
-            text-transform: uppercase;
-        }
-
-        .editor-note-section {
-            padding: 0 40px 60px;
-        }
-
-        .section-label {
-            font-size: 11px;
-            font-weight: 900;
-            color: #2563eb;
-            text-transform: uppercase;
+            line-height: 1.4;
             letter-spacing: 2px;
-            margin-bottom: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #a1a1aa;
+            margin: 0;
+        }
+
+        .issue-block {
+            vertical-align: middle;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .issue-label {
             display: block;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #60a5fa;
+            font-weight: 600;
+            margin-bottom: 4px;
         }
 
-        .editor-text {
-            font-size: 18px;
-            line-height: 1.8;
-            color: #27272a;
-            border-left: 3px solid #2563eb;
-            padding-left: 28px;
+        .issue-date {
+            display: block;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #a1a1aa;
         }
 
-        .article-card {
-            background-color: #ffffff;
-            border: 1px solid #e4e4e7;
-            border-radius: 24px;
-            padding: 32px;
-            margin: 0 20px 32px;
+        .editorial-block {
+            padding: 28px;
+            background-color: #fafafa;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        .article-category {
-            font-size: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
+        .editorial-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            font-weight: 600;
             letter-spacing: 2px;
+            text-transform: uppercase;
             color: #2563eb;
+            margin: 0 0 14px;
+        }
+
+        .editorial-text {
+            font-size: 16px;
+            line-height: 1.75;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .section-bar {
+            padding: 18px 28px 8px;
+        }
+
+        .section-bar-text {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #52525b;
+            margin: 0;
+        }
+
+        .article-list {
+            padding: 8px 28px 8px;
+        }
+
+        .article-item {
+            padding: 0 0 28px;
+            margin-bottom: 28px;
+            border-bottom: 2px solid #f4f4f5;
+        }
+
+        .article-item.last {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .article-header {
             margin-bottom: 12px;
         }
 
-        .article-title {
-            font-size: 22px;
-            font-weight: 800;
-            line-height: 1.3;
-            color: #0c0c0c;
-            margin-bottom: 16px;
-            text-decoration: none;
-            display: block;
+        .article-index {
+            display: inline-block;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 24px;
+            line-height: 1;
+            font-weight: 600;
+            color: #2563eb;
+            margin-right: 12px;
+            vertical-align: baseline;
         }
 
-        .article-gist {
+        .article-category {
+            display: inline-block;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #71717a;
+            vertical-align: baseline;
+        }
+
+        .article-title {
+            display: block;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: 23px;
+            line-height: 1.3;
+            font-weight: 700;
+            color: #09090b;
+            text-decoration: none;
+            margin: 0 0 12px;
+        }
+
+        .article-kicker {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #2563eb;
+            margin: 0 0 10px;
+        }
+
+        .article-summary {
             font-size: 15px;
-            line-height: 1.6;
-            color: #52525b;
-            margin-bottom: 24px;
+            line-height: 1.7;
+            color: #3f3f46;
+            margin: 0 0 14px;
         }
 
         .article-link {
             display: inline-block;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 600;
             color: #2563eb;
             text-decoration: none;
         }
 
-        .footer {
-            padding: 60px 40px;
-            text-align: center;
-            border-top: 1px solid #f4f4f5;
-            margin: 0 20px;
+        .share-block {
+            margin: 30px 28px 34px;
+            padding: 26px 28px;
+            background-color: #09090b;
+            border-left: 4px solid #2563eb;
         }
 
-        .footer-text {
-            font-size: 12px;
-            color: #71717a;
-            line-height: 1.8;
-        }
-
-        .footer-link {
-            color: #71717a;
-            text-decoration: underline;
-        }
-
-        .signal-label-wrapper {
-            padding: 0 20px 24px;
-        }
-
-        .signal-sublabel {
-            font-size: 12px;
-            font-weight: 900;
-            color: #4b5563;
+        .share-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            font-weight: 600;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            letter-spacing: 3px;
+            color: #60a5fa;
+            margin: 0 0 12px;
+        }
+
+        .share-copy {
+            font-size: 14px;
+            line-height: 1.7;
+            color: #d4d4d8;
+            margin: 0 0 18px;
+        }
+
+        .share-button {
+            display: inline-block;
+            background-color: #2563eb;
+            color: #ffffff;
+            text-decoration: none;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 12px 20px;
+        }
+
+        .footer {
+            padding: 28px;
+            background-color: #fafafa;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
         }
 
         .footer-brand {
-            font-size: 16px;
-            opacity: 0.5;
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            font-size: 15px;
+            line-height: 1.3;
+            font-weight: 700;
+            color: #71717a;
+            margin: 0 0 12px;
+            opacity: 0.72;
+        }
+
+        .footer-copy {
+            font-size: 12px;
+            line-height: 1.8;
+            color: #71717a;
+            margin: 0;
+        }
+
+        .footer-link {
+            color: #52525b;
+            text-decoration: underline;
         }
 
         @media screen and (max-width: 600px) {
-            .editor-note-section {
-                padding: 0 20px 40px;
+            .wrapper {
+                padding: 0 0 32px;
             }
 
-            .article-card {
-                padding: 24px;
+            .container {
+                border-left: none;
+                border-right: none;
+            }
+
+            .masthead,
+            .editorial-block,
+            .section-bar,
+            .article-list,
+            .footer {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .share-block {
+                margin-left: 20px;
+                margin-right: 20px;
+                padding: 22px 20px;
+            }
+
+            .issue-block {
+                display: none;
+            }
+
+            .article-title {
+                font-size: 21px;
+            }
+
+            .editorial-text {
+                font-size: 15px;
             }
         }
     </style>
 </head>
 
 <body>
+    <div class="preheader">
+        {{ subject }} - the week's highest-signal AI developments, distilled into one editorial briefing.
+    </div>
+
     <div class="wrapper">
         <div class="container">
-            <div class="header">
-                <img src="https://dailyaiwire.news/static/img/brand/logo_nodes.png" class="logo" alt="DailyAIWire">
-                <div class="brand-name">DailyAI<span class="brand-accent">Wire</span></div>
-                <div class="briefing-tag">Weekly Intelligence Briefing</div>
+            <div class="masthead">
+                <table class="masthead-table" role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="logo-cell">
+                            <img src="https://dailyaiwire.news/static/img/brand/logo_nodes.png" class="logo" alt="DailyAIWire">
+                        </td>
+                        <td class="brand-block">
+                            <p class="brand-name">DailyAI<span class="brand-accent">Wire</span></p>
+                            <p class="briefing-tag">Weekly Intelligence Briefing</p>
+                        </td>
+                        <td class="issue-block">
+                            <span class="issue-label">{{ newsletter_issue_label }}</span>
+                            <span class="issue-date">{{ newsletter_date_display }}</span>
+                        </td>
+                    </tr>
+                </table>
             </div>
 
-            <div class="editor-note-section">
-                <span class="section-label">Editor's Note ↗</span>
-                <div class="editor-text">
-                    {{ intro_text | safe }}
+            <div class="editorial-block">
+                <p class="editorial-label">[Editorial]</p>
+                <p class="editorial-text">{{ intro_text | safe }}</p>
+            </div>
+
+            <div class="section-bar">
+                <p class="section-bar-text">The Signal // This Week</p>
+            </div>
+
+            <div class="article-list">
+                {% for art in articles %}
+                {% set summary_text = article_metadata.get(art.id|string) if article_metadata and article_metadata.get(art.id|string) else art.gist %}
+                <div class="article-item{% if loop.last %} last{% endif %}">
+                    <div class="article-header">
+                        <span class="article-index">{{ "%02d"|format(loop.index) }}</span>
+                        <span class="article-category">{{ art.category }}</span>
+                    </div>
+                    <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
+                        class="article-title">{{ art.title }}</a>
+                    <p class="article-kicker">Strategic take</p>
+                    <p class="article-summary">{{ summary_text }}</p>
+                    <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
+                        class="article-link">read_full_intelligence();</a>
                 </div>
+                {% endfor %}
             </div>
 
-            <div class="signal-label-wrapper">
-                <span class="signal-sublabel">The Signal // This Week</span>
-            </div>
-
-            {% for art in articles %}
-            <div class="article-card">
-                <div class="article-category">{{ art.category }}</div>
-                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
-                    class="article-title">{{ art.title }}</a>
-                <div class="article-gist">
-                    {% if article_metadata and article_metadata.get(art.id|string) %}
-                    {{ article_metadata.get(art.id|string) }}
-                    {% else %}
-                    {{ art.gist }}
-                    {% endif %}
-                </div>
-                <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
-                    class="article-link">Read Full Intelligence ➔</a>
-            </div>
-            {% endfor %}
-
-            <!-- Referral Block -->
-            <div
-                style="margin: 0 20px 32px; padding: 32px; background-color: #eff6ff; border-radius: 24px; border: 1px solid #bfdbfe; text-align: center;">
-                <div
-                    style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #2563eb; margin-bottom: 12px;">
-                    Share the Signal</div>
-                <p style="font-size: 15px; line-height: 1.6; color: #27272a; margin: 0 0 20px;">
-                    Know someone who should be reading this?<br>
-                    Forward this email or share the link below.
+            <div class="share-block">
+                <p class="share-title">[Forward]</p>
+                <p class="share-copy">
+                    If this briefing belongs in a partner inbox, forward it. The best subscribers usually arrive through
+                    trusted operators, not paid acquisition.
                 </p>
                 <a href="https://dailyaiwire.news/subscribe?utm_source=newsletter&utm_medium=email&utm_campaign=referral"
-                    style="display: inline-block; background-color: #2563eb; color: #ffffff; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; padding: 14px 32px; border-radius: 100px;">
-                    Share → dailyaiwire.news/subscribe
-                </a>
+                    class="share-button">dailyaiwire.news/subscribe</a>
             </div>
 
-
             <div class="footer">
-                <div class="brand-name footer-brand">DailyAI<span class="brand-accent">Wire</span></div>
-                <p class="footer-text">
+                <p class="footer-brand">DailyAI<span class="brand-accent">Wire</span></p>
+                <p class="footer-copy">
                     &copy; 2026 DailyAIWire. All rights reserved.<br>
                     You are receiving this intelligence feed because you subscribed at dailyaiwire.news.<br>
                     <a href="https://dailyaiwire.news/unsubscribe" class="footer-link">Unsubscribe</a> from this feed.
@@ -243,8 +418,10 @@
             </div>
         </div>
     </div>
-    <!-- Tracking Pixel -->
-    <img src="{{ tracking_pixel_url }}" width="1" height="1" style="display:none !important;" />
+
+    {% if tracking_pixel_url %}
+    <img src="{{ tracking_pixel_url }}" width="1" height="1" style="display:none !important;" alt="">
+    {% endif %}
 </body>
 
 </html>

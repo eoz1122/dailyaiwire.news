@@ -193,6 +193,13 @@ class TestAdminRoutesAuthenticated:
         resp = auth_client.get('/admin/carousel')
         assert resp.status_code == 200
 
+    def test_admin_newsletter_preview(self, auth_client):
+        resp = auth_client.get('/admin/newsletter/preview')
+        assert resp.status_code == 200
+        assert b'Weekly Intelligence Briefing' in resp.data
+        assert b'[Editorial]' in resp.data
+        assert b'read_full_intelligence();' in resp.data
+
 
 # ── API Routes ───────────────────────────────────────────────────────
 

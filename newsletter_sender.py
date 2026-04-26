@@ -6,6 +6,7 @@ import hashlib
 import logging
 import requests
 import time
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,6 +24,25 @@ def _tracking_token(newsletter_id, email):
     secret = os.getenv('SECRET_KEY', 'fallback-dev-key')
     msg = f"{newsletter_id}:{email}".encode()
     return hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()[:16]
+
+
+def _newsletter_issue_context(newsletter_row):
+    """Build display-friendly issue/date labels for the weekly briefing masthead."""
+    raw_date = (
+        newsletter_row["scheduled_date"]
+        or newsletter_row["created_at"]
+        or ""
+    )
+    try:
+        parsed = datetime.fromisoformat(str(raw_date).replace("Z", "+00:00"))
+    except Exception:
+        parsed = datetime.utcnow()
+
+    iso_week = parsed.isocalendar().week
+    return {
+        "newsletter_date_display": parsed.strftime("%d %b %Y").upper(),
+        "newsletter_issue_label": f"W{iso_week:02d} · {parsed.year}",
+    }
 
 
 def _ensure_tracking_columns(conn):
@@ -118,6 +138,8 @@ def build_email_html(newsletter_id, template='email/briefing.html', recipient_em
         article_metadata = {}
     
     conn.close()
+
+    issue_context = _newsletter_issue_context(nl)
     
     tracking_url = ""
     if recipient_email:
@@ -132,6 +154,8 @@ def build_email_html(newsletter_id, template='email/briefing.html', recipient_em
                                intro_text=nl['intro_text'].replace('\n', '<br>'), 
                                articles=articles,
                                article_metadata=article_metadata,
+                               newsletter_date_display=issue_context['newsletter_date_display'],
+                               newsletter_issue_label=issue_context['newsletter_issue_label'],
                                tracking_pixel_url=tracking_url)
 
 def send_newsletter(newsletter_id, is_apology=False):
