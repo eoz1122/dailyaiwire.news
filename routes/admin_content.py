@@ -197,11 +197,17 @@ def admin_newsletter_preview():
         "103": "Open Source is crossing the rubicon. As parameter counts increase, Meta is commoditizing the model layer, forcing competitors to pivot their moats to data and compute."
     }
 
+    preview_dt = datetime(2026, 4, 26, 18, 0, 0)
+    preview_issue = f"W{preview_dt.isocalendar().week:02d} · {preview_dt.year}"
+
     return render_template('email/briefing.html',
                            subject="[PREVIEW] The Intelligence Briefing: Llama 4 and the Future of Moats",
                            intro_text="This week was a transition from AI as a tool to AI as a teammate. The release of Gemini 2.5 and the rumors surrounding Llama 4 suggest that the scaling laws are still very much in effect, but the 'intelligence' is now moving into the reasoning layer. We are seeing models that don't just predict the next token, but predict the next *intended* outcome.",
                            articles=mock_articles,
-                           article_metadata=mock_metadata)
+                           article_metadata=mock_metadata,
+                           newsletter_date_display=preview_dt.strftime("%d %b %Y").upper(),
+                           newsletter_issue_label=preview_issue,
+                           tracking_pixel_url="")
 
 
 # --- Editorials ---
