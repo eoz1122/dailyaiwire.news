@@ -20,6 +20,46 @@ load_dotenv()
 
 logger = logging.getLogger('social')
 
+
+def _env_int(name, default):
+    try:
+        return max(0, int(os.getenv(name, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+
+class XPostingPause(Exception):
+    def __init__(self, reason, retry_after_seconds, message):
+        super().__init__(message)
+        self.reason = reason
+        self.retry_after_seconds = retry_after_seconds
+
+
+def classify_x_exception(exc):
+    message = str(exc)
+    message_lower = message.lower()
+
+    if (
+        "402" in message
+        or "payment required" in message_lower
+        or "does not have any credits" in message_lower
+    ):
+        return XPostingPause(
+            "billing",
+            _env_int("X_BILLING_BACKOFF_SECONDS", 21600),
+            message,
+        )
+
+    if "429" in message or "too many requests" in message_lower:
+        return XPostingPause(
+            "rate_limit",
+            _env_int("X_RATE_LIMIT_BACKOFF_SECONDS", 3600),
+            message,
+        )
+
+    return None
+
+
 class SocialDistributor:
     def __init__(self):
         # X (Twitter) Credentials
@@ -104,9 +144,9 @@ class SocialDistributor:
             
             return True
         except Exception as e:
-            # CRITICAL LOOP FIX: Re-raise "Too Many Requests" so the scheduler knows to sleep
-            if "429" in str(e) or "Too Many Requests" in str(e):
-                raise e
+            pause = classify_x_exception(e)
+            if pause:
+                raise pause
             logger.error("❌ Error posting to X: %s", e)
             return False
 
