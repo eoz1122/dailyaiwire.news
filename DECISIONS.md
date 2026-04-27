@@ -5,6 +5,39 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-27T23:32:00+02:00 - X Scheduler Resilience: Billing-Aware Backoff for 402 and 429
+
+**Context**: X posting resumed once credits were restored, but the scheduler previously treated `402 Payment Required` as a generic failure and retried again later without explicit billing state. That behavior was noisy and opaque, and the old X failure path also used a blocking `sleep(3600)` that paused the scheduler loop instead of keeping heartbeats visible.
+
+**Changes**:
+- `social_distributor.py`:
+  - Added `XPostingPause` to represent scheduler-level pause signals for X posting.
+  - Added `classify_x_exception()` to map:
+    - `402 Payment Required` / no-credit responses -> `billing` pause
+    - `429 Too Many Requests` -> `rate_limit` pause
+  - `post_to_x()` now raises the pause signal for classified X API errors instead of flattening them into a generic `False`.
+- `tweet_scheduler.py`:
+  - Added `_build_x_backoff_window()` helper for deterministic backoff windows and labels.
+  - Replaced the blocking X-side `time.sleep(3600)` failure path with non-blocking scheduler state:
+    - `x_backoff_until`
+    - `x_backoff_reason`
+  - Scheduler now logs active X backoff state and continues heartbeats cleanly while paused.
+  - Added `X_FAILURE_BACKOFF_SECONDS` env-configurable generic X failure backoff (default `3600`).
+  - Bumped scheduler version to `2.5.1`.
+- `tests/test_x_posting.py` [NEW]:
+  - Added unit coverage for X billing pause classification, rate-limit pause classification, `post_to_x()` raising billing pause signals, and deterministic X backoff window construction.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_x_posting.py` -> passed.
+- `python3 -m pytest -q tests/test_smoke.py -k "editorial_share or admin_newsletter_preview"` -> passed.
+- `python3 -m py_compile social_distributor.py tweet_scheduler.py` -> passed.
+
+**Rollback**:
+- Revert `social_distributor.py`, `tweet_scheduler.py`, and `tests/test_x_posting.py`.
+- If needed, restore the old generic X failure behavior by removing `XPostingPause` classification and the scheduler-level X backoff state.
+
+---
+
 ## 2026-04-27T23:15:00+02:00 - Social Distribution Simplification: Remove Meta Posting, Keep X Only
 
 **Context**: Instagram and Facebook posting had been failing repeatedly in production due to invalid Meta session/account state, while X posting resumed after credits were restored. Continuing to expose Meta posting controls created noise in logs, unnecessary scheduler work, and operational ambiguity.

@@ -26,7 +26,7 @@ logger.debug("[3/6] Date/Time libraries imported")
 logger.debug("[4/6] Dotenv loaded")
 
 logger.debug("[5/6] Importing SocialDistributor...")
-from social_distributor import SocialDistributor
+from social_distributor import SocialDistributor, XPostingPause
 logger.debug("[5.5/6] SocialDistributor imported.")
 
 logger.debug("[6/6] Importing Remove Duplicates...")
@@ -38,7 +38,7 @@ INTERVAL_SECONDS = int(os.getenv('SCHEDULER_INTERVAL_SECONDS', '7200'))  # 2 hou
 QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
-VERSION = "2.5.0"
+VERSION = "2.5.1"
 FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '8'))  # Max Facebook posts per day
 FB_BACKOFF_MAX_HOURS = int(os.getenv('FB_BACKOFF_MAX_HOURS', '48'))  # Maximum backoff window
 FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '10800'))  # 3 hours between FB posts
@@ -46,6 +46,7 @@ FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK tim
 IG_ENABLED = os.getenv('IG_ENABLED', 'false').lower() == 'true'  # Disabled during suspension
 IG_GAP_SECONDS = int(os.getenv('IG_GAP_SECONDS', '10800'))  # 3 hours between IG posts
 META_POSTING_ENABLED = os.getenv('META_POSTING_ENABLED', 'false').lower() == 'true'
+X_FAILURE_BACKOFF_SECONDS = int(os.getenv('X_FAILURE_BACKOFF_SECONDS', '3600'))
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -184,6 +185,19 @@ def _build_article_payload(article):
         'image': article.get('image', ''),
     }
 
+
+def _build_x_backoff_window(reason, seconds, now_utc=None):
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+
+    until = now_utc + timedelta(seconds=max(0, int(seconds)))
+    label = {
+        'billing': 'billing/credits',
+        'rate_limit': 'rate limit',
+        'error': 'generic error',
+    }.get(reason, reason or 'generic error')
+    return until, label
+
 # ── Main Loop ───────────────────────────────────────────────────────
 
 def main_loop():
@@ -202,6 +216,10 @@ def main_loop():
     # Instagram backoff state (rate limit recovery)
     ig_backoff_hours = 0
     ig_backoff_until = None
+
+    # X backoff state (billing/rate-limit/error recovery)
+    x_backoff_until = None
+    x_backoff_reason = None
 
     while True:
         try:
@@ -237,28 +255,68 @@ def main_loop():
             # PLATFORM 1: X (Twitter)
             # ═══════════════════════════════════════════════════════
             try:
-                last_x_time = get_last_post_time()
-                x_gap = (datetime.now(timezone.utc) - last_x_time).total_seconds()
+                now_utc = datetime.now(timezone.utc)
 
-                if x_gap < INTERVAL_SECONDS:
-                    remaining = (INTERVAL_SECONDS - x_gap) / 60
-                    logger.info("🐦 [X] ⏳ %.0f mins until next post.", remaining)
+                if x_backoff_until and now_utc < x_backoff_until:
+                    remaining = (x_backoff_until - now_utc).total_seconds() / 60
+                    logger.warning("🐦 [X] ⏸ Backoff active (%s): %.0f mins remaining.", x_backoff_reason, remaining)
                 else:
-                    x_article = get_next_article_to_share()
-                    if x_article:
-                        payload = _build_article_payload(x_article)
-                        logger.info("🐦 [X] Posting: %s", x_article['title'][:60])
-                        if distributor.post_to_x(payload):
-                            mark_as_shared(x_article['slug'])
-                            logger.info("🐦 [X] ✅ Posted successfully.")
-                            did_any_work = True
-                        else:
-                            logger.warning("🐦 [X] ⚠️ Post failed. Cooling down 1h.")
-                            time.sleep(3600)
+                    if x_backoff_until and now_utc >= x_backoff_until:
+                        x_backoff_until = None
+                        x_backoff_reason = None
+
+                    last_x_time = get_last_post_time()
+                    x_gap = (now_utc - last_x_time).total_seconds()
+
+                    if x_gap < INTERVAL_SECONDS:
+                        remaining = (INTERVAL_SECONDS - x_gap) / 60
+                        logger.info("🐦 [X] ⏳ %.0f mins until next post.", remaining)
                     else:
-                        logger.info("🐦 [X] 📭 No unshared articles.")
+                        x_article = get_next_article_to_share()
+                        if x_article:
+                            payload = _build_article_payload(x_article)
+                            logger.info("🐦 [X] Posting: %s", x_article['title'][:60])
+                            if distributor.post_to_x(payload):
+                                mark_as_shared(x_article['slug'])
+                                logger.info("🐦 [X] ✅ Posted successfully.")
+                                x_backoff_until = None
+                                x_backoff_reason = None
+                                did_any_work = True
+                            else:
+                                x_backoff_until, x_backoff_reason = _build_x_backoff_window(
+                                    'error',
+                                    X_FAILURE_BACKOFF_SECONDS,
+                                    now_utc=now_utc,
+                                )
+                                logger.warning(
+                                    "🐦 [X] ⚠️ Post failed. Backoff engaged (%s) until %s.",
+                                    x_backoff_reason,
+                                    x_backoff_until.strftime('%H:%M UTC'),
+                                )
+                        else:
+                            logger.info("🐦 [X] 📭 No unshared articles.")
+            except XPostingPause as x_pause:
+                x_backoff_until, x_backoff_reason = _build_x_backoff_window(
+                    x_pause.reason,
+                    x_pause.retry_after_seconds,
+                )
+                logger.warning(
+                    "🐦 [X] ⏸ Backoff engaged (%s) until %s.",
+                    x_backoff_reason,
+                    x_backoff_until.strftime('%H:%M UTC'),
+                )
+                logger.error("🐦 [X] ❌ Posting paused: %s", x_pause)
             except Exception as x_err:
+                x_backoff_until, x_backoff_reason = _build_x_backoff_window(
+                    'error',
+                    X_FAILURE_BACKOFF_SECONDS,
+                )
                 logger.error("🐦 [X] ❌ Error: %s", x_err)
+                logger.warning(
+                    "🐦 [X] ⏸ Backoff engaged (%s) until %s.",
+                    x_backoff_reason,
+                    x_backoff_until.strftime('%H:%M UTC'),
+                )
 
             time.sleep(2)  # Brief pause between platform API calls
 
