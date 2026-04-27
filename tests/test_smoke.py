@@ -2,6 +2,52 @@
 Smoke tests — DailyAIWire.news
 Validates that the app boots and all critical routes respond correctly.
 """
+import sqlite3
+
+
+def _seed_published_editorial():
+    import db as db_module
+
+    conn = sqlite3.connect(db_module.DB_PATH)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS blog_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            slug TEXT,
+            content TEXT,
+            subtitle TEXT,
+            author_name TEXT,
+            author_title TEXT,
+            meta_description TEXT,
+            is_published BOOLEAN DEFAULT 0,
+            published_at TIMESTAMP
+        )
+        """
+    )
+    cursor = conn.execute(
+        """
+        INSERT INTO blog_posts (
+            title, slug, content, subtitle, author_name, author_title,
+            meta_description, is_published, published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "Editorial Test",
+            "editorial-test",
+            "<p>Test editorial body</p>",
+            "Editorial subtitle",
+            "Ali Emre Ozen",
+            "The Architect",
+            "Editorial description",
+            1,
+            "2026-04-27 20:00:00",
+        ),
+    )
+    conn.commit()
+    editorial_id = cursor.lastrowid
+    conn.close()
+    return editorial_id
 
 
 # ── App Factory ──────────────────────────────────────────────────────
@@ -199,6 +245,27 @@ class TestAdminRoutesAuthenticated:
         assert b'Weekly Intelligence Briefing' in resp.data
         assert b'[Editorial]' in resp.data
         assert b'read_full_intelligence();' in resp.data
+
+    def test_admin_editorial_share_page_only_shows_x(self, auth_client):
+        editorial_id = _seed_published_editorial()
+
+        resp = auth_client.get(f'/admin/editorial/edit/{editorial_id}')
+
+        assert resp.status_code == 200
+        assert b'Post to X' in resp.data
+        assert b'Post to Instagram' not in resp.data
+        assert b'Post to Facebook' not in resp.data
+
+    def test_admin_editorial_share_rejects_meta_platform(self, auth_client):
+        editorial_id = _seed_published_editorial()
+
+        resp = auth_client.post(
+            f'/admin/editorial/share/{editorial_id}',
+            data={'platform': 'instagram'},
+        )
+
+        assert resp.status_code == 400
+        assert resp.get_json()['error'] == 'Invalid platform'
 
 
 # ── API Routes ───────────────────────────────────────────────────────

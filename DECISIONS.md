@@ -5,6 +5,36 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-27T23:15:00+02:00 - Social Distribution Simplification: Remove Meta Posting, Keep X Only
+
+**Context**: Instagram and Facebook posting had been failing repeatedly in production due to invalid Meta session/account state, while X posting resumed after credits were restored. Continuing to expose Meta posting controls created noise in logs, unnecessary scheduler work, and operational ambiguity.
+
+**Changes**:
+- `tweet_scheduler.py`:
+  - Added `META_POSTING_ENABLED` gate defaulting to `false`.
+  - Scheduler now logs Meta as disabled and skips both Instagram and Facebook posting blocks unless explicitly re-enabled.
+- `routes/admin_content.py`:
+  - Restricted `/admin/editorial/share/<id>` to accept only platform `x`.
+  - Removed manual editorial Instagram/Facebook publishing branches.
+- `templates/admin/edit_editorial.html`:
+  - Social share panel now exposes only `Post to X`.
+  - Removed Instagram/Facebook button handling from the client-side share helper.
+- `social_distributor.py`:
+  - `distribute()` now runs the active X + LinkedIn flow only, with Meta excluded from the aggregate dispatch path.
+- `tests/test_smoke.py`:
+  - Added coverage to verify the editorial admin page only shows X sharing and that Meta platforms are rejected at the route boundary.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_smoke.py -k "editorial_share or admin_newsletter_preview"` -> passed.
+- `python3 -m pytest -q tests/test_instagram.py tests/test_facebook.py` -> passed.
+- `python3 -m py_compile tweet_scheduler.py routes/admin_content.py social_distributor.py` -> passed.
+
+**Rollback**:
+- Set `META_POSTING_ENABLED=true` and restore the removed Instagram/Facebook branches in `routes/admin_content.py` and `templates/admin/edit_editorial.html`.
+- Re-add Meta calls to the scheduler and `SocialDistributor.distribute()` if Meta publishing is intentionally brought back.
+
+---
+
 ## 2026-04-25T20:56:00+02:00 - Fetcher Throughput Recovery: Source Auto-Repair + Google Wire Fallback
 
 **Context**: Production logs showed a sharp drop in saved articles despite fetcher uptime. Root causes were (1) stale/broken source feed URLs, (2) non-RSS endpoints returning HTML, (3) Google News consent/redirect pages causing low-content skips, and (4) fixed-size headline filtering (top 8) under high candidate volume.

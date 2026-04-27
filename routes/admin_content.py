@@ -473,9 +473,9 @@ def admin_generate_audio(id):
 @admin_content_bp.route('/admin/editorial/share/<int:id>', methods=['POST'])
 @login_required
 def admin_share_editorial(id):
-    """Manually post a published editorial to X, Instagram, or Facebook."""
+    """Manually post a published editorial to X."""
     platform = request.form.get('platform', '').lower()
-    if platform not in ('x', 'instagram', 'facebook'):
+    if platform != 'x':
         return jsonify({'ok': False, 'error': 'Invalid platform'}), 400
 
     conn = get_db_connection()
@@ -513,7 +513,6 @@ def admin_share_editorial(id):
         sd = SocialDistributor()
 
         # Patch base URL resolver to use /lab/ path for editorials
-        original_base = sd.base_url
         lab_url = f"https://dailyaiwire.news/lab/{slug}"
 
         if platform == 'x':
@@ -538,56 +537,6 @@ def admin_share_editorial(id):
             resp = client.create_tweet(text=tweet_text)
             logger.info("✅ Editorial posted to X! ID: %s", resp.data['id'])
             return jsonify({'ok': True, 'platform': 'x', 'id': resp.data['id']})
-
-        elif platform == 'instagram':
-            # Reuse SocialDistributor.post_to_instagram with patched slug/url
-            from url_shortener import shorten
-            from ig_card_generator import generate_card
-            from helpers import clean_markdown
-
-            card_path = generate_card(
-                headline=article['headline'],
-                slug=slug,
-                gist=article['gist']
-            )
-            image_url = f"https://dailyaiwire.news/static/img/social/{slug}.png"
-            link = shorten(f"{lab_url}?utm_source=instagram&utm_medium=social&utm_campaign=editorial")
-            caption = f"📝 {article['headline']}\n\n{clean_markdown(article['gist'])[:300]}\n\n🔗 Full Column: {link}\n\n#DailyAIWire #AI #Opinion #TheArchitect"
-
-            import requests as http
-            api_base = "https://graph.facebook.com/v22.0"
-            container = http.post(
-                f"{api_base}/{sd.ig_user_id}/media",
-                data={"image_url": image_url, "caption": caption, "access_token": sd.ig_access_token},
-                timeout=30,
-            ).json()
-            if "error" in container:
-                return jsonify({'ok': False, 'error': container['error'].get('message', 'IG error')}), 500
-            publish = http.post(
-                f"{api_base}/{sd.ig_user_id}/media_publish",
-                data={"creation_id": container["id"], "access_token": sd.ig_access_token},
-                timeout=30,
-            ).json()
-            if "error" in publish:
-                return jsonify({'ok': False, 'error': publish['error'].get('message', 'IG publish error')}), 500
-            logger.info("✅ Editorial posted to Instagram! Media ID: %s", publish.get('id'))
-            return jsonify({'ok': True, 'platform': 'instagram', 'id': publish.get('id')})
-
-        elif platform == 'facebook':
-            from url_shortener import shorten
-            link = shorten(f"{lab_url}?utm_source=facebook&utm_medium=social&utm_campaign=editorial")
-            message = f"📝 {article['headline']}\n\n{article['gist']}\n\n🔗 Read the full column: {link}\n\n#DailyAIWire #AI #Opinion"
-            import requests as http
-            api_base = "https://graph.facebook.com/v22.0"
-            resp = http.post(
-                f"{api_base}/{sd.fb_page_id}/feed",
-                data={"message": message, "link": link, "access_token": sd.fb_page_access_token},
-                timeout=30,
-            ).json()
-            if "error" in resp:
-                return jsonify({'ok': False, 'error': resp['error'].get('message', 'FB error')}), 500
-            logger.info("✅ Editorial posted to Facebook! Post ID: %s", resp.get('id'))
-            return jsonify({'ok': True, 'platform': 'facebook', 'id': resp.get('id')})
 
     except Exception as e:
         logger.error("❌ Editorial social share error (%s): %s", platform, e)

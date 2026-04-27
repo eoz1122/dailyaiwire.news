@@ -45,6 +45,7 @@ FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '10800'))  # 3 hours between FB
 FB_TIMEZONE = pytz.timezone(os.getenv('FB_TIMEZONE', 'Europe/London'))  # UK time
 IG_ENABLED = os.getenv('IG_ENABLED', 'false').lower() == 'true'  # Disabled during suspension
 IG_GAP_SECONDS = int(os.getenv('IG_GAP_SECONDS', '10800'))  # 3 hours between IG posts
+META_POSTING_ENABLED = os.getenv('META_POSTING_ENABLED', 'false').lower() == 'true'
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -190,6 +191,8 @@ def main_loop():
     logger.info("📡 Config: Interval %ds | Quiet %d-%d AM DE | FB Limit %d/day",
                 INTERVAL_SECONDS, QUIET_START, QUIET_END, FB_DAILY_LIMIT)
     logger.info("📡 Mode: DECOUPLED — each platform posts independently")
+    if not META_POSTING_ENABLED:
+        logger.info("📡 Meta posting disabled. Scheduler will post to X only.")
     distributor = SocialDistributor()
 
     # Facebook exponential backoff state
@@ -263,7 +266,9 @@ def main_loop():
             # PLATFORM 2: Instagram
             # ═══════════════════════════════════════════════════════
             try:
-                if not IG_ENABLED:
+                if not META_POSTING_ENABLED:
+                    logger.info("📸 [IG] ⛔ DISABLED - Meta posting removed.")
+                elif not IG_ENABLED:
                     logger.warning("📸 [IG] ⛔ DISABLED — account suspended. Set IG_ENABLED=true to re-enable.")
                 elif ig_backoff_until and datetime.now(timezone.utc) < ig_backoff_until:
                     remaining = (ig_backoff_until - datetime.now(timezone.utc)).total_seconds() / 3600
@@ -306,7 +311,9 @@ def main_loop():
                 uk_now = datetime.now(FB_TIMEZONE)
 
                 # Gate 1: Exponential backoff (rate-limit recovery)
-                if fb_backoff_until and datetime.now(timezone.utc) < fb_backoff_until:
+                if not META_POSTING_ENABLED:
+                    logger.info("📘 [FB] ⛔ DISABLED - Meta posting removed.")
+                elif fb_backoff_until and datetime.now(timezone.utc) < fb_backoff_until:
                     remaining = (fb_backoff_until - datetime.now(timezone.utc)).total_seconds() / 3600
                     logger.info("📘 [FB] ⏳ Backoff: %.1fh remaining.", remaining)
 

@@ -393,10 +393,8 @@ class SocialDistributor:
         # Logic for LinkedIn API (POST /ugcPosts) would go here
         
     def distribute(self, article):
-        """Run all active distribution channels."""
+        """Run the active distribution channels."""
         self.post_to_x(article)
-        self.post_to_instagram(article)
-        self.post_to_facebook(article)
         self.post_to_linkedin(article)
 
 if __name__ == "__main__":
