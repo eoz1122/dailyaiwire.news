@@ -93,9 +93,9 @@ run_supervisor() {
 }
 
 scheduler_pids() {
-    ps -u "$(whoami)" -o pid= -o args= \
+    ps -u "$(whoami)" -o pid= -o comm= -o args= \
         | awk -v python_path="$APP_DIR/venv/bin/python" \
-            'index($0, python_path) && index($0, "tweet_scheduler.py") { print $1 }'
+            '$2 ~ /^python/ && index($0, python_path) && index($0, "tweet_scheduler.py") { print $1 }'
 }
 
 restart_scheduler() {

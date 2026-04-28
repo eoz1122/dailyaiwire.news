@@ -24,3 +24,9 @@ def test_deploy_script_auto_restarts_scheduler_for_social_posting_changes():
     assert "SCHEDULER_CHANGED" in script
     assert "restart_scheduler" in script
     assert "tweet_scheduler\\.py|social_distributor\\.py|url_shortener\\.py|requirements\\.txt" in script
+
+
+def test_deploy_script_scheduler_pid_matcher_requires_python_process():
+    script = DEPLOY_SCRIPT.read_text()
+
+    assert '$2 ~ /^python/' in script
