@@ -38,7 +38,7 @@ INTERVAL_SECONDS = int(os.getenv('SCHEDULER_INTERVAL_SECONDS', '7200'))  # 2 hou
 QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
 TIMEZONE = pytz.timezone(os.getenv('SCHEDULER_TIMEZONE', 'Europe/Berlin'))
-VERSION = "2.5.1"
+VERSION = "2.5.2"
 FB_DAILY_LIMIT = int(os.getenv('FB_DAILY_LIMIT', '8'))  # Max Facebook posts per day
 FB_BACKOFF_MAX_HOURS = int(os.getenv('FB_BACKOFF_MAX_HOURS', '48'))  # Maximum backoff window
 FB_GAP_SECONDS = int(os.getenv('FB_GAP_SECONDS', '10800'))  # 3 hours between FB posts
@@ -178,6 +178,8 @@ def _build_article_payload(article):
     return {
         'headline': article['title'],
         'gist': article['gist'],
+        'why_it_matters': article.get('why_it_matters', ''),
+        'category': article.get('category', ''),
         'seo_slug': article['slug'],
         'source': article.get('source', ''),
         'hashtags': json.loads(article['hashtags']) if article.get('hashtags') else [],

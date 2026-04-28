@@ -5,6 +5,38 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-28T00:08:00+02:00 - X Post Quality: Direct Article Cards and LinkedIn-Style Structure
+
+**Context**: Automated X posts were lower quality than LinkedIn posts and used `s.dailyaiwire.news` short links. The shortener reduced the chance of X rendering the article card image, and the X copy lacked the editorial structure already used in the LinkedIn pipeline.
+
+**Changes**:
+- `social_distributor.py`:
+  - Added `build_x_post_text()` as a reusable, tested X composer.
+  - Replaced short links with direct `https://dailyaiwire.news/article/<slug>?utm_source=twitter...` URLs.
+  - Kept Google indexing notifications on the canonical article URL without UTM parameters.
+  - Added LinkedIn-style structure: headline, category, source line, gist, `Why it matters`, canonical article URL, question, and normalized hashtags.
+  - Normalized malformed hashtags such as `AI Governance` into `#AIGovernance`.
+- `tweet_scheduler.py`:
+  - Added `category` and `why_it_matters` to the X scheduler payload.
+  - Bumped scheduler version to `2.5.2`.
+- `templates/admin/social_queue.html`:
+  - Updated the manual X copy preview to use the same direct URL and editorial structure.
+- `tests/test_x_posting.py`:
+  - Added coverage for direct article URLs, no shortener usage, editorial structure, and hashtag normalization.
+- `tests/test_smoke.py`:
+  - Added admin social queue render coverage to verify direct X article URLs.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_x_posting.py` -> passed.
+- `python3 -m pytest -q tests/test_smoke.py -k "admin_social_queue or admin_newsletter_preview"` -> passed.
+- `python3 -m py_compile social_distributor.py tweet_scheduler.py routes/admin_content.py` -> passed.
+
+**Rollback**:
+- Revert `social_distributor.py`, `tweet_scheduler.py`, `templates/admin/social_queue.html`, `tests/test_x_posting.py`, and `tests/test_smoke.py`.
+- If direct URLs create an unexpected X card issue, restore the old `shorten(...)` call in `post_to_x()` while keeping the rest of the copy formatter.
+
+---
+
 ## 2026-04-27T23:32:00+02:00 - X Scheduler Resilience: Billing-Aware Backoff for 402 and 429
 
 **Context**: X posting resumed once credits were restored, but the scheduler previously treated `402 Payment Required` as a generic failure and retried again later without explicit billing state. That behavior was noisy and opaque, and the old X failure path also used a blocking `sleep(3600)` that paused the scheduler loop instead of keeping heartbeats visible.

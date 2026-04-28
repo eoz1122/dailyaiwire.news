@@ -239,6 +239,13 @@ class TestAdminRoutesAuthenticated:
         resp = auth_client.get('/admin/carousel')
         assert resp.status_code == 200
 
+    def test_admin_social_queue_uses_direct_x_article_url(self, auth_client):
+        resp = auth_client.get('/admin/social-queue')
+        assert resp.status_code == 200
+        assert b'Why it matters:' in resp.data
+        assert b'utm_source=twitter' in resp.data
+        assert b's.dailyaiwire.news' not in resp.data
+
     def test_admin_newsletter_preview(self, auth_client):
         resp = auth_client.get('/admin/newsletter/preview')
         assert resp.status_code == 200
