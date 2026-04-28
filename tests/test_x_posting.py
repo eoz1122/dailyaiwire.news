@@ -94,6 +94,7 @@ def test_build_x_post_text_uses_direct_article_url_and_editorial_structure():
     assert "https://dailyaiwire.news/article/ai-policy-update?utm_source=twitter&utm_medium=social&utm_campaign=auto_post" in tweet_text
     assert "s.dailyaiwire.news" not in tweet_text
     assert "[POLICY]" in tweet_text
+    assert "Source:" not in tweet_text
     assert "Why it matters:" in tweet_text
     assert "This changes how public institutions evaluate AI systems before deployment." in tweet_text
     assert "#AI #Policy #AIGovernance" in tweet_text

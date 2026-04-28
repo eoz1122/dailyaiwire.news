@@ -14,7 +14,7 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
   - Added `build_x_post_text()` as a reusable, tested X composer.
   - Replaced short links with direct `https://dailyaiwire.news/article/<slug>?utm_source=twitter...` URLs.
   - Kept Google indexing notifications on the canonical article URL without UTM parameters.
-  - Added LinkedIn-style structure: headline, category, source line, gist, `Why it matters`, canonical article URL, question, and normalized hashtags.
+  - Added LinkedIn-style structure without a top source line: headline, category, gist, `Why it matters`, canonical article URL, question, and normalized hashtags.
   - Normalized malformed hashtags such as `AI Governance` into `#AIGovernance`.
 - `tweet_scheduler.py`:
   - Added `category` and `why_it_matters` to the X scheduler payload.
