@@ -5,6 +5,38 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-28T17:42:58+02:00 - Deploy Script Restarts X Scheduler for Social Posting Changes
+
+**Context**: Production was on the correct commit, but `tweet_scheduler.py` continued running an old in-memory process after deployment. The deploy script restarted `dailyaiwire` and optional `dailyaiwire_fetcher`, but did not restart the decoupled `tweet_scheduler` Supervisor program, so X posts kept using the old copy formatter until the process was manually restarted.
+
+**Changes**:
+- `deploy_to_vps.sh`:
+  - Added `--with-scheduler` for explicit `tweet_scheduler` restarts.
+  - Auto-detects scheduler-impacting changes in `tweet_scheduler.py`, `social_distributor.py`, `url_shortener.py`, and `requirements.txt`.
+  - Restarts `tweet_scheduler` automatically when those files change.
+  - Falls back to sending `TERM` to the owned scheduler process if limited sudo does not yet include `tweet_scheduler`, relying on Supervisor autorestart.
+  - Includes scheduler restart intent in rollback command output when relevant.
+- `.github/workflows/deploy-production.yml`:
+  - Added a manual `restart_scheduler` input.
+  - Passes `--with-scheduler` to the deploy script when requested.
+- `DEPLOYMENT.md`:
+  - Updated the production baseline to include `tweet_scheduler`.
+  - Documented limited sudoers entries and monitoring commands for `tweet_scheduler`.
+- `tests/test_deploy_script.py`:
+  - Added regression coverage for the scheduler deploy option and scheduler-related auto-restart detection.
+
+**Verification**:
+- `bash -n deploy_to_vps.sh` -> passed.
+- `python3 -m pytest tests/test_deploy_script.py -q` -> passed.
+- `python3 -m pytest tests/test_x_posting.py -q` -> passed.
+- `python3 -m py_compile social_distributor.py tweet_scheduler.py` -> passed.
+
+**Rollback**:
+- Revert `deploy_to_vps.sh`, `.github/workflows/deploy-production.yml`, `DEPLOYMENT.md`, and `tests/test_deploy_script.py`.
+- If the scheduler restart fallback causes trouble, deploy with the previous script version and manually restart `tweet_scheduler` with Supervisor after social posting changes.
+
+---
+
 ## 2026-04-28T00:08:00+02:00 - X Post Quality: Direct Article Cards and LinkedIn-Style Structure
 
 **Context**: Automated X posts were lower quality than LinkedIn posts and used `s.dailyaiwire.news` short links. The shortener reduced the chance of X rendering the article card image, and the X copy lacked the editorial structure already used in the LinkedIn pipeline.

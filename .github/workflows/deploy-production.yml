@@ -13,6 +13,11 @@ on:
         required: true
         default: false
         type: boolean
+      restart_scheduler:
+        description: Restart tweet_scheduler as part of this deploy
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: production-deploy
@@ -45,8 +50,8 @@ jobs:
       - name: Add production host to known_hosts
         run: ssh-keyscan -H "${{ secrets.PROD_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Deploy without fetcher restart
-        if: ${{ inputs.restart_fetcher == false }}
+      - name: Deploy without optional restarts
+        if: ${{ inputs.restart_fetcher == false && inputs.restart_scheduler == false }}
         env:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_USER: ${{ secrets.PROD_USER }}
@@ -54,11 +59,20 @@ jobs:
         run: |
           ssh "${PROD_USER}@${PROD_HOST}" bash -s -- --ref "${DEPLOY_SHA}" < deploy_to_vps.sh
 
-      - name: Deploy with fetcher restart
-        if: ${{ inputs.restart_fetcher == true }}
+      - name: Deploy with optional restarts
+        if: ${{ inputs.restart_fetcher == true || inputs.restart_scheduler == true }}
         env:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_USER: ${{ secrets.PROD_USER }}
           DEPLOY_SHA: ${{ steps.meta.outputs.sha }}
+          RESTART_FETCHER: ${{ inputs.restart_fetcher }}
+          RESTART_SCHEDULER: ${{ inputs.restart_scheduler }}
         run: |
-          ssh "${PROD_USER}@${PROD_HOST}" bash -s -- --ref "${DEPLOY_SHA}" --with-fetcher < deploy_to_vps.sh
+          args=(--ref "${DEPLOY_SHA}")
+          if [[ "${RESTART_FETCHER}" == "true" ]]; then
+            args+=(--with-fetcher)
+          fi
+          if [[ "${RESTART_SCHEDULER}" == "true" ]]; then
+            args+=(--with-scheduler)
+          fi
+          ssh "${PROD_USER}@${PROD_HOST}" bash -s -- "${args[@]}" < deploy_to_vps.sh

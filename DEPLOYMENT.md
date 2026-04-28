@@ -2,11 +2,11 @@
 
 ## Current Production Baseline
 
-Verified on 2026-04-16:
+Verified on 2026-04-28:
 
 - Production app path: `/home/dailyai/dailyaiwire.news`
 - Process manager: Supervisor
-- Active Supervisor programs: `dailyaiwire`, `dailyaiwire_fetcher`
+- Active Supervisor programs: `dailyaiwire`, `dailyaiwire_fetcher`, `tweet_scheduler`
 - Active Google credential path: `/home/dailyai/.secrets/google-cloud.json`
 - Default deploy model: push committed code to GitHub, pull on VPS, restart Supervisor services
 - Avoid direct local-to-VPS sync of uncommitted files. That was the main source of drift during cleanup.
@@ -267,7 +267,14 @@ Validate it once after installation:
 sudo visudo -cf /etc/sudoers.d/dailyaiwire-supervisor
 ```
 
-Do not grant `dailyai` general `supervisorctl` access or broad passwordless sudo. Keep the rule limited to the two DailyAIWire programs above.
+If X posting is enabled through the decoupled scheduler, include the scheduler in the same limited alias:
+
+```sudoers
+Cmnd_Alias DAILYAIWIRE_SUPERVISOR = /usr/bin/supervisorctl restart dailyaiwire, /usr/bin/supervisorctl status dailyaiwire, /usr/bin/supervisorctl restart dailyaiwire_fetcher, /usr/bin/supervisorctl status dailyaiwire_fetcher, /usr/bin/supervisorctl restart tweet_scheduler, /usr/bin/supervisorctl status tweet_scheduler
+dailyai ALL=(root) NOPASSWD: DAILYAIWIRE_SUPERVISOR
+```
+
+Do not grant `dailyai` general `supervisorctl` access or broad passwordless sudo. Keep the rule limited to the DailyAIWire programs above.
 
 ```bash
 # Commit and push first
@@ -285,6 +292,12 @@ This defaults to a web-only deploy. If fetcher-related code changed and you inte
 
 ```bash
 ./deploy_to_vps.sh --ref origin/main --with-fetcher
+```
+
+Scheduler-related changes are auto-detected for `tweet_scheduler.py`, `social_distributor.py`, `url_shortener.py`, and `requirements.txt`. To force a scheduler restart even without detected file changes:
+
+```bash
+./deploy_to_vps.sh --ref origin/main --with-scheduler
 ```
 
 For an intentional rollback to a previous commit:
@@ -313,6 +326,7 @@ Recommended usage:
 4. Deploy the exact ref or SHA you want.
 5. Leave `restart_fetcher` off for normal web-only deploys.
 6. Turn `restart_fetcher` on only when fetcher code or runtime dependencies changed.
+7. Turn `restart_scheduler` on only when you need to force a scheduler restart without scheduler-related file changes.
 
 ---
 
@@ -333,6 +347,7 @@ cd /home/dailyai/dailyaiwire.news
 # Check app status
 sudo -n supervisorctl status dailyaiwire
 sudo -n supervisorctl status dailyaiwire_fetcher
+sudo -n supervisorctl status tweet_scheduler
 
 # View logs
 tail -f /home/dailyai/dailyaiwire.news/logs/gunicorn-error.log
@@ -342,6 +357,7 @@ tail -f /home/dailyai/dailyaiwire.news/logs/supervisor-error.log
 # Restart services
 sudo -n supervisorctl restart dailyaiwire
 sudo -n supervisorctl restart dailyaiwire_fetcher
+sudo -n supervisorctl restart tweet_scheduler
 sudo systemctl restart nginx
 
 # Check Nginx
