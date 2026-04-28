@@ -8,6 +8,7 @@ APP_DIR="${APP_DIR:-/home/dailyai/dailyaiwire.news}"
 REMOTE="${REMOTE:-origin}"
 TARGET_REF="${TARGET_REF:-origin/main}"
 RESTART_FETCHER=0
+RESTART_SCHEDULER=0
 ALLOW_RESET=0
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/health}"
 MAX_HEALTH_ATTEMPTS="${MAX_HEALTH_ATTEMPTS:-20}"
@@ -23,6 +24,7 @@ Usage: deploy_to_vps.sh [options]
 Options:
   --ref <git-ref>         Deploy an exact ref or commit SHA. Default: origin/main
   --with-fetcher          Restart dailyaiwire_fetcher after the app deploy
+  --with-scheduler        Restart tweet_scheduler after the app deploy
   --allow-reset           Allow non-fast-forward reset to the target ref
   --app-dir <path>        Override the application directory
   --health-url <url>      Override the health check URL
@@ -32,6 +34,7 @@ Examples:
   ./deploy_to_vps.sh
   ./deploy_to_vps.sh --ref aa6bd17
   ./deploy_to_vps.sh --ref aa6bd17 --with-fetcher
+  ./deploy_to_vps.sh --ref aa6bd17 --with-scheduler
   ./deploy_to_vps.sh --ref 200556e --allow-reset
 EOF
 }
@@ -61,24 +64,63 @@ detect_supervisor_access() {
         return
     fi
 
-    fail "Cannot control Supervisor as $(whoami). Grant NOPASSWD sudo for '$SUPERVISORCTL_BIN restart dailyaiwire', '$SUPERVISORCTL_BIN status dailyaiwire', '$SUPERVISORCTL_BIN restart dailyaiwire_fetcher', and '$SUPERVISORCTL_BIN status dailyaiwire_fetcher', or run the deploy as a user with direct Supervisor access."
+    fail "Cannot control Supervisor as $(whoami). Grant NOPASSWD sudo for '$SUPERVISORCTL_BIN restart dailyaiwire', '$SUPERVISORCTL_BIN status dailyaiwire', '$SUPERVISORCTL_BIN restart dailyaiwire_fetcher', '$SUPERVISORCTL_BIN status dailyaiwire_fetcher', '$SUPERVISORCTL_BIN restart tweet_scheduler', and '$SUPERVISORCTL_BIN status tweet_scheduler', or run the deploy as a user with direct Supervisor access."
+}
+
+try_supervisor() {
+    local action="$1"
+    local program="$2"
+
+    case "$SUPERVISOR_ACCESS_MODE" in
+        direct)
+            "$SUPERVISORCTL_BIN" "$action" "$program"
+            ;;
+        sudo)
+            "$SUDO_BIN" -n "$SUPERVISORCTL_BIN" "$action" "$program"
+            ;;
+        *)
+            fail "Supervisor access mode is not initialized."
+            ;;
+    esac
 }
 
 run_supervisor() {
     local action="$1"
     local program="$2"
 
-    case "$SUPERVISOR_ACCESS_MODE" in
-        direct)
-            run "$SUPERVISORCTL_BIN" "$action" "$program"
-            ;;
-        sudo)
-            run "$SUDO_BIN" -n "$SUPERVISORCTL_BIN" "$action" "$program"
-            ;;
-        *)
-            fail "Supervisor access mode is not initialized."
-            ;;
-    esac
+    log "+ supervisorctl $action $program"
+    try_supervisor "$action" "$program"
+}
+
+scheduler_pids() {
+    ps -u "$(whoami)" -o pid= -o args= \
+        | awk -v python_path="$APP_DIR/venv/bin/python" \
+            'index($0, python_path) && index($0, "tweet_scheduler.py") { print $1 }'
+}
+
+restart_scheduler() {
+    if try_supervisor restart tweet_scheduler >/dev/null 2>&1; then
+        log "+ supervisorctl restart tweet_scheduler"
+        return
+    fi
+
+    log "Supervisor restart unavailable for tweet_scheduler. Falling back to TERM on the owned scheduler process."
+    local pids
+    pids="$(scheduler_pids)"
+    [[ -n "$pids" ]] || fail "tweet_scheduler is not controllable and no owned scheduler process was found."
+
+    log "+ kill -TERM $pids"
+    kill -TERM $pids
+    sleep 5
+
+    if try_supervisor status tweet_scheduler >/dev/null 2>&1; then
+        log "+ supervisorctl status tweet_scheduler"
+        return
+    fi
+
+    pids="$(scheduler_pids)"
+    [[ -n "$pids" ]] || fail "tweet_scheduler did not restart after TERM fallback."
+    log "tweet_scheduler is running after TERM fallback: $pids"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -90,6 +132,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --with-fetcher)
             RESTART_FETCHER=1
+            shift
+            ;;
+        --with-scheduler)
+            RESTART_SCHEDULER=1
             shift
             ;;
         --allow-reset)
@@ -144,6 +190,11 @@ if git diff --name-only "$PREVIOUS_SHA" "$TARGET_SHA" | grep -Eq '^(fetcher\.py|
     FETCHER_CHANGED=1
 fi
 
+SCHEDULER_CHANGED=0
+if git diff --name-only "$PREVIOUS_SHA" "$TARGET_SHA" | grep -Eq '^(tweet_scheduler\.py|social_distributor\.py|url_shortener\.py|requirements\.txt)$'; then
+    SCHEDULER_CHANGED=1
+fi
+
 if [[ "$PREVIOUS_SHA" != "$TARGET_SHA" ]]; then
     if git merge-base --is-ancestor "$PREVIOUS_SHA" "$TARGET_SHA"; then
         run git merge --ff-only "$TARGET_SHA"
@@ -167,9 +218,20 @@ elif [[ "$FETCHER_CHANGED" -eq 1 ]]; then
     log "If this deploy needs the new fetcher code, rerun with --with-fetcher."
 fi
 
+if [[ "$RESTART_SCHEDULER" -eq 1 || "$SCHEDULER_CHANGED" -eq 1 ]]; then
+    restart_scheduler
+fi
+
 run_supervisor status dailyaiwire
 if [[ "$RESTART_FETCHER" -eq 1 ]]; then
     run_supervisor status dailyaiwire_fetcher
+fi
+if [[ "$RESTART_SCHEDULER" -eq 1 || "$SCHEDULER_CHANGED" -eq 1 ]]; then
+    if ! try_supervisor status tweet_scheduler; then
+        pids="$(scheduler_pids)"
+        [[ -n "$pids" ]] || fail "tweet_scheduler status check failed and no owned scheduler process was found."
+        log "tweet_scheduler process check passed: $pids"
+    fi
 fi
 
 attempt=1
@@ -190,7 +252,12 @@ if [[ "$RESTART_FETCHER" -eq 1 ]]; then
     ROLLBACK_FETCHER_FLAG=" --with-fetcher"
 fi
 
+ROLLBACK_SCHEDULER_FLAG=""
+if [[ "$RESTART_SCHEDULER" -eq 1 || "$SCHEDULER_CHANGED" -eq 1 ]]; then
+    ROLLBACK_SCHEDULER_FLAG=" --with-scheduler"
+fi
+
 log "Health check passed: $HEALTH_RESPONSE"
 log "Deploy complete."
 log "Rollback command:"
-log "  ./deploy_to_vps.sh --ref $PREVIOUS_SHA --allow-reset${ROLLBACK_FETCHER_FLAG}"
+log "  ./deploy_to_vps.sh --ref $PREVIOUS_SHA --allow-reset${ROLLBACK_FETCHER_FLAG}${ROLLBACK_SCHEDULER_FLAG}"
