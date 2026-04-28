@@ -78,8 +78,6 @@
 
 {% if article['category'] %}[{{ article['category']|upper }}]
 {% endif %}
-{% if article['source'] %}Source: {{ article['source'] }}
-{% endif %}
 {{ article['gist']|replace("**", "") }}
 
 {% if article['why_it_matters'] %}Why it matters: {{ article['why_it_matters'] }}

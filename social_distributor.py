@@ -91,7 +91,6 @@ def build_x_post_text(article, base_url):
     why_it_matters = _compact_text(article.get('why_it_matters'))
     question = _compact_text(article.get('thought_provoking_question'))
     category = _compact_text(article.get('category')).upper()
-    source = _compact_text(article.get('source'))
     slug = article.get('seo_slug')
     article_url, tracked_url = _build_tracked_url(base_url, slug)
 
@@ -105,8 +104,6 @@ def build_x_post_text(article, base_url):
     parts = [headline]
     if category:
         parts.append(f"[{category}]")
-    if source:
-        parts.append(f"Source: {source}")
     if gist:
         parts.append(gist)
     if why_it_matters:
