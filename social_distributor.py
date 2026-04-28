@@ -1,6 +1,8 @@
 import os
 import sys
 import logging
+import re
+from urllib.parse import urlencode
 
 # Patch for Python 3.13+ where imghdr was removed (tweepy depends on it)
 if sys.version_info >= (3, 13):
@@ -19,6 +21,8 @@ from helpers import clean_markdown
 load_dotenv()
 
 logger = logging.getLogger('social')
+
+X_HASHTAG_LIMIT = 5
 
 
 def _env_int(name, default):
@@ -60,6 +64,65 @@ def classify_x_exception(exc):
     return None
 
 
+def _compact_text(value):
+    return re.sub(r"\s+", " ", clean_markdown(str(value or ""))).strip()
+
+
+def _normalize_hashtag(tag):
+    cleaned = re.sub(r"[^0-9A-Za-z_]", "", str(tag or "").lstrip("#"))
+    if not cleaned:
+        return ""
+    return f"#{cleaned}"
+
+
+def _build_tracked_url(base_url, slug):
+    article_url = f"{base_url}/article/{slug}"
+    tracking = urlencode({
+        "utm_source": "twitter",
+        "utm_medium": "social",
+        "utm_campaign": "auto_post",
+    })
+    return article_url, f"{article_url}?{tracking}"
+
+
+def build_x_post_text(article, base_url):
+    headline = _compact_text(article.get('headline') or 'New Intelligence')
+    gist = _compact_text(article.get('gist'))
+    why_it_matters = _compact_text(article.get('why_it_matters'))
+    question = _compact_text(article.get('thought_provoking_question'))
+    category = _compact_text(article.get('category')).upper()
+    source = _compact_text(article.get('source'))
+    slug = article.get('seo_slug')
+    article_url, tracked_url = _build_tracked_url(base_url, slug)
+
+    tags = []
+    for tag in article.get('hashtags') or []:
+        normalized = _normalize_hashtag(tag)
+        if normalized and normalized not in tags:
+            tags.append(normalized)
+    tags_str = " ".join(tags[:X_HASHTAG_LIMIT])
+
+    parts = [headline]
+    if category:
+        parts.append(f"[{category}]")
+    if source:
+        parts.append(f"Source: {source}")
+    if gist:
+        parts.append(gist)
+    if why_it_matters:
+        parts.append(f"Why it matters: {why_it_matters}")
+
+    # Keep the canonical article URL visible before optional engagement copy.
+    parts.append(tracked_url)
+
+    if question:
+        parts.append(f"🤔 {question}")
+    if tags_str:
+        parts.append(tags_str)
+
+    return "\n\n".join(parts), article_url
+
+
 class SocialDistributor:
     def __init__(self):
         # X (Twitter) Credentials
@@ -98,37 +161,7 @@ class SocialDistributor:
                 access_token_secret=self.x_access_secret
             )
             
-            headline = article.get('headline', 'New Intelligence')
-            gist = article.get('gist', '')
-            question = article.get('thought_provoking_question', '')
-            slug = article.get('seo_slug')
-            link = shorten(f"{self.base_url}/article/{slug}?utm_source=twitter&utm_medium=social&utm_campaign=auto_post")
-            hashtags = article.get('hashtags', [])
-            
-            # Use provided hashtags only - NO generic fallbacks
-            tags_str = " ".join(hashtags) if hashtags else ""
-            
-            # Clean markdown bolding
-            gist_clean = clean_markdown(gist)
-            
-            source = article.get('source', '')
-            
-            # Construct richer tweet
-            # We have a Blue Tick (Premium X) - NO TRIMMING needed.
-            if source:
-                tweet_text = f"{headline} (Source: {source})\n\n"
-            else:
-                tweet_text = f"{headline}\n\n"
-            
-            tweet_text += f"{gist_clean}\n\n"
-            
-            if tags_str:
-                tweet_text += f"{tags_str}\n\n"
-                
-            if question:
-                tweet_text += f"🤔 {question}\n\n"
-                
-            tweet_text += link
+            tweet_text, article_url = build_x_post_text(article, self.base_url)
             
             logger.info("🐦 X (Twitter) Preview:")
             logger.info("-" * 30)
@@ -140,7 +173,7 @@ class SocialDistributor:
             logger.info("✅ Posted to X! ID: %s", response.data['id'])
             
             # TRIGGER GOOGLE INDEXING (Instant Crawl)
-            notify_google_index(link)
+            notify_google_index(article_url)
             
             return True
         except Exception as e:

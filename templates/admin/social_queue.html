@@ -74,17 +74,24 @@
             <!-- Twitter Content -->
             <div id="wrapper-twitter-{{ article['id'] }}">
                 <textarea id="tweet-{{ article['id'] }}" rows="8"
-                    class="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 font-mono text-sm text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#1da1f2] focus:border-transparent resize-y">{{ article['title'] }} {{ "(Source: " + article['source'] + ")" if article['source'] else "" }}
+                    class="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 font-mono text-sm text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#1da1f2] focus:border-transparent resize-y">{{ article['title'] }}
 
+{% if article['category'] %}[{{ article['category']|upper }}]
+{% endif %}
+{% if article['source'] %}Source: {{ article['source'] }}
+{% endif %}
 {{ article['gist']|replace("**", "") }}
 
-{% if article['hashtags'] %}
-{% for tag in article['hashtags'] %}{{ tag }} {% endfor %}
+{% if article['why_it_matters'] %}Why it matters: {{ article['why_it_matters'] }}
 {% endif %}
 
-🤔 {{ article['thought_provoking_question'] }}
+https://dailyaiwire.news/article/{{ article['slug'] }}?utm_source=twitter&utm_medium=social&utm_campaign=manual_post
 
-https://dailyaiwire.news/article/{{ article['slug'] }}</textarea>
+{% if article['thought_provoking_question'] %}🤔 {{ article['thought_provoking_question'] }}
+{% endif %}
+{% if article['hashtags'] %}
+{% for tag in article['hashtags'] %}{{ tag if tag.startswith('#') else '#' + tag|replace(' ', '') }} {% endfor %}
+{% endif %}</textarea>
 
                 <button onclick="copyToClipboard('tweet-{{ article['id'] }}')"
                     class="mt-2 w-full bg-[#1da1f2] hover:bg-[#1a91da] text-white py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
