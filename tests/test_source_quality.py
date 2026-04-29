@@ -42,6 +42,19 @@ def test_github_quality_gate_allows_min_stars_repo(monkeypatch):
     conn.close()
 
 
+def test_github_quality_gate_rejects_unknown_stars_repo(monkeypatch):
+    conn = _new_cache_conn()
+    monkeypatch.setattr(src, "GITHUB_MIN_STARS", 10)
+    monkeypatch.setattr(src, "_fetch_github_repo_stars_api", lambda owner, repo: None)
+
+    keep = src._passes_github_quality_gate("https://github.com/foo/bar", conn)
+
+    assert keep is False
+    row = conn.execute("SELECT stars FROM repo_quality_cache WHERE repo_key = 'foo/bar'").fetchone()
+    assert row is None
+    conn.close()
+
+
 def test_github_quality_gate_uses_cache(monkeypatch):
     conn = _new_cache_conn()
     monkeypatch.setattr(src, "GITHUB_MIN_STARS", 10)

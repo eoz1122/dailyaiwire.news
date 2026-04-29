@@ -1131,3 +1131,22 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `routes/admin_seo.py`, `templates/admin/seo.html`, the sidebar link in `templates/admin/base_admin.html`, and the blueprint registration in `app.py` if the admin panel causes performance issues.
 - Revert `tests/test_admin_seo.py` and the `admin_seo` blueprint assertion in `tests/test_smoke.py` with the production rollback.
+
+---
+
+## 2026-04-30T00:17:18+02:00 - GitHub Repo Quality Gate Fails Closed on Unknown Stars
+
+**Context**: Production analysis showed the GitHub star gate is active with `GITHUB_MIN_STARS=10`, but low-star repositories can still pass when GitHub API lookup fails or is rate-limited because the gate previously failed open.
+
+**Decision**:
+1. Keep the existing configurable `GITHUB_MIN_STARS` threshold.
+2. Keep non-GitHub URLs unaffected by the GitHub-specific gate.
+3. Reject GitHub repository URLs when star count cannot be verified and no fresh cache value exists.
+4. Preserve cache behavior for verified repos, including low-star cache entries.
+5. Add a regression test for unknown-star GitHub repos.
+
+**Trigger**: SEO and source-quality review on 2026-04-29/2026-04-30 identified low-reputation GitHub repo stories as a content-quality risk for a young domain.
+
+**Rollback**:
+- Revert `fetcher/sources.py` and `tests/test_source_quality.py` if GitHub API availability causes too many legitimate GitHub stories to be skipped.
+- Alternatively set up a valid `GITHUB_TOKEN` in production to reduce unknown-star cases without weakening the gate.

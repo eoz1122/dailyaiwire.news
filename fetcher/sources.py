@@ -183,9 +183,12 @@ def _passes_github_quality_gate(link: str, conn: sqlite3.Connection) -> bool:
         if stars is not None:
             _set_cached_repo_stars(conn, repo_key, stars)
 
-    # Fail open if API is temporarily unavailable.
     if stars is None:
-        return True
+        logger.warning(
+            "Skipped GitHub repo %s because star count could not be verified",
+            repo_key,
+        )
+        return False
 
     if stars < GITHUB_MIN_STARS:
         logger.info(
