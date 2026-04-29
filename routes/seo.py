@@ -19,8 +19,6 @@ seo_bp = Blueprint('seo', __name__)
 
 CORE_SITEMAP_LIMIT = 500
 ARCHIVE_SITEMAP_LIMIT = 400
-ARCHIVE_RECENCY_DAYS = 45
-ARCHIVE_MIN_QUALITY_SCORE = 65
 
 
 def _article_sitemap_lastmod(article, fallback):
@@ -32,8 +30,18 @@ def _article_sitemap_lastmod(article, fallback):
         return fallback
 
 
-def _append_article_sitemap_pages(pages, articles_rows, base_url, priority, changefreq, fallback_lastmod, limit):
+def _append_article_sitemap_pages(
+    pages,
+    articles_rows,
+    base_url,
+    priority,
+    changefreq,
+    fallback_lastmod,
+    limit,
+    skip_eligible=0,
+):
     added = 0
+    eligible_seen = 0
     for art in articles_rows:
         article = dict(art)
         result = score_article(article)
@@ -45,6 +53,11 @@ def _append_article_sitemap_pages(pages, articles_rows, base_url, priority, chan
                 ','.join(result.blockers),
             )
             continue
+
+        if eligible_seen < skip_eligible:
+            eligible_seen += 1
+            continue
+        eligible_seen += 1
 
         pages.append([
             f"{base_url}/article/{article['slug']}",
@@ -444,7 +457,7 @@ def sitemap_archive():
     conn = get_db_connection()
 
     try:
-        # Recovery mode: only recent or high-quality items, capped in size.
+        # Recovery mode: next page of sitemap-eligible articles after core.
         query = """
             SELECT slug, published_at, title, image, category, gist,
                    why_it_matters, bull_case, bear_case, key_details,
@@ -453,23 +466,13 @@ def sitemap_archive():
             FROM articles
             WHERE is_published = 1
             AND replace(published_at, 'T', ' ') <= datetime('now')
-            AND (
-                replace(published_at, 'T', ' ') >= datetime('now', ?)
-                OR (importance_score * COALESCE(compass_score, 0.7)) >= ?
-            )
             ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
                      published_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT ?
         """
-        recency_window = f"-{ARCHIVE_RECENCY_DAYS} day"
         articles_rows = conn.execute(
             query,
-            (
-                recency_window,
-                ARCHIVE_MIN_QUALITY_SCORE,
-                ARCHIVE_SITEMAP_LIMIT * 4,
-                CORE_SITEMAP_LIMIT,
-            ),
+            ((CORE_SITEMAP_LIMIT + ARCHIVE_SITEMAP_LIMIT) * 8,),
         ).fetchall()
         _append_article_sitemap_pages(
             pages,
@@ -479,6 +482,7 @@ def sitemap_archive():
             "monthly",
             now_str,
             ARCHIVE_SITEMAP_LIMIT,
+            skip_eligible=CORE_SITEMAP_LIMIT,
         )
     except Exception as e:
         logger.error("Sitemap Archive Error: %s", e)

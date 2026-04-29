@@ -506,10 +506,10 @@ class TestSitemapCaching:
 
     def test_sitemap_archive_is_contracted_for_indexing_recovery(self, client):
         from routes import seo
+        from services.indexability import SITEMAP_ELIGIBILITY_THRESHOLD
 
         assert seo.ARCHIVE_SITEMAP_LIMIT <= 500
-        assert seo.ARCHIVE_RECENCY_DAYS <= 45
-        assert seo.ARCHIVE_MIN_QUALITY_SCORE >= 65
+        assert SITEMAP_ELIGIBILITY_THRESHOLD >= 88
 
 
 class TestArticleSEOEnhancements:
