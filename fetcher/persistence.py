@@ -3,6 +3,7 @@ Fetcher — Persistence & Post-Processing
 Save articles to DB, social queue processing, Google indexing, Qdrant indexing.
 """
 import json
+import os
 import uuid
 import time
 import random
@@ -32,6 +33,50 @@ _EMBEDDING_TIMEOUT = 30  # R2-04: Max seconds for embedding service calls
 
 # DRIP-FEED: Minutes to add per subsequent article from the same source in one batch.
 _SOURCE_SPREAD_MINUTES = 150
+
+_GENERIC_IMAGE_MARKERS = ("google", "placeholder", "logo", "icon", "pixel")
+
+
+def _is_generic_image_url(image_url) -> bool:
+    image_text = str(image_url or "")
+    if image_text.startswith("/static/img/social/"):
+        return False
+    return (
+        not image_text
+        or not image_text.startswith("http")
+        or any(marker in image_text.lower() for marker in _GENERIC_IMAGE_MARKERS)
+    )
+
+
+def _generated_card_web_path(card_path):
+    if not card_path:
+        return None
+
+    normalized = str(card_path).replace(os.sep, "/")
+    if normalized.startswith("/static/"):
+        return normalized
+    if normalized.startswith("static/"):
+        return f"/{normalized}"
+
+    static_index = normalized.find("/static/")
+    if static_index >= 0:
+        return normalized[static_index:]
+
+    return None
+
+
+def _generate_branded_article_image(headline, slug, gist):
+    try:
+        from ig_card_generator import generate_card
+
+        card_path = generate_card(headline or "DailyAIWire Analysis", slug, gist or "")
+        web_path = _generated_card_web_path(card_path)
+        if web_path:
+            return web_path
+        logger.warning("Generated card path is not web-addressable: %s", card_path)
+    except Exception as exc:
+        logger.warning("Article card generation failed for %s: %s", slug, exc)
+    return None
 
 
 def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0, audio_gen=None):
@@ -170,17 +215,46 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             source_map = {slugify(it['title']): it for it in original_batch}
             original = source_map.get(lookup_slug, original_batch[0])
 
+        # 3. Robust Slug Generation
+        final_slug = art.get('seo_slug')
+        if not final_slug or final_slug == "None" or len(final_slug) < 2:
+            final_slug = slugify(art.get('headline', ''))
+        if not final_slug:
+            final_slug = slugify(original.get('title', 'article'))
+        if not final_slug:
+            final_slug = f"article-{uuid.uuid4().hex[:8]}"
+
+        # R2-02: Cap slug at 120 chars to prevent absurdly long URLs
+        art['seo_slug'] = final_slug[:120]
+        final_slug = art['seo_slug']
+
+        # R2-03: Validate category against whitelist
+        cat = art.get('category', 'Tools')
+        if cat not in VALID_CATEGORIES:
+            logger.warning("Invalid category '%s' for '%s'. Defaulting to 'Tools'.", cat, art.get('headline'))
+            art['category'] = 'Tools'
+
         # 1. Prioritize scraped image
         image_url = original.get('scraped_image')
 
-        # 2. Use image_query if scraped image is missing
+        # 2. Use a generated branded card if scraped image is missing
         source_name = original.get('source', '')
-        is_generic = not image_url or not image_url.startswith('http') or any(x in image_url.lower() for x in ["google", "placeholder", "logo", "icon", "pixel"])
+        is_generic = _is_generic_image_url(image_url)
 
         if source_name == "Google News" and is_generic:
             logger.info("⚠️ Google News article '%s' has no unique image. Using AI fallback.", art.get('headline'))
 
         if is_generic:
+            generated_image = _generate_branded_article_image(
+                art.get('headline', ''),
+                final_slug,
+                art.get('gist', ''),
+            )
+            if generated_image:
+                image_url = generated_image
+
+        # 3. Fall back to category stock images only if card generation failed
+        if _is_generic_image_url(image_url):
             cat = art.get('category', 'Tools')
             cat_map = {
                 "LLMs": [
@@ -276,24 +350,6 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 available_images = images
 
             image_url = random.choice(available_images)
-
-        # 3. Robust Slug Generation
-        final_slug = art.get('seo_slug')
-        if not final_slug or final_slug == "None" or len(final_slug) < 2:
-            final_slug = slugify(art.get('headline', ''))
-        if not final_slug:
-            final_slug = slugify(original.get('title', 'article'))
-        if not final_slug:
-            final_slug = f"article-{uuid.uuid4().hex[:8]}"
-
-        # R2-02: Cap slug at 120 chars to prevent absurdly long URLs
-        art['seo_slug'] = final_slug[:120]
-
-        # R2-03: Validate category against whitelist
-        cat = art.get('category', 'Tools')
-        if cat not in VALID_CATEGORIES:
-            logger.warning("Invalid category '%s' for '%s'. Defaulting to 'Tools'.", cat, art.get('headline'))
-            art['category'] = 'Tools'
 
         try:
             # --- DRIP-FEED: Calculate spread published_at ---

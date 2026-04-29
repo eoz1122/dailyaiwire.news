@@ -1150,3 +1150,23 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `fetcher/sources.py` and `tests/test_source_quality.py` if GitHub API availability causes too many legitimate GitHub stories to be skipped.
 - Alternatively set up a valid `GITHUB_TOKEN` in production to reduce unknown-star cases without weakening the gate.
+
+---
+
+## 2026-04-30T00:27:50+02:00 - Generate Branded Article Cards Before Stock Fallback Images
+
+**Context**: Production SEO audit showed `fallback_image` is the largest recent sitemap blocker. In the latest 1,000 published articles, 368 used stock fallback images, with ArXiv and research sources accounting for most cases because they often lack usable Open Graph images.
+
+**Decision**:
+1. Keep scraped source images as the first choice when they are valid.
+2. When the scraped image is missing or generic, generate a branded article card via `ig_card_generator.generate_card()`.
+3. Store generated cards as `/static/img/social/<slug>.png` article images so they are web-addressable and unique per article.
+4. Keep stock `/static/fallbacks/...` images only as the last-resort path when card generation fails.
+5. Treat `/static/img/social/...` as a usable image in persistence checks while stock fallback paths remain generic for indexability.
+6. Add regression tests for both generated-card success and fallback-on-generation-failure behavior.
+
+**Trigger**: SEO recovery work on 2026-04-30 identified fallback-image volume as the highest-impact content-quality blocker after the GitHub source gate was tightened.
+
+**Rollback**:
+- Revert `fetcher/persistence.py` and `tests/test_persistence_images.py` if card generation causes fetcher latency, image-write errors, or unacceptable visual output.
+- Existing source images and stock fallback behavior remain available as safe fallback paths.
