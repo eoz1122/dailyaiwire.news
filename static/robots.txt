@@ -21,5 +21,3 @@ Allow: /
 
 # Sitemaps
 Sitemap: https://dailyaiwire.news/sitemap.xml
-Sitemap: https://dailyaiwire.news/sitemap-core.xml
-Sitemap: https://dailyaiwire.news/sitemap-archive.xml

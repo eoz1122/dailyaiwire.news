@@ -5,6 +5,34 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-29T13:07:11+02:00 - Search Console Coverage Recovery: Smaller Archive Sitemap and Robots Cleanup
+
+**Context**: Google Search Console coverage export on 2026-04-29 showed `1,676` pages in `Crawled - currently not indexed`, `116` 404s, `42` canonical alternatives, `36` other 4xx, and only `23` indexed pages. Live checks showed the site was technically reachable, query URLs were correctly `noindex, follow`, missing article URLs returned `410 Gone`, and most recent 404s were bot/security probes. The main controllable issue was still crawl-budget dilution from too many archive URLs.
+
+**Changes**:
+- `routes/seo.py`:
+  - Reduced `ARCHIVE_SITEMAP_LIMIT` from `1200` to `400`.
+  - Reduced `ARCHIVE_RECENCY_DAYS` from `180` to `45`.
+  - Kept `ARCHIVE_MIN_QUALITY_SCORE = 65`.
+  - Added `/apple-touch-icon.png` and `/apple-touch-icon-precomposed.png` aliases to the existing favicon asset to reduce repeated icon discovery 404s.
+- `static/robots.txt`:
+  - Kept only `Sitemap: https://dailyaiwire.news/sitemap.xml`, so the sitemap index remains the single source of truth.
+- `tests/test_smoke.py`:
+  - Added regression coverage for single sitemap index exposure in `robots.txt`.
+  - Added coverage for the apple-touch icon aliases.
+  - Added recovery-limit assertions for archive sitemap contraction.
+
+**Verification**:
+- `python3 -m pytest tests/test_smoke.py -k "robots_txt or touch_icon_aliases or sitemap_archive_is_contracted or sitemap_archive_returns_200 or sitemap_core_returns_200 or sitemap_index_cache_header" -q` -> passed.
+- `python3 -m pytest tests/test_smoke.py -q` -> passed.
+- `python3 -m py_compile routes/seo.py` -> passed.
+
+**Rollback**:
+- Revert `routes/seo.py`, `static/robots.txt`, and `tests/test_smoke.py`.
+- If Search Console indexing improves and crawl budget stabilizes, archive size can be increased gradually in small steps rather than restoring the full `1200` URL archive immediately.
+
+---
+
 ## 2026-04-28T17:42:58+02:00 - Deploy Script Restarts X Scheduler for Social Posting Changes
 
 **Context**: Production was on the correct commit, but `tweet_scheduler.py` continued running an old in-memory process after deployment. The deploy script restarted `dailyaiwire` and optional `dailyaiwire_fetcher`, but did not restart the decoupled `tweet_scheduler` Supervisor program, so X posts kept using the old copy formatter until the process was manually restarted.

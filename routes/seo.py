@@ -17,8 +17,8 @@ logger = logging.getLogger('seo')
 seo_bp = Blueprint('seo', __name__)
 
 CORE_SITEMAP_LIMIT = 500
-ARCHIVE_SITEMAP_LIMIT = 1200
-ARCHIVE_RECENCY_DAYS = 180
+ARCHIVE_SITEMAP_LIMIT = 400
+ARCHIVE_RECENCY_DAYS = 45
 ARCHIVE_MIN_QUALITY_SCORE = 65
 
 @seo_bp.route('/rss.xml')
@@ -306,7 +306,7 @@ def sitemap_index():
     
     SEO Strategy (2026-03-16): Tiered sitemap to concentrate crawl budget.
     - sitemap-core.xml: Static pages + top 500 articles (highest quality)
-    - sitemap-archive.xml: Remaining published articles
+    - sitemap-archive.xml: tightly constrained recovery archive
     """
     now_str = datetime.now().strftime('%Y-%m-%d')
     sitemaps = [
@@ -460,6 +460,13 @@ def robots():
 
 @seo_bp.route('/favicon.ico')
 def favicon():
+    return current_app.send_static_file('favicon.png')
+
+
+@seo_bp.route('/apple-touch-icon.png')
+@seo_bp.route('/apple-touch-icon-precomposed.png')
+def apple_touch_icon():
+    """Serve the site icon for common browser/mobile icon discovery paths."""
     return current_app.send_static_file('favicon.png')
 
 

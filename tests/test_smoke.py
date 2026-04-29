@@ -319,6 +319,11 @@ class TestSEORoutes:
     def test_robots_txt(self, client):
         resp = client.get('/robots.txt')
         assert resp.status_code == 200
+        text = resp.get_data(as_text=True)
+        assert text.count('Sitemap:') == 1
+        assert 'Sitemap: https://dailyaiwire.news/sitemap.xml' in text
+        assert 'sitemap-core.xml' not in text
+        assert 'sitemap-archive.xml' not in text
 
     def test_sitemap(self, client):
         resp = client.get('/sitemap.xml')
@@ -341,6 +346,12 @@ class TestSEORoutes:
         resp = client.get('/rss/linkedin')
         assert resp.status_code == 200
         assert b'<rss' in resp.data
+
+    def test_touch_icon_aliases(self, client):
+        for path in ('/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'):
+            resp = client.get(path)
+            assert resp.status_code == 200
+            assert resp.content_type == 'image/png'
 
 
 class TestSEORobotsDirectives:
@@ -492,6 +503,13 @@ class TestSitemapCaching:
         assert resp.status_code == 200
         cc = resp.headers.get('Cache-Control', '')
         assert 'max-age=21600' in cc
+
+    def test_sitemap_archive_is_contracted_for_indexing_recovery(self, client):
+        from routes import seo
+
+        assert seo.ARCHIVE_SITEMAP_LIMIT <= 500
+        assert seo.ARCHIVE_RECENCY_DAYS <= 45
+        assert seo.ARCHIVE_MIN_QUALITY_SCORE >= 65
 
 
 class TestArticleSEOEnhancements:
