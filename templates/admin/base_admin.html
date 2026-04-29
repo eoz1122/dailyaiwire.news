@@ -157,6 +157,18 @@
                     Source Grid
                 </a>
 
+                <a href="{{ url_for('admin_seo.admin_seo') }}"
+                    class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
+                {% if request.endpoint == 'admin_seo.admin_seo' %}bg-cyan-600 text-white border border-cyan-500/50 shadow-cyan-500/20
+                {% else %}bg-gray-50 text-gray-600 hover:bg-cyan-50 hover:text-cyan-600 hover:border-cyan-200 border border-gray-100{% endif %}">
+                    <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 7h18M6 12h12M10 17h4"></path>
+                    </svg>
+                    SEO Index
+                </a>
+
                 <p class="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 mt-6">Growth Engine
                 </p>
 

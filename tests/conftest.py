@@ -53,6 +53,7 @@ def _patch_db(tmp_path_factory):
             shared_at TIMESTAMP,
             is_published INTEGER DEFAULT 1,
             views INTEGER DEFAULT 0,
+            verified_views INTEGER DEFAULT 0,
             audio_plays INTEGER DEFAULT 0,
             design_tokens TEXT,
             compass_score REAL DEFAULT 0.7,
@@ -109,6 +110,27 @@ def _patch_db(tmp_path_factory):
             attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             status TEXT
         )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS article_view_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id INTEGER NOT NULL,
+            visitor_hash TEXT NOT NULL,
+            ip_hash TEXT,
+            user_agent TEXT,
+            path TEXT,
+            is_bot INTEGER DEFAULT 0,
+            counted_verified INTEGER DEFAULT 0,
+            viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_article_view_events_article_visitor_time
+        ON article_view_events(article_id, visitor_hash, viewed_at)
+    ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_article_view_events_viewed_at
+        ON article_view_events(viewed_at)
     ''')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS duplicate_review_queue (

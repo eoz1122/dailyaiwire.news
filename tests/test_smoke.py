@@ -27,7 +27,7 @@ def _seed_published_editorial():
     )
     cursor = conn.execute(
         """
-        INSERT INTO blog_posts (
+        INSERT OR REPLACE INTO blog_posts (
             title, slug, content, subtitle, author_name, author_title,
             meta_description, is_published, published_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -67,7 +67,7 @@ class TestAppBoot:
         from app import app
         bp_names = list(app.blueprints.keys())
         expected = ['auth', 'public', 'api', 'seo', 'lab', 'admin_core',
-                    'admin_content', 'admin_ops', 'admin_carousel']
+                    'admin_content', 'admin_ops', 'admin_carousel', 'admin_seo']
         for bp in expected:
             assert bp in bp_names, f"Blueprint '{bp}' not registered"
 

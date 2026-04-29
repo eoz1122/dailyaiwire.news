@@ -1111,3 +1111,23 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 - Revert `fetcher/ai_processor.py` and `services/lead_extractor.py` if schema validation is found to reject too many valid outputs in production.
 - Revert `remove_duplicates.py`, `ai_dedup.py`, and the `duplicate_review_queue` schema if the team explicitly decides to return to destructive semantic deduplication.
 - Revert `tests/test_ai_governance.py` and `tests/conftest.py` only alongside the production-code rollback so the tests stay aligned with the actual AI contract.
+
+---
+
+## 2026-04-29T22:34:09+02:00 - Read-Only Admin Indexability Control Panel
+
+**Context**: Google Search Console showed a large `Crawled - currently not indexed` backlog. The sitemap now uses an indexability gate, but the admin UI had no way to inspect why specific articles were eligible or excluded without querying the database manually.
+
+**Decision**:
+1. Add a read-only `/admin/seo` panel for authenticated admins.
+2. Reuse `services.indexability.score_article()` so admin diagnostics match sitemap behavior exactly.
+3. Cap each admin scan at the latest 1,000 published articles to keep the route cheap on SQLite.
+4. Support filters for search, source, sitemap status, and blocker code.
+5. Add `/admin/seo.csv` export for the current filtered view.
+6. Add regression tests for authentication, score visibility, filtering, CSV export, and blueprint registration.
+
+**Trigger**: SEO recovery work on 2026-04-29 identified that the next useful operational tool is visibility into sitemap eligibility and blocker reasons before changing fetcher or generation rules.
+
+**Rollback**:
+- Revert `routes/admin_seo.py`, `templates/admin/seo.html`, the sidebar link in `templates/admin/base_admin.html`, and the blueprint registration in `app.py` if the admin panel causes performance issues.
+- Revert `tests/test_admin_seo.py` and the `admin_seo` blueprint assertion in `tests/test_smoke.py` with the production rollback.
