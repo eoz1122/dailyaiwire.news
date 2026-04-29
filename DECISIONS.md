@@ -5,6 +5,38 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-04-29T13:49:18+02:00 - Sitemap Indexability Gate for Quality-First Crawl Budget
+
+**Context**: Article pages already expose source attribution, source links, deep analysis, impact assessment, key details, related links, and `NewsArticle` structured data. The remaining Search Console problem is not missing page sections, but scale: Google sees thousands of similarly structured aggregation pages and indexes only a small subset. A production dry run showed an initial permissive score would mark `6,029` of `6,060` published articles as sitemap-eligible, which would not solve crawl-budget dilution.
+
+**Changes**:
+- `services/indexability.py`:
+  - Added a reusable `score_article()` engine with `SITEMAP_ELIGIBILITY_THRESHOLD = 88`.
+  - Scores article depth, summary quality, impact text, key details, bull/bear tradeoffs, source URL, source class, image quality, and existing `importance_score * compass_score`.
+  - Returns explicit strengths and blockers for future admin visibility.
+- `routes/seo.py`:
+  - Core and archive sitemaps now select more candidates than needed, then include only articles that pass the indexability gate.
+  - Sitemap URLs remain capped at `500` core and `400` archive, but weak/high-importance-thin pages no longer enter just because their numeric importance is high.
+- `tests/test_indexability.py`:
+  - Added RED/GREEN coverage for accepting strong original articles, rejecting thin low-signal articles, and excluding thin high-importance articles from the core sitemap.
+
+**Production Dry Run**:
+- Published articles evaluated: `6,060`.
+- Sitemap-eligible after threshold `88`: `937`.
+- Estimated sitemap output remains `500` core + `400` archive, but from the strongest eligible set.
+- Top exclusion signals: `low_context_source`, `fallback_image`, `thin_analysis`, `key_details`.
+
+**Verification**:
+- `python3 -m pytest tests/test_indexability.py -q` -> passed.
+- `python3 -m pytest tests/test_indexability.py tests/test_smoke.py -q` -> passed.
+- `python3 -m py_compile services/indexability.py routes/seo.py` -> passed.
+
+**Rollback**:
+- Revert `services/indexability.py`, `routes/seo.py`, and `tests/test_indexability.py`.
+- If the threshold proves too strict in Search Console after recrawl, lower `SITEMAP_ELIGIBILITY_THRESHOLD` in small steps and verify sitemap counts before deployment.
+
+---
+
 ## 2026-04-29T13:07:11+02:00 - Search Console Coverage Recovery: Smaller Archive Sitemap and Robots Cleanup
 
 **Context**: Google Search Console coverage export on 2026-04-29 showed `1,676` pages in `Crawled - currently not indexed`, `116` 404s, `42` canonical alternatives, `36` other 4xx, and only `23` indexed pages. Live checks showed the site was technically reachable, query URLs were correctly `noindex, follow`, missing article URLs returned `410 Gone`, and most recent 404s were bot/security probes. The main controllable issue was still crawl-budget dilution from too many archive URLs.

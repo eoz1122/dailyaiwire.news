@@ -10,6 +10,7 @@ from flask import Blueprint, render_template, Response, make_response, current_a
 
 from db import get_db_connection
 from services.editorials import get_combined_lab_posts
+from services.indexability import score_article
 import logging
 
 logger = logging.getLogger('seo')
@@ -20,6 +21,41 @@ CORE_SITEMAP_LIMIT = 500
 ARCHIVE_SITEMAP_LIMIT = 400
 ARCHIVE_RECENCY_DAYS = 45
 ARCHIVE_MIN_QUALITY_SCORE = 65
+
+
+def _article_sitemap_lastmod(article, fallback):
+    try:
+        if 'T' in article['published_at']:
+            return article['published_at'].split('T')[0]
+        return article['published_at'].split(' ')[0]
+    except Exception:
+        return fallback
+
+
+def _append_article_sitemap_pages(pages, articles_rows, base_url, priority, changefreq, fallback_lastmod, limit):
+    added = 0
+    for art in articles_rows:
+        article = dict(art)
+        result = score_article(article)
+        if not result.sitemap_eligible:
+            logger.debug(
+                "Sitemap skipped %s: indexability=%s blockers=%s",
+                article.get('slug'),
+                result.score,
+                ','.join(result.blockers),
+            )
+            continue
+
+        pages.append([
+            f"{base_url}/article/{article['slug']}",
+            priority,
+            changefreq,
+            _article_sitemap_lastmod(article, fallback_lastmod),
+        ])
+        added += 1
+        if added >= limit:
+            break
+    return added
 
 @seo_bp.route('/rss.xml')
 @seo_bp.route('/feed')
@@ -342,27 +378,30 @@ def sitemap_core():
 
     conn = get_db_connection()
 
-    # Top 500 articles ranked by quality (importance_score * compass_score)
+    # Top 500 sitemap-eligible articles ranked by quality.
     try:
         query = """
-            SELECT slug, published_at FROM articles
+            SELECT slug, published_at, title, image, category, gist,
+                   why_it_matters, bull_case, bear_case, key_details,
+                   deep_analysis, source, source_url, importance_score,
+                   compass_score
+            FROM articles
             WHERE is_published = 1
             AND replace(published_at, 'T', ' ') <= datetime('now')
             ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
                      published_at DESC
             LIMIT ?
         """
-        articles_rows = conn.execute(query, (CORE_SITEMAP_LIMIT,)).fetchall()
-        for art in articles_rows:
-            url = f"{base_url}/article/{art['slug']}"
-            try:
-                if 'T' in art['published_at']:
-                    pub_date = art['published_at'].split('T')[0]
-                else:
-                    pub_date = art['published_at'].split(' ')[0]
-            except Exception:
-                pub_date = now_str
-            pages.append([url, 0.8, "daily", pub_date])
+        articles_rows = conn.execute(query, (CORE_SITEMAP_LIMIT * 4,)).fetchall()
+        _append_article_sitemap_pages(
+            pages,
+            articles_rows,
+            base_url,
+            0.8,
+            "daily",
+            now_str,
+            CORE_SITEMAP_LIMIT,
+        )
     except Exception as e:
         logger.error("Sitemap Core Error (Articles): %s", e)
 
@@ -407,7 +446,11 @@ def sitemap_archive():
     try:
         # Recovery mode: only recent or high-quality items, capped in size.
         query = """
-            SELECT slug, published_at FROM articles
+            SELECT slug, published_at, title, image, category, gist,
+                   why_it_matters, bull_case, bear_case, key_details,
+                   deep_analysis, source, source_url, importance_score,
+                   compass_score
+            FROM articles
             WHERE is_published = 1
             AND replace(published_at, 'T', ' ') <= datetime('now')
             AND (
@@ -424,20 +467,19 @@ def sitemap_archive():
             (
                 recency_window,
                 ARCHIVE_MIN_QUALITY_SCORE,
-                ARCHIVE_SITEMAP_LIMIT,
+                ARCHIVE_SITEMAP_LIMIT * 4,
                 CORE_SITEMAP_LIMIT,
             ),
         ).fetchall()
-        for art in articles_rows:
-            url = f"{base_url}/article/{art['slug']}"
-            try:
-                if 'T' in art['published_at']:
-                    pub_date = art['published_at'].split('T')[0]
-                else:
-                    pub_date = art['published_at'].split(' ')[0]
-            except Exception:
-                pub_date = now_str
-            pages.append([url, 0.4, "monthly", pub_date])
+        _append_article_sitemap_pages(
+            pages,
+            articles_rows,
+            base_url,
+            0.4,
+            "monthly",
+            now_str,
+            ARCHIVE_SITEMAP_LIMIT,
+        )
     except Exception as e:
         logger.error("Sitemap Archive Error: %s", e)
 
