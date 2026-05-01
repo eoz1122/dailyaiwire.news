@@ -5,6 +5,29 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-05-01T16:58:02+02:00 - Curated Fallback Images for Onsite Article Cards
+
+**Context**: Science article cards could use `/static/fallbacks/science_1.jpg`, an anatomical heart image that is irrelevant for generic AI research and cognitive-decline coverage. AI Agents fallbacks also pointed at missing `agents_*.jpg` files, which forced browser-level image fallback behavior and made onsite thumbnails inconsistent.
+
+**Changes**:
+- Added `services/image_fallbacks.py` as the shared source of truth for onsite fallback images.
+- Removed the anatomical heart image from the Science fallback pool.
+- Replaced missing AI Agents and Ethics fallback paths with existing neutral technology, society, policy, and security assets.
+- Updated fetcher persistence to use the shared fallback selector for future articles.
+- Updated `scripts/backfill_social_images.py` to repair existing rows that use disallowed or missing fallback images while preserving `social_image` previews.
+
+**Verification**:
+- `python3 -m pytest tests/test_image_fallbacks.py tests/test_backfill_social_images.py tests/test_persistence_images.py -q` -> passed.
+- `python3 -m py_compile services/image_fallbacks.py fetcher/persistence.py scripts/backfill_social_images.py` -> passed.
+- `git diff --check` -> passed.
+- `python3 -m pytest -q` -> passed, `196 passed, 1 skipped`.
+
+**Rollback**:
+- Revert the code commit.
+- If the production backfill has run, restore specific article `image` values manually only where needed. `social_image` does not need rollback because it remains the correct social preview field.
+
+---
+
 ## 2026-05-01T16:31:45+02:00 - Separate Onsite Thumbnails from Social Preview Cards
 
 **Context**: Recent article listing cards were showing generated social cards with oversized headline text, then repeating the same headline in the article card body. This made the homepage look templated and reduced editorial trust. X previews were also unreliable because posted X URLs used UTM query strings that rendered with `noindex`, and static social images were served with `X-Robots-Tag: noindex`.

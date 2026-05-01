@@ -6,7 +6,6 @@ import json
 import os
 import uuid
 import time
-import random
 import sqlite3
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
@@ -19,6 +18,7 @@ from db import DB_PATH, get_db_connection
 from social_distributor import SocialDistributor
 from google_indexer import notify_google_index
 from qa_monitor import run_post_publication_audit
+from services.image_fallbacks import select_category_fallback
 
 logger = logging.getLogger('fetcher.persistence')
 
@@ -46,74 +46,6 @@ def _is_generic_image_url(image_url) -> bool:
         or not image_text.startswith("http")
         or any(marker in image_text.lower() for marker in _GENERIC_IMAGE_MARKERS)
     )
-
-
-def _category_fallback_images(category):
-    cat_map = {
-        "LLMs": [
-            "/static/fallbacks/llms_0.jpg",
-            "/static/fallbacks/llms_1.jpg",
-            "/static/fallbacks/llms_2.jpg",
-            "/static/fallbacks/llms_3.jpg",
-        ],
-        "Robotics": [
-            "/static/fallbacks/robotics_0.jpg",
-            "/static/fallbacks/robotics_1.jpg",
-            "/static/fallbacks/robotics_2.jpg",
-            "/static/fallbacks/robotics_3.jpg",
-            "/static/fallbacks/robotics_4.jpg",
-            "/static/fallbacks/robotics_5.jpg",
-            "/static/fallbacks/robotics_6.jpg",
-            "/static/fallbacks/robotics_7.jpg",
-        ],
-        "Business": [
-            "/static/fallbacks/business_0.jpg",
-            "/static/fallbacks/business_1.jpg",
-            "/static/fallbacks/business_2.jpg",
-            "/static/fallbacks/business_3.jpg",
-            "/static/fallbacks/business_4.jpg",
-            "/static/fallbacks/business_5.jpg",
-            "/static/fallbacks/business_6.jpg",
-            "/static/fallbacks/business_7.jpg",
-            "/static/fallbacks/business_8.jpg",
-        ],
-        "Tools": [
-            "/static/fallbacks/tools_0.jpg",
-            "/static/fallbacks/tools_1.jpg",
-            "/static/fallbacks/tools_2.jpg",
-        ],
-        "Policy": ["/static/fallbacks/policy_0.jpg"],
-        "Science": [
-            "/static/fallbacks/science_0.jpg",
-            "/static/fallbacks/science_1.jpg",
-            "/static/fallbacks/science_2.jpg",
-        ],
-        "Security": [
-            "/static/fallbacks/security_0.jpg",
-            "/static/fallbacks/security_1.jpg",
-            "/static/fallbacks/security_2.jpg",
-        ],
-        "Society": [
-            "/static/fallbacks/society_0.jpg",
-            "/static/fallbacks/society_1.jpg",
-            "/static/fallbacks/society_2.jpg",
-        ],
-        "Ethics": [
-            "/static/fallbacks/ethics_0.jpg",
-            "/static/fallbacks/ethics_1.jpg",
-            "/static/fallbacks/ethics_2.jpg",
-        ],
-        "AI Agents": [
-            "/static/fallbacks/agents_0.jpg",
-            "/static/fallbacks/agents_1.jpg",
-            "/static/fallbacks/agents_2.jpg",
-        ],
-    }
-    return cat_map.get(category, cat_map["Tools"])
-
-
-def _select_category_fallback(category):
-    return random.choice(_category_fallback_images(category))
 
 
 def _generated_card_web_path(card_path):
@@ -324,20 +256,14 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         # Fall back to category stock images for onsite display only.
         if _is_generic_image_url(image_url):
             cat = art.get('category', 'Tools')
-            images = _category_fallback_images(cat)
-
-            # Check the most recently saved article's image to avoid repetition
+            # Check the most recently saved article's image to avoid repetition.
             try:
                 last_img_row = cursor.execute("SELECT image FROM articles ORDER BY id DESC LIMIT 1").fetchone()
                 last_img = last_img_row[0] if last_img_row else None
             except (sqlite3.OperationalError, TypeError):
                 last_img = None
 
-            available_images = [img for img in images if img != last_img]
-            if not available_images:
-                available_images = images
-
-            image_url = random.choice(available_images)
+            image_url = select_category_fallback(cat, avoid=last_img)
 
         if not social_image_url:
             social_image_url = image_url
