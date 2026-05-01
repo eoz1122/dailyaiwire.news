@@ -23,11 +23,12 @@ budget = BudgetTracker()
 
 class LeadExtractor:
     def __init__(self):
-        self.model_name = "gemini-2.0-flash-exp" # Low cost model
+        self.model_name = ai_config.ROUTINE_MODEL
         self.gateway = AIGateway(
             model_name=self.model_name,
             system_instruction=ai_config.get_system_instruction("LeadExtractor"),
             generation_config={"response_mime_type": "application/json"},
+            thinking_budget=ai_config.ROUTINE_THINKING_BUDGET,
             logger_name='lead_extractor',
         )
 

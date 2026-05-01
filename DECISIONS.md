@@ -5,6 +5,31 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-05-01T17:43:24+02:00 - Migrate Shared Gemini Gateway to Google GenAI with Thinking Controls
+
+**Context**: The emergency cost brake moved routine deduplication to Flash-Lite, but the shared `services/ai_gateway.py` still used the deprecated `google.generativeai` SDK. That SDK path did not expose explicit thinking-budget controls, leaving Gemini 2.5 structured calls vulnerable to billable dynamic thinking tokens.
+
+**Changes**:
+- Migrated `services/ai_gateway.py` from `google.generativeai` to `google.genai`.
+- Added per-call `thinking_budget` support through `types.ThinkingConfig`.
+- Set `ARTICLE_THINKING_BUDGET` and `ROUTINE_THINKING_BUDGET` env-controlled defaults in `ai_config.py`, both defaulting to `0`.
+- Applied `ARTICLE_THINKING_BUDGET` to article analysis.
+- Applied `ROUTINE_THINKING_BUDGET` to semantic deduplication and legacy dedup.
+- Moved lead extraction to the routine model path and routine thinking budget.
+- Preserved legacy timeout behavior by translating old second-based `request_options.timeout` to Google GenAI millisecond `HttpOptions.timeout`.
+
+**Verification**:
+- `python3 -m pytest tests/test_ai_governance.py -q` -> passed.
+- `python3 -m py_compile ai_config.py services/ai_gateway.py fetcher/ai_processor.py remove_duplicates.py ai_dedup.py services/lead_extractor.py tests/test_ai_governance.py` -> passed.
+- `git diff --check` -> passed.
+- `python3 -m pytest -q` -> passed, `200 passed, 1 skipped`.
+
+**Rollback**:
+- Revert the code commit.
+- If article quality drops, set `GEMINI_ARTICLE_THINKING_BUDGET` to a positive budget before reverting the full migration.
+
+---
+
 ## 2026-05-01T17:30:53+02:00 - AI Cost Brake for Dedup and Validation Retries
 
 **Context**: Google AI billing jumped sharply in the final week of April 2026. Production logs showed article volume increased, but not enough to explain the spend. The larger issue was that `tweet_scheduler.py` ran semantic duplicate review every 10 minutes, and after source throughput recovered this repeatedly called `gemini-2.5-flash` for recent headline sets. Article analysis also retried paid calls when `INSUFFICIENT_DATA` responses left fields empty, even though those rows were intended to be skipped.

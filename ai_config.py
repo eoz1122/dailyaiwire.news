@@ -9,6 +9,11 @@ DEFAULT_MODEL = os.getenv("GEMINI_ARTICLE_MODEL", "gemini-2.5-flash")
 # Routine classification and duplicate-review tasks must stay on the cheap path.
 ROUTINE_MODEL = os.getenv("GEMINI_ROUTINE_MODEL", "gemini-2.5-flash-lite")
 
+# Gemini 2.5 thinking tokens are billable. Structured JSON tasks do not need
+# reasoning traces by default, but these env vars keep the choice reversible.
+ARTICLE_THINKING_BUDGET = int(os.getenv("GEMINI_ARTICLE_THINKING_BUDGET", "0"))
+ROUTINE_THINKING_BUDGET = int(os.getenv("GEMINI_ROUTINE_THINKING_BUDGET", "0"))
+
 # 2. The Master Persona
 # This is the "Soul" of the AI. All agents must inherit this voice.
 MASTER_PERSONA = """## ROLE

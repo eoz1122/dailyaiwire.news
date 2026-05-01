@@ -22,31 +22,58 @@ class _FakeResponse:
         )
 
 
-def test_ai_gateway_validates_structured_json(monkeypatch):
-    class FakeModel:
-        def __init__(self, *args, **kwargs):
-            pass
+def _patch_fake_genai_client(monkeypatch, response_text: str):
+    calls = []
 
-        def generate_content(self, *args, **kwargs):
-            return _FakeResponse(
-                '```json\n{"company_name":"Acme AI","email":"team@acme.ai","confidence":88,"product_value":"HIGH_VALUE","reason":"Clear enterprise fit"}\n```'
+    class FakeModels:
+        def generate_content(self, *, model, contents, config):
+            calls.append(
+                {
+                    "model": model,
+                    "contents": contents,
+                    "config": config,
+                }
             )
+            return _FakeResponse(response_text)
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.models = FakeModels()
 
     from services import ai_gateway as gateway_module
 
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(gateway_module.genai, "configure", lambda **kwargs: None)
-    monkeypatch.setattr(gateway_module.genai, "GenerativeModel", FakeModel)
+    monkeypatch.setattr(gateway_module.genai, "Client", FakeClient)
+    return calls
 
-    gateway = AIGateway("gemini-test")
+
+def test_ai_gateway_validates_structured_json(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    calls = _patch_fake_genai_client(
+        monkeypatch,
+        '```json\n{"company_name":"Acme AI","email":"team@acme.ai","confidence":88,"product_value":"HIGH_VALUE","reason":"Clear enterprise fit"}\n```',
+    )
+
+    gateway = AIGateway(
+        "gemini-test",
+        system_instruction="system",
+        generation_config={"response_mime_type": "application/json"},
+        thinking_budget=0,
+    )
     result, _response = gateway.generate_structured(
         "extract",
         LeadExtractionResult,
         prompt_type="test_lead_extraction",
+        request_options={"timeout": 600},
     )
 
     assert result.company_name == "Acme AI"
     assert result.email == "team@acme.ai"
+    assert calls[0]["model"] == "gemini-test"
+    assert calls[0]["contents"] == "extract"
+    assert calls[0]["config"].system_instruction == "system"
+    assert calls[0]["config"].response_mime_type == "application/json"
+    assert calls[0]["config"].thinking_config.thinking_budget == 0
+    assert calls[0]["config"].http_options.timeout == 600000
 
     conn = sqlite3.connect(db.DB_PATH)
     row = conn.execute(
@@ -57,20 +84,11 @@ def test_ai_gateway_validates_structured_json(monkeypatch):
 
 
 def test_ai_gateway_logs_total_tokens_including_thoughts(monkeypatch):
-    class FakeModel:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def generate_content(self, *args, **kwargs):
-            return _FakeResponse(
-                '{"company_name":"Acme AI","email":"team@acme.ai","confidence":88,"product_value":"HIGH_VALUE","reason":"Clear enterprise fit"}'
-            )
-
-    from services import ai_gateway as gateway_module
-
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(gateway_module.genai, "configure", lambda **kwargs: None)
-    monkeypatch.setattr(gateway_module.genai, "GenerativeModel", FakeModel)
+    _patch_fake_genai_client(
+        monkeypatch,
+        '{"company_name":"Acme AI","email":"team@acme.ai","confidence":88,"product_value":"HIGH_VALUE","reason":"Clear enterprise fit"}',
+    )
 
     gateway = AIGateway("gemini-test")
     gateway.generate_structured(

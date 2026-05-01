@@ -8,7 +8,8 @@ import os
 import sqlite3
 from typing import Any
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from pydantic import TypeAdapter
 
 import db
@@ -30,8 +31,27 @@ def _strip_markdown_fences(text: str) -> str:
     return cleaned
 
 
+def _normalize_timeout_ms(request_options: dict[str, Any] | None) -> int | None:
+    if not request_options:
+        return None
+
+    timeout = request_options.get("timeout")
+    if timeout is None:
+        return None
+
+    timeout_value = float(timeout)
+    if timeout_value <= 0:
+        return None
+
+    # Legacy google.generativeai accepted seconds; google-genai HttpOptions uses ms.
+    if timeout_value <= 3600:
+        timeout_value *= 1000
+
+    return int(timeout_value)
+
+
 class AIGateway:
-    """Thin structured-output wrapper around google.generativeai."""
+    """Thin structured-output wrapper around google-genai."""
 
     def __init__(
         self,
@@ -39,20 +59,43 @@ class AIGateway:
         *,
         system_instruction: str | None = None,
         generation_config: dict[str, Any] | None = None,
+        thinking_budget: int | None = None,
         logger_name: str = 'ai_gateway',
     ):
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY not found in environment variables.")
 
-        genai.configure(api_key=api_key)
         self.model_name = model_name
+        self.system_instruction = system_instruction
+        self.generation_config = generation_config or {}
+        self.thinking_budget = thinking_budget
         self.logger = logging.getLogger(logger_name)
-        self.model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=system_instruction,
-            generation_config=generation_config or {},
-        )
+        self.client = genai.Client(api_key=api_key)
+
+    def _build_config(
+        self,
+        generation_config: dict[str, Any] | None,
+        request_options: dict[str, Any] | None,
+    ) -> types.GenerateContentConfig:
+        config_data = dict(self.generation_config)
+        if generation_config:
+            config_data.update(generation_config)
+
+        if self.system_instruction:
+            config_data.setdefault("system_instruction", self.system_instruction)
+
+        if self.thinking_budget is not None:
+            config_data.setdefault(
+                "thinking_config",
+                types.ThinkingConfig(thinking_budget=self.thinking_budget),
+            )
+
+        timeout_ms = _normalize_timeout_ms(request_options)
+        if timeout_ms is not None:
+            config_data.setdefault("http_options", types.HttpOptions(timeout=timeout_ms))
+
+        return types.GenerateContentConfig(**config_data)
 
     def generate_structured(
         self,
@@ -66,10 +109,10 @@ class AIGateway:
         response = None
         raw_text = ""
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=generation_config,
-                request_options=request_options,
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=self._build_config(generation_config, request_options),
             )
             raw_text = getattr(response, 'text', '') or ''
             payload = json.loads(_strip_markdown_fences(raw_text))

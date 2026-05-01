@@ -42,6 +42,7 @@ def process_batch(batch: List[Dict]):
         model_name=model_name,
         system_instruction=ai_config.get_system_instruction("Strategist"),
         generation_config=ai_config.GENERATION_CONFIG,
+        thinking_budget=ai_config.ARTICLE_THINKING_BUDGET,
         logger_name='fetcher.ai',
     )
 

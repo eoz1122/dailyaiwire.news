@@ -124,6 +124,7 @@ def ai_deduplicate(recent_only=True):
             model_name=ai_config.ROUTINE_MODEL,
             system_instruction=ai_config.get_system_instruction("Deduplicator"),
             generation_config={"response_mime_type": "application/json", "temperature": 0},
+            thinking_budget=ai_config.ROUTINE_THINKING_BUDGET,
             logger_name='remove_duplicates',
         )
 
