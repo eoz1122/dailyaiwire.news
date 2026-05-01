@@ -115,7 +115,11 @@ class AIGateway:
             if usage is not None:
                 prompt_tokens = getattr(usage, 'prompt_token_count', 0) or 0
                 output_tokens = getattr(usage, 'candidates_token_count', 0) or 0
-                token_total = float(prompt_tokens + output_tokens)
+                thoughts_tokens = getattr(usage, 'thoughts_token_count', 0) or 0
+                token_total = getattr(usage, 'total_token_count', None)
+                if token_total is None:
+                    token_total = prompt_tokens + output_tokens + thoughts_tokens
+                token_total = float(token_total)
 
             stored_response = response_text
             if error_text:

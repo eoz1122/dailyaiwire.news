@@ -3,8 +3,11 @@ import os
 # --- GLOBAL AI CONFIGURATION ---
 
 # 1. Model Selection
-# We use Gemini 1.5 Flash for high-speed, cost-effective intelligence synthesis.
-DEFAULT_MODEL = "gemini-2.5-flash"
+# High-value article synthesis keeps the stronger model.
+DEFAULT_MODEL = os.getenv("GEMINI_ARTICLE_MODEL", "gemini-2.5-flash")
+
+# Routine classification and duplicate-review tasks must stay on the cheap path.
+ROUTINE_MODEL = os.getenv("GEMINI_ROUTINE_MODEL", "gemini-2.5-flash-lite")
 
 # 2. The Master Persona
 # This is the "Soul" of the AI. All agents must inherit this voice.

@@ -3,6 +3,7 @@ import re
 import sqlite3
 import difflib
 import os
+import hashlib
 from dotenv import load_dotenv
 
 import ai_config
@@ -13,6 +14,8 @@ from services.duplicate_review import flag_duplicate_pair
 
 load_dotenv()
 
+DEDUP_SIGNATURE_RETENTION_DAYS = int(os.getenv("AI_DEDUP_SIGNATURE_RETENTION_DAYS", "7"))
+
 def tokenize(text):
     if not text: return set()
     return set(re.findall(r'\w+', text.lower()))
@@ -22,6 +25,35 @@ def get_jaccard_sim(t1, t2):
     s2 = tokenize(t2)
     if not s1 or not s2: return 0.0
     return len(s1 & s2) / len(s1 | s2)
+
+
+def ensure_ai_dedup_run_table(cursor):
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_dedup_runs (
+            prompt_hash TEXT PRIMARY KEY,
+            article_count INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+
+def _dedup_signature(articles):
+    payload = "\n".join(f"{article_id}:{title}" for article_id, title in articles)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _claim_ai_dedup_signature(cursor, articles):
+    ensure_ai_dedup_run_table(cursor)
+    cursor.execute(
+        "DELETE FROM ai_dedup_runs WHERE created_at < datetime('now', ?)",
+        (f"-{DEDUP_SIGNATURE_RETENTION_DAYS} days",),
+    )
+    signature = _dedup_signature(articles)
+    cursor.execute(
+        "INSERT OR IGNORE INTO ai_dedup_runs (prompt_hash, article_count) VALUES (?, ?)",
+        (signature, len(articles)),
+    )
+    return cursor.rowcount == 1
 
 def ai_deduplicate(recent_only=True):
     """Uses Gemini to identify semantically identical topics.
@@ -47,12 +79,19 @@ def ai_deduplicate(recent_only=True):
         print("   (Checking only articles from last hour to protect published content)")
     else:
         cursor.execute("SELECT id, title FROM articles ORDER BY id DESC LIMIT 100")
-    
+
     articles = cursor.fetchall()
-    
+
     if len(articles) < 2:
         conn.close()
         return
+
+    if recent_only and not _claim_ai_dedup_signature(cursor, articles):
+        conn.commit()
+        conn.close()
+        print("⏭️ AI dedup skipped: recent headline set already reviewed.")
+        return
+    conn.commit()
 
     article_map = {article_id: title for article_id, title in articles}
     titles_list = [f"{a[0]}: {a[1]}" for a in articles]
@@ -82,9 +121,9 @@ def ai_deduplicate(recent_only=True):
 
     try:
         gateway = AIGateway(
-            model_name='gemini-2.5-flash',
+            model_name=ai_config.ROUTINE_MODEL,
             system_instruction=ai_config.get_system_instruction("Deduplicator"),
-            generation_config={"response_mime_type": "application/json"},
+            generation_config={"response_mime_type": "application/json", "temperature": 0},
             logger_name='remove_duplicates',
         )
 

@@ -3,7 +3,7 @@ Pydantic schemas for structured Gemini outputs.
 """
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class DesignTokens(BaseModel):
@@ -27,21 +27,21 @@ class ArticleAnalysis(BaseModel):
 
     status: Literal["SUCCESS", "INSUFFICIENT_DATA"]
     batch_id: int
-    headline: str
-    seo_slug: str
+    headline: str | None = None
+    seo_slug: str | None = None
     image_query: str = ""
-    category: str
-    gist: str
+    category: str | None = None
+    gist: str | None = None
     key_details: list[str] = Field(default_factory=list)
-    why_it_matters: str
-    optimistic_outlook: str
-    pessimistic_outlook: str
+    why_it_matters: str | None = None
+    optimistic_outlook: str | None = None
+    pessimistic_outlook: str | None = None
     hashtags: list[str] = Field(default_factory=list)
-    thought_provoking_question: str
-    eli5: str
-    importance_score: int
-    deep_analysis: str
-    narration_script: str
+    thought_provoking_question: str | None = None
+    eli5: str | None = None
+    importance_score: int = 0
+    deep_analysis: str | None = None
+    narration_script: str | None = None
     metadata: ArticleMetadata = Field(default_factory=ArticleMetadata)
     design_tokens: DesignTokens = Field(default_factory=DesignTokens)
     mermaid_diagram: str | None = None
@@ -52,13 +52,11 @@ class ArticleAnalysis(BaseModel):
         'eli5', 'deep_analysis', 'narration_script', mode='before'
     )
     @classmethod
-    def _normalize_required_text(cls, value: Any) -> str:
+    def _normalize_text(cls, value: Any) -> str | None:
         if value is None:
-            raise ValueError("required text field missing")
+            return None
         text = str(value).strip()
-        if not text:
-            raise ValueError("required text field empty")
-        return text
+        return text or None
 
     @field_validator('image_query', mode='before')
     @classmethod
@@ -80,8 +78,23 @@ class ArticleAnalysis(BaseModel):
     @field_validator('importance_score', mode='before')
     @classmethod
     def _normalize_importance_score(cls, value: Any) -> int:
-        score = int(value)
+        score = int(value or 0)
         return max(0, min(100, score))
+
+    @model_validator(mode='after')
+    def _success_requires_content(self):
+        if self.status != "SUCCESS":
+            return self
+
+        required_fields = (
+            'headline', 'seo_slug', 'category', 'gist', 'why_it_matters',
+            'optimistic_outlook', 'pessimistic_outlook', 'thought_provoking_question',
+            'eli5', 'deep_analysis', 'narration_script',
+        )
+        missing = [field for field in required_fields if not getattr(self, field)]
+        if missing:
+            raise ValueError(f"SUCCESS article missing required fields: {', '.join(missing)}")
+        return self
 
 
 class LeadExtractionResult(BaseModel):

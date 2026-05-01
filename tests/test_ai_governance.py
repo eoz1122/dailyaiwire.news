@@ -14,7 +14,12 @@ from services.ai_schemas import DuplicatePair, DuplicateReviewPayload, LeadExtra
 class _FakeResponse:
     def __init__(self, text: str):
         self.text = text
-        self.usage_metadata = SimpleNamespace(prompt_token_count=10, candidates_token_count=5)
+        self.usage_metadata = SimpleNamespace(
+            prompt_token_count=10,
+            candidates_token_count=5,
+            thoughts_token_count=20,
+            total_token_count=35,
+        )
 
 
 def test_ai_gateway_validates_structured_json(monkeypatch):
@@ -51,12 +56,85 @@ def test_ai_gateway_validates_structured_json(monkeypatch):
     assert row == ("test_lead_extraction", "gemini-test")
 
 
+def test_ai_gateway_logs_total_tokens_including_thoughts(monkeypatch):
+    class FakeModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate_content(self, *args, **kwargs):
+            return _FakeResponse(
+                '{"company_name":"Acme AI","email":"team@acme.ai","confidence":88,"product_value":"HIGH_VALUE","reason":"Clear enterprise fit"}'
+            )
+
+    from services import ai_gateway as gateway_module
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(gateway_module.genai, "configure", lambda **kwargs: None)
+    monkeypatch.setattr(gateway_module.genai, "GenerativeModel", FakeModel)
+
+    gateway = AIGateway("gemini-test")
+    gateway.generate_structured(
+        "extract",
+        LeadExtractionResult,
+        prompt_type="test_total_token_logging",
+    )
+
+    conn = sqlite3.connect(db.DB_PATH)
+    row = conn.execute(
+        "SELECT cost_estimate FROM ai_logs WHERE prompt_type = 'test_total_token_logging' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+
+    assert row == (35.0,)
+
+
+def test_insufficient_data_article_allows_empty_fields():
+    from services.ai_schemas import ArticleAnalysis
+
+    result = ArticleAnalysis(
+        status="INSUFFICIENT_DATA",
+        batch_id=0,
+        headline=None,
+        seo_slug=None,
+        category=None,
+        gist="",
+        key_details=[],
+        why_it_matters=None,
+        optimistic_outlook=None,
+        pessimistic_outlook=None,
+        thought_provoking_question=None,
+        eli5=None,
+        importance_score=None,
+        deep_analysis=None,
+        narration_script=None,
+    )
+
+    assert result.status == "INSUFFICIENT_DATA"
+    assert result.importance_score == 0
+
+
+def test_success_article_still_requires_content():
+    from services.ai_schemas import ArticleAnalysis
+
+    with pytest.raises(ValueError, match="SUCCESS article missing required fields"):
+        ArticleAnalysis(
+            status="SUCCESS",
+            batch_id=0,
+            headline="",
+            seo_slug="",
+            category="Tools",
+            gist="",
+        )
+
+
 def test_process_batch_does_not_mark_sent_to_api_before_validation(monkeypatch):
     recorded_statuses = []
 
+    calls = []
+
     class FakeGateway:
         def __init__(self, *args, **kwargs):
-            pass
+            calls.append(kwargs.get("model_name") or args[0])
 
         def generate_structured(self, *args, **kwargs):
             return ([
@@ -161,9 +239,11 @@ def test_ai_dedup_flags_review_without_deleting_articles(monkeypatch):
     conn.commit()
     conn.close()
 
+    calls = []
+
     class FakeGateway:
         def __init__(self, *args, **kwargs):
-            pass
+            calls.append(kwargs.get("model_name") or args[0])
 
         def generate_structured(self, *args, **kwargs):
             return (
@@ -181,6 +261,7 @@ def test_ai_dedup_flags_review_without_deleting_articles(monkeypatch):
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     monkeypatch.setattr(remove_duplicates, "AIGateway", FakeGateway)
+    monkeypatch.setattr(remove_duplicates.ai_config, "ROUTINE_MODEL", "gemini-routine-test")
 
     remove_duplicates.ai_deduplicate(recent_only=False)
 
@@ -198,3 +279,57 @@ def test_ai_dedup_flags_review_without_deleting_articles(monkeypatch):
 
     assert after_count == before_count
     assert review_row == (keep_id, delete_id, "AI_SEMANTIC", "PENDING_REVIEW")
+    assert calls == ["gemini-routine-test"]
+
+
+def test_recent_ai_dedup_skips_repeated_headline_signature(monkeypatch):
+    conn = sqlite3.connect(db.DB_PATH)
+    cur = conn.cursor()
+    for slug, title in (
+        ("dedup-repeat-1", "OpenAI launches repeated cost guard"),
+        ("dedup-repeat-2", "OpenAI repeated cost guard ships"),
+    ):
+        cur.execute(
+            """
+            INSERT INTO articles (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, importance_score, is_published, design_tokens)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+            """,
+            (
+                slug,
+                title,
+                "/static/fallbacks/tools_0.jpg",
+                "Tools",
+                "gist",
+                "impact",
+                "up",
+                "down",
+                "[]",
+                "eli5",
+                "analysis",
+                "Source",
+                f"https://example.com/{slug}",
+                "{}",
+                80,
+                1,
+                "{}",
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+    calls = []
+
+    class FakeGateway:
+        def __init__(self, *args, **kwargs):
+            calls.append("init")
+
+        def generate_structured(self, *args, **kwargs):
+            return DuplicateReviewPayload(duplicate_pairs=[]), _FakeResponse("{}")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(remove_duplicates, "AIGateway", FakeGateway)
+
+    remove_duplicates.ai_deduplicate(recent_only=True)
+    remove_duplicates.ai_deduplicate(recent_only=True)
+
+    assert calls == ["init"]

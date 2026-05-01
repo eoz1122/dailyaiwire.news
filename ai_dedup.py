@@ -66,9 +66,9 @@ def ai_deduplicate():
 
     try:
         gateway = AIGateway(
-            model_name='gemini-2.5-flash',
+            model_name=ai_config.ROUTINE_MODEL,
             system_instruction=ai_config.get_system_instruction("Deduplicator"),
-            generation_config={"response_mime_type": "application/json"},
+            generation_config={"response_mime_type": "application/json", "temperature": 0},
             logger_name='ai_dedup',
         )
         payload, _response = gateway.generate_structured(

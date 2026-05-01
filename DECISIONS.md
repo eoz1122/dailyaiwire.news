@@ -5,6 +5,29 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-05-01T17:30:53+02:00 - AI Cost Brake for Dedup and Validation Retries
+
+**Context**: Google AI billing jumped sharply in the final week of April 2026. Production logs showed article volume increased, but not enough to explain the spend. The larger issue was that `tweet_scheduler.py` ran semantic duplicate review every 10 minutes, and after source throughput recovered this repeatedly called `gemini-2.5-flash` for recent headline sets. Article analysis also retried paid calls when `INSUFFICIENT_DATA` responses left fields empty, even though those rows were intended to be skipped.
+
+**Changes**:
+- Added `GEMINI_ARTICLE_MODEL` and `GEMINI_ROUTINE_MODEL` routing in `ai_config.py`.
+- Kept article synthesis on `gemini-2.5-flash`.
+- Moved semantic duplicate review to `gemini-2.5-flash-lite`.
+- Added `ai_dedup_runs` prompt-signature caching so the scheduler does not pay for the same recent headline set every 10 minutes.
+- Updated `ArticleAnalysis` validation so `INSUFFICIENT_DATA` can carry empty fields and be skipped without paid retries.
+- Updated `ai_logs.cost_estimate` to prefer `total_token_count` and include `thoughts_token_count` when available, improving visibility into billed Gemini 2.5 usage.
+
+**Verification**:
+- `python3 -m pytest tests/test_ai_governance.py -q` -> passed.
+- `python3 -m py_compile ai_config.py services/ai_gateway.py services/ai_schemas.py remove_duplicates.py ai_dedup.py tests/test_ai_governance.py` -> passed.
+- `python3 -m pytest -q` -> passed, `200 passed, 1 skipped`.
+
+**Rollback**:
+- Revert the code commit.
+- If `ai_dedup_runs` exists in production, it can remain unused. It only stores prompt hashes and article counts.
+
+---
+
 ## 2026-05-01T16:58:02+02:00 - Curated Fallback Images for Onsite Article Cards
 
 **Context**: Science article cards could use `/static/fallbacks/science_1.jpg`, an anatomical heart image that is irrelevant for generic AI research and cognitive-decline coverage. AI Agents fallbacks also pointed at missing `agents_*.jpg` files, which forced browser-level image fallback behavior and made onsite thumbnails inconsistent.
