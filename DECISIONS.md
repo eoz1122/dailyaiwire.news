@@ -5,6 +5,27 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-05-01T14:56:42+02:00 - Google Indexing API Audit Trail
+
+**Context**: Article publication already calls Google Indexing API after database insert, but the result was only printed to process logs. That made it hard to prove which article URLs were notified, which attempts failed, and which failures should be retried.
+
+**Changes**:
+- Added `indexing_notifications` as a durable audit table for URL, action, status, status code, response body, error, and attempt timestamp.
+- Added `services/indexing_audit.py` as the single audit helper for schema creation, recording, summary metrics, admin listing, and retry candidate selection.
+- Updated `google_indexer.notify_google_index()` to record `success`, `failed`, `quota_exceeded`, and `skipped` attempts without blocking article publication if audit storage fails.
+- Added `/admin/indexing` and `/admin/indexing.csv` as read-only admin visibility for recent Google Indexing API attempts.
+- Added `scripts/retry_indexing_notifications.py` to retry latest failed or quota-limited URL/action pairs without retrying older failures that later succeeded.
+
+**Verification**:
+- `./.venv/bin/python -m pytest tests/test_indexing_audit.py -q` -> passed.
+- `./.venv/bin/python -m pytest tests/test_smoke.py::TestAppBoot tests/test_indexing_audit.py -q` -> passed.
+
+**Rollback**:
+- Revert `services/indexing_audit.py`, `routes/admin_indexing.py`, `templates/admin/indexing.html`, `scripts/retry_indexing_notifications.py`, and related edits in `google_indexer.py`, `app.py`, `fetcher/db_init.py`, `templates/admin/base_admin.html`, and tests.
+- The rollback does not require data deletion. The `indexing_notifications` table can remain unused if the code is reverted.
+
+---
+
 ## 2026-04-29T13:49:18+02:00 - Sitemap Indexability Gate for Quality-First Crawl Budget
 
 **Context**: Article pages already expose source attribution, source links, deep analysis, impact assessment, key details, related links, and `NewsArticle` structured data. The remaining Search Console problem is not missing page sections, but scale: Google sees thousands of similarly structured aggregation pages and indexes only a small subset. A production dry run showed an initial permissive score would mark `6,029` of `6,060` published articles as sitemap-eligible, which would not solve crawl-budget dilution.

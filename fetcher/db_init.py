@@ -210,6 +210,9 @@ def init_db():
         ON duplicate_review_queue (keep_article_id, duplicate_article_id, detection_method)
     ''')
 
+    from services.indexing_audit import ensure_indexing_notifications_table
+    ensure_indexing_notifications_table(conn)
+
     # Lazy migration: Add compass_score column if missing
     try:
         cursor.execute("SELECT compass_score FROM articles LIMIT 1")

@@ -124,6 +124,10 @@ def init_db_migrations():
             FOREIGN KEY (article_id) REFERENCES articles(id)
         )''')
 
+        # 5. Google Indexing API audit trail
+        from services.indexing_audit import ensure_indexing_notifications_table
+        ensure_indexing_notifications_table(conn)
+
         conn.commit()
     except Exception as e:
         logger.error("Migration failed: %s", e)
@@ -400,6 +404,7 @@ from routes.admin_content import admin_content_bp
 from routes.admin_ops import admin_ops_bp
 from routes.admin_carousel import admin_carousel_bp
 from routes.admin_seo import admin_seo_bp
+from routes.admin_indexing import admin_indexing_bp
 from routes.admin_emergency import admin_emergency_bp, is_emergency_mode
 from routes.signal import signal_bp
 from routes.podcast import podcast_bp
@@ -414,6 +419,7 @@ app.register_blueprint(admin_content_bp)
 app.register_blueprint(admin_ops_bp)
 app.register_blueprint(admin_carousel_bp)
 app.register_blueprint(admin_seo_bp)
+app.register_blueprint(admin_indexing_bp)
 app.register_blueprint(admin_emergency_bp)
 app.register_blueprint(signal_bp)
 app.register_blueprint(podcast_bp)

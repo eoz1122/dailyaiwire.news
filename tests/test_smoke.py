@@ -67,7 +67,8 @@ class TestAppBoot:
         from app import app
         bp_names = list(app.blueprints.keys())
         expected = ['auth', 'public', 'api', 'seo', 'lab', 'admin_core',
-                    'admin_content', 'admin_ops', 'admin_carousel', 'admin_seo']
+                    'admin_content', 'admin_ops', 'admin_carousel', 'admin_seo',
+                    'admin_indexing']
         for bp in expected:
             assert bp in bp_names, f"Blueprint '{bp}' not registered"
 

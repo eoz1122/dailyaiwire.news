@@ -112,6 +112,30 @@ def _patch_db(tmp_path_factory):
         )
     ''')
     conn.execute('''
+        CREATE TABLE IF NOT EXISTS indexing_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL,
+            action TEXT NOT NULL,
+            status TEXT NOT NULL,
+            status_code INTEGER,
+            response_body TEXT,
+            error TEXT,
+            attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_indexing_notifications_attempted_at
+        ON indexing_notifications(attempted_at)
+    ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_indexing_notifications_status
+        ON indexing_notifications(status)
+    ''')
+    conn.execute('''
+        CREATE INDEX IF NOT EXISTS idx_indexing_notifications_url
+        ON indexing_notifications(url)
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS article_view_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             article_id INTEGER NOT NULL,
