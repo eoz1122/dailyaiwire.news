@@ -12,15 +12,18 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Changes**:
 - Migrated `services/ai_gateway.py` from `google.generativeai` to `google.genai`.
 - Added per-call `thinking_budget` support through `types.ThinkingConfig`.
+- Added `AIGateway.generate_text()` so non-JSON decision calls can use the same model routing, logging, timeout, and thinking controls.
 - Set `ARTICLE_THINKING_BUDGET` and `ROUTINE_THINKING_BUDGET` env-controlled defaults in `ai_config.py`, both defaulting to `0`.
 - Applied `ARTICLE_THINKING_BUDGET` to article analysis.
+- Moved headline filtering in `fetcher/sources.py` from direct `google.generativeai` + article model usage to the shared gateway with the routine model.
 - Applied `ROUTINE_THINKING_BUDGET` to semantic deduplication and legacy dedup.
 - Moved lead extraction to the routine model path and routine thinking budget.
 - Preserved legacy timeout behavior by translating old second-based `request_options.timeout` to Google GenAI millisecond `HttpOptions.timeout`.
 
 **Verification**:
 - `python3 -m pytest tests/test_ai_governance.py -q` -> passed.
-- `python3 -m py_compile ai_config.py services/ai_gateway.py fetcher/ai_processor.py remove_duplicates.py ai_dedup.py services/lead_extractor.py tests/test_ai_governance.py` -> passed.
+- `python3 -m pytest tests/test_ai_governance.py tests/test_source_quality.py -q` -> passed.
+- `python3 -m py_compile ai_config.py services/ai_gateway.py fetcher/ai_processor.py fetcher/sources.py remove_duplicates.py ai_dedup.py services/lead_extractor.py tests/test_ai_governance.py tests/test_source_quality.py` -> passed.
 - `git diff --check` -> passed.
 - `python3 -m pytest -q` -> passed, `200 passed, 1 skipped`.
 

@@ -15,18 +15,18 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Tuple
 from urllib.parse import urlparse
 
-import google.generativeai as genai
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
+import ai_config
 from db import DB_PATH
 from fetcher.db_init import get_last_scan_timestamp, get_recent_published_titles, log_processing_attempt
 from fetcher.spam import is_spam, is_ignored_source
+from services.ai_gateway import AIGateway
 
 logger = logging.getLogger('fetcher.sources')
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Budget Tracker
 from budget_tracker import BudgetTracker
@@ -397,8 +397,7 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> Li
     """
 
     try:
-        from ai_config import DEFAULT_MODEL
-        model_name = DEFAULT_MODEL
+        model_name = ai_config.ROUTINE_MODEL
         logger.info("⚡ using AI Model (Filter): %s", model_name)
 
         # Budget Check
@@ -407,8 +406,17 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> Li
              logger.warning("Skipping filter due to budget.")
              return articles[:8]  # Fallback
 
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt, request_options={'timeout': 120})
+        gateway = AIGateway(
+            model_name=model_name,
+            generation_config={"temperature": 0},
+            thinking_budget=ai_config.ROUTINE_THINKING_BUDGET,
+            logger_name='fetcher.sources',
+        )
+        text, response = gateway.generate_text(
+            prompt,
+            prompt_type="headline_filter",
+            request_options={'timeout': 120},
+        )
 
         # Log Usage
         if hasattr(response, 'usage_metadata'):
@@ -418,7 +426,7 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> Li
                  category="Headline Filter"
              )
 
-        text = response.text.replace('Indices:', '').strip()
+        text = text.replace('Indices:', '').strip()
         indices = [int(i.strip()) for i in text.split(',') if i.strip().isdigit()]
 
         filtered = [articles[i] for i in indices if i < len(articles)]

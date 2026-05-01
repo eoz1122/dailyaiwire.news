@@ -142,17 +142,20 @@ def test_build_google_news_context_adds_publisher_and_wire_hint():
 
 def test_filter_high_signal_headlines_caps_results_to_dynamic_target(monkeypatch):
     class _FakeResponse:
-        text = ",".join(str(i) for i in range(16))
         usage_metadata = SimpleNamespace(prompt_token_count=10, candidates_token_count=6)
 
-    class _FakeModel:
+    calls = []
+
+    class _FakeGateway:
         def __init__(self, *args, **kwargs):
-            pass
+            calls.append({"model": kwargs.get("model_name") or args[0], "thinking": kwargs.get("thinking_budget")})
 
-        def generate_content(self, *args, **kwargs):
-            return _FakeResponse()
+        def generate_text(self, *args, **kwargs):
+            return ",".join(str(i) for i in range(16)), _FakeResponse()
 
-    monkeypatch.setattr(src.genai, "GenerativeModel", _FakeModel)
+    monkeypatch.setattr(src, "AIGateway", _FakeGateway)
+    monkeypatch.setattr(src.ai_config, "ROUTINE_MODEL", "gemini-routine-test")
+    monkeypatch.setattr(src.ai_config, "ROUTINE_THINKING_BUDGET", 0)
     monkeypatch.setattr(src.budget, "can_make_request", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(src.budget, "log_request", lambda *_args, **_kwargs: None)
 
@@ -160,3 +163,4 @@ def test_filter_high_signal_headlines_caps_results_to_dynamic_target(monkeypatch
     # target_count for 30 headlines = min(16, max(8, 30//3)) = 10
     filtered = src.filter_high_signal_headlines(articles, recent_titles=[])
     assert len(filtered) == 10
+    assert calls == [{"model": "gemini-routine-test", "thinking": 0}]

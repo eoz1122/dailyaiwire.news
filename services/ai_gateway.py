@@ -109,12 +109,11 @@ class AIGateway:
         response = None
         raw_text = ""
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config=self._build_config(generation_config, request_options),
+            response, raw_text = self._generate(
+                prompt,
+                request_options=request_options,
+                generation_config=generation_config,
             )
-            raw_text = getattr(response, 'text', '') or ''
             payload = json.loads(_strip_markdown_fences(raw_text))
             validated = TypeAdapter(schema).validate_python(payload)
             self._log_interaction(prompt_type, prompt, raw_text, response, error_text=None)
@@ -128,6 +127,42 @@ class AIGateway:
                 error_text=str(exc),
             )
             raise
+
+    def generate_text(
+        self,
+        prompt: str,
+        *,
+        prompt_type: str,
+        request_options: dict[str, Any] | None = None,
+        generation_config: dict[str, Any] | None = None,
+    ):
+        response = None
+        raw_text = ""
+        try:
+            response, raw_text = self._generate(
+                prompt,
+                request_options=request_options,
+                generation_config=generation_config,
+            )
+            self._log_interaction(prompt_type, prompt, raw_text, response, error_text=None)
+            return raw_text, response
+        except Exception as exc:
+            self._log_interaction(prompt_type, prompt, raw_text, response, error_text=str(exc))
+            raise
+
+    def _generate(
+        self,
+        prompt: str,
+        *,
+        request_options: dict[str, Any] | None,
+        generation_config: dict[str, Any] | None,
+    ):
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=self._build_config(generation_config, request_options),
+        )
+        return response, getattr(response, 'text', '') or ''
 
     def _log_interaction(
         self,
