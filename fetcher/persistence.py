@@ -40,12 +40,80 @@ _GENERIC_IMAGE_MARKERS = ("google", "placeholder", "logo", "icon", "pixel")
 def _is_generic_image_url(image_url) -> bool:
     image_text = str(image_url or "")
     if image_text.startswith("/static/img/social/"):
-        return False
+        return True
     return (
         not image_text
         or not image_text.startswith("http")
         or any(marker in image_text.lower() for marker in _GENERIC_IMAGE_MARKERS)
     )
+
+
+def _category_fallback_images(category):
+    cat_map = {
+        "LLMs": [
+            "/static/fallbacks/llms_0.jpg",
+            "/static/fallbacks/llms_1.jpg",
+            "/static/fallbacks/llms_2.jpg",
+            "/static/fallbacks/llms_3.jpg",
+        ],
+        "Robotics": [
+            "/static/fallbacks/robotics_0.jpg",
+            "/static/fallbacks/robotics_1.jpg",
+            "/static/fallbacks/robotics_2.jpg",
+            "/static/fallbacks/robotics_3.jpg",
+            "/static/fallbacks/robotics_4.jpg",
+            "/static/fallbacks/robotics_5.jpg",
+            "/static/fallbacks/robotics_6.jpg",
+            "/static/fallbacks/robotics_7.jpg",
+        ],
+        "Business": [
+            "/static/fallbacks/business_0.jpg",
+            "/static/fallbacks/business_1.jpg",
+            "/static/fallbacks/business_2.jpg",
+            "/static/fallbacks/business_3.jpg",
+            "/static/fallbacks/business_4.jpg",
+            "/static/fallbacks/business_5.jpg",
+            "/static/fallbacks/business_6.jpg",
+            "/static/fallbacks/business_7.jpg",
+            "/static/fallbacks/business_8.jpg",
+        ],
+        "Tools": [
+            "/static/fallbacks/tools_0.jpg",
+            "/static/fallbacks/tools_1.jpg",
+            "/static/fallbacks/tools_2.jpg",
+        ],
+        "Policy": ["/static/fallbacks/policy_0.jpg"],
+        "Science": [
+            "/static/fallbacks/science_0.jpg",
+            "/static/fallbacks/science_1.jpg",
+            "/static/fallbacks/science_2.jpg",
+        ],
+        "Security": [
+            "/static/fallbacks/security_0.jpg",
+            "/static/fallbacks/security_1.jpg",
+            "/static/fallbacks/security_2.jpg",
+        ],
+        "Society": [
+            "/static/fallbacks/society_0.jpg",
+            "/static/fallbacks/society_1.jpg",
+            "/static/fallbacks/society_2.jpg",
+        ],
+        "Ethics": [
+            "/static/fallbacks/ethics_0.jpg",
+            "/static/fallbacks/ethics_1.jpg",
+            "/static/fallbacks/ethics_2.jpg",
+        ],
+        "AI Agents": [
+            "/static/fallbacks/agents_0.jpg",
+            "/static/fallbacks/agents_1.jpg",
+            "/static/fallbacks/agents_2.jpg",
+        ],
+    }
+    return cat_map.get(category, cat_map["Tools"])
+
+
+def _select_category_fallback(category):
+    return random.choice(_category_fallback_images(category))
 
 
 def _generated_card_web_path(card_path):
@@ -234,109 +302,29 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             logger.warning("Invalid category '%s' for '%s'. Defaulting to 'Tools'.", cat, art.get('headline'))
             art['category'] = 'Tools'
 
-        # 1. Prioritize scraped image
-        image_url = original.get('scraped_image')
-
-        # 2. Use a generated branded card if scraped image is missing
+        # Onsite image and social preview image are deliberately separate.
+        # Text-heavy social cards make poor listing thumbnails, but work well
+        # as controlled OG/Twitter preview assets.
+        source_image_url = original.get('scraped_image')
+        image_url = source_image_url if not _is_generic_image_url(source_image_url) else None
         source_name = original.get('source', '')
-        is_generic = _is_generic_image_url(image_url)
+        is_generic = _is_generic_image_url(source_image_url)
 
         if source_name == "Google News" and is_generic:
             logger.info("⚠️ Google News article '%s' has no unique image. Using AI fallback.", art.get('headline'))
 
-        if is_generic:
-            generated_image = _generate_branded_article_image(
-                art.get('headline', ''),
-                final_slug,
-                art.get('gist', ''),
-            )
-            if generated_image:
-                image_url = generated_image
+        social_image_url = _generate_branded_article_image(
+            art.get('headline', ''),
+            final_slug,
+            art.get('gist', ''),
+        )
+        if not social_image_url:
+            social_image_url = image_url
 
-        # 3. Fall back to category stock images only if card generation failed
+        # Fall back to category stock images for onsite display only.
         if _is_generic_image_url(image_url):
             cat = art.get('category', 'Tools')
-            cat_map = {
-                "LLMs": [
-                    "/static/fallbacks/llms_0.jpg",
-                    "/static/fallbacks/llms_1.jpg",
-                    "/static/fallbacks/llms_2.jpg",
-                    "/static/fallbacks/llms_3.jpg"
-                ],
-                "Robotics": [
-                    "/static/fallbacks/robotics_0.jpg",
-                    "/static/fallbacks/robotics_1.jpg",
-                    "/static/fallbacks/robotics_2.jpg",
-                    "/static/fallbacks/robotics_3.jpg",
-                    "/static/fallbacks/robotics_4.jpg",
-                    "/static/fallbacks/robotics_5.jpg",
-                    "/static/fallbacks/robotics_6.jpg",
-                    "/static/fallbacks/robotics_7.jpg"
-                ],
-                "Business": [
-                    "/static/fallbacks/business_0.jpg",
-                    "/static/fallbacks/business_1.jpg",
-                    "/static/fallbacks/business_2.jpg",
-                    "/static/fallbacks/business_3.jpg",
-                    "/static/fallbacks/business_4.jpg",
-                    "/static/fallbacks/business_5.jpg",
-                    "/static/fallbacks/business_6.jpg",
-                    "/static/fallbacks/business_7.jpg",
-                    "/static/fallbacks/business_8.jpg"
-                ],
-                "Tools": [
-                    "/static/fallbacks/tools_0.jpg",
-                    "/static/fallbacks/tools_1.jpg",
-                    "/static/fallbacks/tools_2.jpg"
-                ],
-                "Policy": [
-                    "/static/fallbacks/policy_0.jpg",
-                    "/static/fallbacks/policy_1.jpg",
-                    "/static/fallbacks/policy_2.jpg",
-                    "/static/fallbacks/policy_3.jpg",
-                    "/static/fallbacks/policy_4.jpg",
-                    "/static/fallbacks/policy_5.jpg",
-                    "/static/fallbacks/policy_6.jpg",
-                    "/static/fallbacks/policy_7.jpg"
-                ],
-                "Science": [
-                    "/static/fallbacks/science_0.jpg",
-                    "/static/fallbacks/science_1.jpg",
-                    "/static/fallbacks/science_2.jpg",
-                    "/static/fallbacks/science_3.jpg",
-                    "/static/fallbacks/science_4.jpg",
-                    "/static/fallbacks/science_5.jpg",
-                    "/static/fallbacks/science_6.jpg",
-                    "/static/fallbacks/science_7.jpg"
-                ],
-                "Security": [
-                    "/static/fallbacks/security_0.jpg",
-                    "/static/fallbacks/security_1.jpg",
-                    "/static/fallbacks/security_2.jpg",
-                    "/static/fallbacks/security_3.jpg"
-                ],
-                "Society": [
-                    "/static/fallbacks/society_0.jpg",
-                    "/static/fallbacks/society_1.jpg",
-                    "/static/fallbacks/society_2.jpg",
-                    "/static/fallbacks/society_3.jpg",
-                    "/static/fallbacks/society_4.jpg"
-                ],
-                "Ethics": [
-                    "/static/fallbacks/policy_0.jpg",
-                    "/static/fallbacks/policy_1.jpg",
-                    "/static/fallbacks/policy_2.jpg",
-                    "/static/fallbacks/policy_3.jpg"
-                ],
-                "AI Agents": [
-                    "/static/fallbacks/tools_0.jpg",
-                    "/static/fallbacks/tools_1.jpg",
-                    "/static/fallbacks/tools_2.jpg",
-                    "/static/fallbacks/robotics_0.jpg",
-                    "/static/fallbacks/robotics_1.jpg"
-                ]
-            }
-            images = cat_map.get(cat, cat_map["Tools"])
+            images = _category_fallback_images(cat)
 
             # Check the most recently saved article's image to avoid repetition
             try:
@@ -350,6 +338,9 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 available_images = images
 
             image_url = random.choice(available_images)
+
+        if not social_image_url:
+            social_image_url = image_url
 
         try:
             # --- DRIP-FEED: Calculate spread published_at ---
@@ -395,12 +386,13 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
 
             cursor.execute('''
                 INSERT OR REPLACE INTO articles 
-                (slug, title, image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens, compass_score, source_content_hash, ai_model_used)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (slug, title, image, social_image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens, compass_score, source_content_hash, ai_model_used)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 final_slug,
                 art.get('headline'),
                 image_url,
+                social_image_url,
                 art.get('category'),
                 art.get('gist'),
                 art.get('why_it_matters'),

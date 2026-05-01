@@ -34,7 +34,7 @@ def _original_article(slug):
     }
 
 
-def test_save_to_db_generates_branded_card_for_missing_scraped_image(monkeypatch):
+def test_save_to_db_separates_onsite_image_from_social_card(monkeypatch):
     import db as db_module
     import fetcher.persistence as persistence
     import ig_card_generator
@@ -57,11 +57,15 @@ def test_save_to_db_generates_branded_card_for_missing_scraped_image(monkeypatch
     persistence.save_to_db([_processed_article(slug)], [_original_article(slug)])
 
     conn = sqlite3.connect(db_module.DB_PATH)
-    row = conn.execute("SELECT image FROM articles WHERE slug = ?", (slug,)).fetchone()
+    row = conn.execute(
+        "SELECT image, social_image FROM articles WHERE slug = ?",
+        (slug,),
+    ).fetchone()
     conn.close()
 
     assert row is not None
-    assert row[0] == "/static/img/social/agent-benchmarks-visual-context.png"
+    assert row[0].startswith("/static/fallbacks/")
+    assert row[1] == "/static/img/social/agent-benchmarks-visual-context.png"
 
 
 def test_save_to_db_keeps_stock_fallback_when_card_generation_fails(monkeypatch):
@@ -91,3 +95,39 @@ def test_save_to_db_keeps_stock_fallback_when_card_generation_fails(monkeypatch)
 
     assert row is not None
     assert row[0].startswith("/static/fallbacks/")
+
+
+def test_save_to_db_keeps_scraped_image_and_stores_social_card(monkeypatch):
+    import db as db_module
+    import fetcher.persistence as persistence
+    import ig_card_generator
+
+    slug = "agent-benchmarks-with-source-image"
+    generated_path = "/Users/test/project/static/img/social/agent-benchmarks-with-source-image.png"
+    original = _original_article(slug)
+    original["scraped_image"] = "https://cdn.example.com/research-photo.jpg"
+
+    fake_embedding = SimpleNamespace(
+        score_ad_likelihood=lambda *args, **kwargs: 0.0,
+        find_duplicates=lambda *args, **kwargs: None,
+        score_article=lambda *args, **kwargs: (0.8, []),
+        index_article=lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(persistence, "DB_PATH", db_module.DB_PATH)
+    monkeypatch.setitem(sys.modules, "embedding_service", fake_embedding)
+    monkeypatch.setattr(persistence, "notify_google_index", lambda *args, **kwargs: None)
+    monkeypatch.setattr(persistence, "run_post_publication_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(ig_card_generator, "generate_card", lambda *args, **kwargs: generated_path)
+
+    persistence.save_to_db([_processed_article(slug)], [original])
+
+    conn = sqlite3.connect(db_module.DB_PATH)
+    row = conn.execute(
+        "SELECT image, social_image FROM articles WHERE slug = ?",
+        (slug,),
+    ).fetchone()
+    conn.close()
+
+    assert row is not None
+    assert row[0] == "https://cdn.example.com/research-photo.jpg"
+    assert row[1] == "/static/img/social/agent-benchmarks-with-source-image.png"

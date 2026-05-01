@@ -23,6 +23,7 @@ def init_db():
             slug TEXT UNIQUE,
             title TEXT,
             image TEXT,
+            social_image TEXT,
             category TEXT,
             gist TEXT,
             why_it_matters TEXT,
@@ -97,6 +98,11 @@ def init_db():
     # Add thought_provoking_question if it doesn't exist
     try:
         cursor.execute("ALTER TABLE articles ADD COLUMN thought_provoking_question TEXT")
+    except sqlite3.OperationalError:
+        pass  # Already exists
+
+    try:
+        cursor.execute("ALTER TABLE articles ADD COLUMN social_image TEXT")
     except sqlite3.OperationalError:
         pass  # Already exists
 

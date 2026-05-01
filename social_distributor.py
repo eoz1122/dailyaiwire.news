@@ -2,7 +2,6 @@ import os
 import sys
 import logging
 import re
-from urllib.parse import urlencode
 
 # Patch for Python 3.13+ where imghdr was removed (tweepy depends on it)
 if sys.version_info >= (3, 13):
@@ -77,12 +76,7 @@ def _normalize_hashtag(tag):
 
 def _build_tracked_url(base_url, slug):
     article_url = f"{base_url}/article/{slug}"
-    tracking = urlencode({
-        "utm_source": "twitter",
-        "utm_medium": "social",
-        "utm_campaign": "auto_post",
-    })
-    return article_url, f"{article_url}?{tracking}"
+    return article_url, article_url
 
 
 def build_x_post_text(article, base_url):

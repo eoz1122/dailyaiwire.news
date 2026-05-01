@@ -82,7 +82,7 @@ def test_post_to_x_raises_billing_pause_signal():
     assert exc_info.value.reason == "billing"
 
 
-def test_build_x_post_text_uses_direct_article_url_and_editorial_structure():
+def test_build_x_post_text_uses_canonical_article_url_and_editorial_structure():
     from social_distributor import build_x_post_text
 
     tweet_text, article_url = build_x_post_text(
@@ -91,7 +91,8 @@ def test_build_x_post_text_uses_direct_article_url_and_editorial_structure():
     )
 
     assert article_url == "https://dailyaiwire.news/article/ai-policy-update"
-    assert "https://dailyaiwire.news/article/ai-policy-update?utm_source=twitter&utm_medium=social&utm_campaign=auto_post" in tweet_text
+    assert "https://dailyaiwire.news/article/ai-policy-update" in tweet_text
+    assert "utm_source=twitter" not in tweet_text
     assert "s.dailyaiwire.news" not in tweet_text
     assert "[POLICY]" in tweet_text
     assert "Source:" not in tweet_text
@@ -112,7 +113,8 @@ def test_post_to_x_does_not_use_shortener():
 
     mock_shorten.assert_not_called()
     posted_text = mock_client.return_value.create_tweet.call_args.kwargs["text"]
-    assert "https://dailyaiwire.news/article/ai-policy-update?utm_source=twitter" in posted_text
+    assert "https://dailyaiwire.news/article/ai-policy-update" in posted_text
+    assert "utm_source=twitter" not in posted_text
 
 
 def test_build_x_backoff_window_is_deterministic():

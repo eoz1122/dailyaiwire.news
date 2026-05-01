@@ -98,6 +98,12 @@ def init_db_migrations():
             logger.info("MIGRATION: Adding 'verified_views' column...")
             conn.execute('ALTER TABLE articles ADD COLUMN verified_views INTEGER DEFAULT 0')
 
+        try:
+            conn.execute('SELECT social_image FROM articles LIMIT 1')
+        except sqlite3.OperationalError:
+            logger.info("MIGRATION: Adding 'social_image' column...")
+            conn.execute('ALTER TABLE articles ADD COLUMN social_image TEXT')
+
         # 3b. View events for GA-comparable server-side analytics
         conn.execute('''CREATE TABLE IF NOT EXISTS article_view_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

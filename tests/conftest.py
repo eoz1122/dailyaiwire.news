@@ -30,6 +30,7 @@ def _patch_db(tmp_path_factory):
             slug TEXT UNIQUE,
             title TEXT,
             image TEXT,
+            social_image TEXT,
             category TEXT,
             gist TEXT,
             why_it_matters TEXT,

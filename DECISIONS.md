@@ -5,6 +5,32 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-05-01T16:31:45+02:00 - Separate Onsite Thumbnails from Social Preview Cards
+
+**Context**: Recent article listing cards were showing generated social cards with oversized headline text, then repeating the same headline in the article card body. This made the homepage look templated and reduced editorial trust. X previews were also unreliable because posted X URLs used UTM query strings that rendered with `noindex`, and static social images were served with `X-Robots-Tag: noindex`.
+
+**Changes**:
+- Added `articles.social_image` for OG/Twitter preview assets.
+- Kept `articles.image` for onsite thumbnails and article hero display.
+- Updated fetcher persistence so generated text cards go to `social_image`; source images remain onsite thumbnails; missing source images use category fallbacks onsite.
+- Updated article meta tags and `NewsArticle` structured data to prefer `social_image` for social previews while keeping the visible article image separate.
+- Updated X post text to use the canonical article URL without UTM parameters, improving card crawler compatibility.
+- Removed static `X-Robots-Tag: noindex` from `nginx_optimized.conf` so social preview images can be fetched cleanly.
+- Added `scripts/backfill_social_images.py` to move existing `/static/img/social/...` values out of onsite `image` and into `social_image`.
+
+**Verification**:
+- `python3 -m pytest tests/test_persistence_images.py tests/test_x_posting.py tests/test_social_images.py tests/test_backfill_social_images.py tests/test_smoke.py::TestAppBoot -q` -> passed.
+- `python3 -m pytest -q` -> passed, `192 passed, 1 skipped`.
+- `python3 -m py_compile fetcher/persistence.py social_distributor.py scripts/backfill_social_images.py app.py fetcher/db_init.py` -> passed.
+- `git diff --check` -> passed.
+
+**Rollback**:
+- Revert the code commit.
+- Restore Nginx from `/etc/nginx/sites-available/dailyaiwire.pre-social-image-fix-*` if deployed.
+- If the DB backfill was run, reverse only rows where `social_image` starts with `/static/img/social/` and `image` starts with `/static/fallbacks/` by copying `social_image` back into `image`.
+
+---
+
 ## 2026-05-01T14:56:42+02:00 - Google Indexing API Audit Trail
 
 **Context**: Article publication already calls Google Indexing API after database insert, but the result was only printed to process logs. That made it hard to prove which article URLs were notified, which attempts failed, and which failures should be retried.
