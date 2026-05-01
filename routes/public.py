@@ -9,7 +9,7 @@ import hashlib
 import re
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, make_response
+from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, make_response, send_from_directory
 from flask_login import current_user
 
 from extensions import limiter
@@ -27,6 +27,20 @@ BOT_UA_PATTERN = re.compile(
     r"linkedinbot|python-requests|curl|wget|uptimerobot|datadog|pingdom)",
     re.IGNORECASE,
 )
+
+
+@public_bp.route('/social-image/<path:filename>')
+def social_image(filename):
+    if "/" in filename or "\\" in filename:
+        abort(404)
+    response = send_from_directory(
+        "static/img/social",
+        filename,
+        max_age=31536000,
+    )
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    response.headers.pop("X-Robots-Tag", None)
+    return response
 
 
 def _hash_value(raw: str) -> str:

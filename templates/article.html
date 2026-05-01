@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% set article_display_image = article.image or '/static/fallbacks/tools_0.jpg' %}
 {% set article_social_preview_image = article.social_image or article_display_image %}
+{% if article_social_preview_image.startswith('/static/img/social/') %}
+{% set article_social_preview_image = article_social_preview_image.replace('/static/img/social/', '/social-image/') %}
+{% endif %}
 
 {% block title %}{{ article.title }} | DailyAIWire.news{% endblock %}
 {% block meta_title %}{{ article.title }} | DailyAIWire.news{% endblock %}

@@ -15,6 +15,7 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 - Updated fetcher persistence so generated text cards go to `social_image`; source images remain onsite thumbnails; missing source images use category fallbacks onsite.
 - Updated article meta tags and `NewsArticle` structured data to prefer `social_image` for social previews while keeping the visible article image separate.
 - Updated X post text to use the canonical article URL without UTM parameters, improving card crawler compatibility.
+- Added `/social-image/<file>` as a non-static social preview image route so crawlers can fetch generated preview cards without inheriting Nginx static asset headers.
 - Removed static `X-Robots-Tag: noindex` from `nginx_optimized.conf` so social preview images can be fetched cleanly.
 - Added `scripts/backfill_social_images.py` to move existing `/static/img/social/...` values out of onsite `image` and into `social_image`.
 
