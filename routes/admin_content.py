@@ -23,6 +23,8 @@ import logging
 logger = logging.getLogger('admin_content')
 
 admin_content_bp = Blueprint('admin_content', __name__)
+SUBSCRIBER_STATUS_FILTERS = ("ACTIVE", "PENDING", "SUSPICIOUS", "EXPIRED", "BOUNCED", "COMPLAINED")
+PENDING_EXPIRY_DAYS = 14
 
 
 def _slugify(text):
@@ -40,7 +42,18 @@ def _slugify(text):
 def admin_subscribers():
     conn = get_db_connection()
     ensure_subscribers_schema(conn)
-    subscribers = conn.execute('SELECT * FROM subscribers ORDER BY created_at DESC').fetchall()
+    status_filter = (request.args.get('status') or '').strip().upper()
+    if status_filter not in SUBSCRIBER_STATUS_FILTERS:
+        status_filter = ''
+
+    if status_filter:
+        subscribers = conn.execute(
+            'SELECT * FROM subscribers WHERE status = ? ORDER BY created_at DESC',
+            (status_filter,),
+        ).fetchall()
+    else:
+        subscribers = conn.execute('SELECT * FROM subscribers ORDER BY created_at DESC').fetchall()
+
     status_counts = {
         row['status']: row['count']
         for row in conn.execute(
@@ -52,7 +65,59 @@ def admin_subscribers():
         'admin/subscribers.html',
         subscribers=subscribers,
         status_counts=status_counts,
+        status_filter=status_filter,
+        status_options=SUBSCRIBER_STATUS_FILTERS,
+        pending_expiry_days=PENDING_EXPIRY_DAYS,
     )
+
+
+@admin_content_bp.route('/admin/subscribers/expire-pending', methods=['POST'])
+@login_required
+def expire_pending_subscribers():
+    conn = get_db_connection()
+    expired = 0
+    try:
+        ensure_subscribers_schema(conn)
+        stale_pending = conn.execute(
+            '''
+            SELECT id, email
+            FROM subscribers
+            WHERE status = 'PENDING'
+              AND datetime(created_at) <= datetime('now', ?)
+            ORDER BY created_at ASC
+            ''',
+            (f'-{PENDING_EXPIRY_DAYS} days',),
+        ).fetchall()
+
+        for subscriber in stale_pending:
+            conn.execute(
+                '''
+                UPDATE subscribers
+                SET status = 'EXPIRED',
+                    confirmation_token_hash = NULL
+                WHERE id = ?
+                ''',
+                (subscriber['id'],),
+            )
+            record_subscriber_event(
+                conn,
+                email=subscriber['email'],
+                event_type='pending_expired',
+                reason=f'unconfirmed_after_{PENDING_EXPIRY_DAYS}_days',
+                ip_hash=hash_value(request.remote_addr or 'unknown'),
+                user_agent=(request.headers.get('User-Agent') or '')[:500],
+                referrer=(request.referrer or '')[:500],
+                source_path='/admin/subscribers/expire-pending',
+            )
+            expired += 1
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    flash(f'Expired {expired} stale pending subscribers.')
+    target_status = 'EXPIRED' if expired else 'PENDING'
+    return redirect(url_for('admin_content.admin_subscribers', status=target_status))
 
 
 @admin_content_bp.route('/admin/subscribers/reconfirm-suspicious', methods=['POST'])

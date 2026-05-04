@@ -1333,3 +1333,22 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `routes/admin_content.py`, `templates/admin/subscribers.html`, `services/subscribers.py`, `routes/public.py`, and `tests/test_admin_subscriber_reconfirmation.py`.
 - Existing `SUSPICIOUS` rows remain quarantined; no data deletion is required for rollback.
+
+---
+
+## 2026-05-04T22:42:30+02:00 - Pending Subscriber Expiry and Admin Filters
+
+**Context**: Reconfirmation moves suspicious subscribers to `PENDING`; unconfirmed rows should not remain in limbo indefinitely, and admin needs quick visibility by status.
+
+**Decision**:
+1. Add admin status filters for `ACTIVE`, `PENDING`, `SUSPICIOUS`, `EXPIRED`, `BOUNCED`, and `COMPLAINED`.
+2. Add an admin-only POST action to expire stale `PENDING` subscribers after 14 days.
+3. Expiry changes status to `EXPIRED` and clears the confirmation token; it does not delete the row.
+4. Each expiry writes a `pending_expired` audit event.
+5. Keep fresh `PENDING` rows and `ACTIVE` rows untouched.
+
+**Trigger**: User approved the next abuse-cleanup layer after suspicious subscriber reconfirmation.
+
+**Rollback**:
+- Revert `routes/admin_content.py`, `templates/admin/subscribers.html`, `tests/test_admin_subscriber_reconfirmation.py`, and this `DECISIONS.md` entry.
+- If any row is incorrectly expired, restore it with `UPDATE subscribers SET status='PENDING' WHERE id=<id>;` and send a new reconfirmation token if needed.

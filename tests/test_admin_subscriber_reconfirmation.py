@@ -30,6 +30,17 @@ def _events():
     return rows
 
 
+def _insert_subscriber(email, status, created_at="2026-05-04 10:00:00"):
+    conn = sqlite3.connect(db_module.DB_PATH)
+    ensure_subscribers_schema(conn)
+    conn.execute(
+        "INSERT INTO subscribers (email, status, created_at) VALUES (?, ?, ?)",
+        (email, status, created_at),
+    )
+    conn.commit()
+    conn.close()
+
+
 def test_admin_reconfirmation_sends_only_to_suspicious(auth_client, monkeypatch):
     _reset_subscribers()
     sent = []
@@ -93,3 +104,33 @@ def test_admin_reconfirmation_keeps_suspicious_when_email_fails(auth_client, mon
     assert row["status"] == "SUSPICIOUS"
     assert row["confirmation_token_hash"] is None
     assert _events()[0]["event_type"] == "reconfirmation_failed"
+
+
+def test_admin_subscribers_can_filter_by_status(auth_client):
+    _reset_subscribers()
+    _insert_subscriber("active@example.com", "ACTIVE")
+    _insert_subscriber("pending@example.com", "PENDING")
+    _insert_subscriber("expired@example.com", "EXPIRED")
+
+    response = auth_client.get("/admin/subscribers?status=PENDING")
+
+    assert response.status_code == 200
+    assert b"pending@example.com" in response.data
+    assert b"active@example.com" not in response.data
+    assert b"expired@example.com" not in response.data
+    assert b"Expire Stale Pending" in response.data
+
+
+def test_admin_expire_pending_marks_only_stale_pending(auth_client):
+    _reset_subscribers()
+    _insert_subscriber("old-pending@example.com", "PENDING", "2026-04-01 00:00:00")
+    _insert_subscriber("fresh-pending@example.com", "PENDING", "2999-01-01 00:00:00")
+    _insert_subscriber("active@example.com", "ACTIVE", "2026-04-01 00:00:00")
+
+    response = auth_client.post("/admin/subscribers/expire-pending")
+
+    assert response.status_code == 302
+    assert _row("old-pending@example.com")["status"] == "EXPIRED"
+    assert _row("fresh-pending@example.com")["status"] == "PENDING"
+    assert _row("active@example.com")["status"] == "ACTIVE"
+    assert _events()[0]["event_type"] == "pending_expired"
