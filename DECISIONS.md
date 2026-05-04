@@ -1313,3 +1313,23 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `routes/public.py`, `newsletter_sender.py`, `templates/thank_you.html`, the subscribe-form partial, subscribe-form includes, `app.py`, and `tests/test_subscribe_abuse.py`.
 - To reactivate quarantined May 4 addresses if needed: `UPDATE subscribers SET status='ACTIVE' WHERE id BETWEEN 59 AND 76;`
+
+---
+
+## 2026-05-04T22:33:58+02:00 - Admin Reconfirmation for Suspicious Subscribers
+
+**Context**: The suspicious May 4 subscriber batch should not receive newsletters, but deleting them immediately would remove the ability to distinguish real users from automated list poisoning.
+
+**Decision**:
+1. Keep suspicious subscribers quarantined under `SUSPICIOUS`.
+2. Add an admin-only POST action to send reconfirmation emails to all `SUSPICIOUS` subscribers.
+3. Move successfully emailed suspicious subscribers to `PENDING` with a new confirmation token.
+4. Keep failed sends as `SUSPICIOUS` with a `reconfirmation_failed` audit event.
+5. Activate only after the existing double opt-in confirmation link is clicked.
+6. Use HTTPS confirmation links explicitly.
+
+**Trigger**: User asked how to check whether the suspicious subscribers are real and approved the reconfirmation workflow.
+
+**Rollback**:
+- Revert `routes/admin_content.py`, `templates/admin/subscribers.html`, `services/subscribers.py`, `routes/public.py`, and `tests/test_admin_subscriber_reconfirmation.py`.
+- Existing `SUSPICIOUS` rows remain quarantined; no data deletion is required for rollback.

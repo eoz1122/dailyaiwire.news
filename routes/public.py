@@ -7,7 +7,6 @@ import math
 import sqlite3
 import hashlib
 import re
-import secrets
 import time
 from datetime import datetime, timedelta
 
@@ -17,6 +16,14 @@ from flask_login import current_user
 from extensions import limiter
 from db import get_db_connection
 from services.editorials import get_db_blog_posts
+from services.subscribers import (
+    confirmation_token_hash,
+    create_confirmation_token,
+    ensure_subscribers_schema,
+    hash_value as subscriber_hash_value,
+    normalize_email,
+    record_subscriber_event,
+)
 import logging
 
 logger = logging.getLogger('public')
@@ -81,10 +88,6 @@ def _visitor_hash() -> str:
     return _hash_value(f"{client_ip}|{user_agent}|{accept_lang}")
 
 
-def _normalize_email(email: str) -> str:
-    return (email or "").strip().lower()
-
-
 def _is_valid_email(email: str) -> bool:
     return bool(email and len(email) <= MAX_EMAIL_LENGTH and EMAIL_PATTERN.match(email))
 
@@ -93,63 +96,19 @@ def _sanitize_form_text(value: str, max_len: int = 500) -> str:
     return (value or "").strip()[:max_len]
 
 
-def _ensure_subscribers_schema(conn):
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS subscribers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE,
-            status TEXT DEFAULT 'ACTIVE',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    existing = {row["name"] for row in conn.execute("PRAGMA table_info(subscribers)").fetchall()}
-    migrations = {
-        "signup_ip_hash": "ALTER TABLE subscribers ADD COLUMN signup_ip_hash TEXT",
-        "signup_user_agent": "ALTER TABLE subscribers ADD COLUMN signup_user_agent TEXT",
-        "signup_referrer": "ALTER TABLE subscribers ADD COLUMN signup_referrer TEXT",
-        "signup_source_path": "ALTER TABLE subscribers ADD COLUMN signup_source_path TEXT",
-        "signup_accept_language": "ALTER TABLE subscribers ADD COLUMN signup_accept_language TEXT",
-        "signup_fingerprint_hash": "ALTER TABLE subscribers ADD COLUMN signup_fingerprint_hash TEXT",
-        "confirmation_token_hash": "ALTER TABLE subscribers ADD COLUMN confirmation_token_hash TEXT",
-        "confirmed_at": "ALTER TABLE subscribers ADD COLUMN confirmed_at TIMESTAMP",
-    }
-    for column, sql in migrations.items():
-        if column not in existing:
-            conn.execute(sql)
-
-
 def _record_subscriber_event(conn, *, email: str, event_type: str, reason: str):
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS subscriber_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email_hash TEXT,
-            event_type TEXT NOT NULL,
-            reason TEXT,
-            ip_hash TEXT,
-            user_agent TEXT,
-            referrer TEXT,
-            source_path TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
     user_agent = _sanitize_form_text(request.headers.get("User-Agent", ""), 500)
     referrer = _sanitize_form_text(request.referrer or request.headers.get("Referer", ""), 500)
     source_path = _sanitize_form_text(request.form.get("subscribe_source_path", ""), 500)
-    conn.execute(
-        '''
-        INSERT INTO subscriber_events (
-            email_hash, event_type, reason, ip_hash, user_agent, referrer, source_path
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''',
-        (
-            _hash_value(_normalize_email(email)) if email else None,
-            event_type,
-            reason,
-            _hash_value(_extract_client_ip()),
-            user_agent,
-            referrer,
-            source_path,
-        ),
+    record_subscriber_event(
+        conn,
+        email=email,
+        event_type=event_type,
+        reason=reason,
+        ip_hash=subscriber_hash_value(_extract_client_ip()),
+        user_agent=user_agent,
+        referrer=referrer,
+        source_path=source_path,
     )
 
 
@@ -167,15 +126,6 @@ def _is_subscribe_submission_suspicious():
         return True, "submitted_too_fast"
 
     return False, ""
-
-
-def _confirmation_token_hash(token: str) -> str:
-    return _hash_value(token)
-
-
-def _create_confirmation_token() -> tuple[str, str]:
-    token = secrets.token_urlsafe(32)
-    return token, _confirmation_token_hash(token)
 
 
 def _fetch_editorials():
@@ -615,10 +565,10 @@ def subscribe():
     from newsletter_sender import send_confirmation_email
 
     if request.method == 'POST':
-        email = _normalize_email(request.form.get('email'))
+        email = normalize_email(request.form.get('email'))
         conn = get_db_connection()
         try:
-            _ensure_subscribers_schema(conn)
+            ensure_subscribers_schema(conn)
 
             suspicious, reason = _is_subscribe_submission_suspicious()
             if suspicious:
@@ -648,7 +598,7 @@ def subscribe():
             fingerprint_hash = _hash_value(
                 f"{_extract_client_ip()}|{user_agent.lower()}|{accept_language.lower()}"
             )
-            confirmation_token, confirmation_hash = _create_confirmation_token()
+            confirmation_token, confirmation_hash = create_confirmation_token()
 
             conn.execute(
                 '''
@@ -678,6 +628,7 @@ def subscribe():
                     "public.confirm_subscription",
                     token=confirmation_token,
                     _external=True,
+                    _scheme="https",
                 )
                 send_confirmation_email(email, confirmation_url)
             except Exception as e:
@@ -700,8 +651,8 @@ def confirm_subscription(token):
 
     conn = get_db_connection()
     try:
-        _ensure_subscribers_schema(conn)
-        token_hash = _confirmation_token_hash(token)
+        ensure_subscribers_schema(conn)
+        token_hash = confirmation_token_hash(token)
         subscriber = conn.execute(
             '''
             SELECT id, email

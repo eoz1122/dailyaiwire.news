@@ -12,6 +12,12 @@ from flask_login import login_required
 
 from db import get_db_connection
 from budget_tracker import BudgetTracker
+from services.subscribers import (
+    create_confirmation_token,
+    ensure_subscribers_schema,
+    hash_value,
+    record_subscriber_event,
+)
 import logging
 
 logger = logging.getLogger('admin_content')
@@ -33,9 +39,97 @@ def _slugify(text):
 @login_required
 def admin_subscribers():
     conn = get_db_connection()
+    ensure_subscribers_schema(conn)
     subscribers = conn.execute('SELECT * FROM subscribers ORDER BY created_at DESC').fetchall()
+    status_counts = {
+        row['status']: row['count']
+        for row in conn.execute(
+            'SELECT status, COUNT(*) AS count FROM subscribers GROUP BY status'
+        ).fetchall()
+    }
     conn.close()
-    return render_template('admin/subscribers.html', subscribers=subscribers)
+    return render_template(
+        'admin/subscribers.html',
+        subscribers=subscribers,
+        status_counts=status_counts,
+    )
+
+
+@admin_content_bp.route('/admin/subscribers/reconfirm-suspicious', methods=['POST'])
+@login_required
+def reconfirm_suspicious_subscribers():
+    import newsletter_sender
+
+    conn = get_db_connection()
+    sent = 0
+    failed = 0
+    try:
+        ensure_subscribers_schema(conn)
+        suspicious_subscribers = conn.execute(
+            '''
+            SELECT id, email
+            FROM subscribers
+            WHERE status = 'SUSPICIOUS'
+            ORDER BY created_at ASC
+            '''
+        ).fetchall()
+
+        for subscriber in suspicious_subscribers:
+            token, token_hash = create_confirmation_token()
+            confirmation_url = url_for(
+                'public.confirm_subscription',
+                token=token,
+                _external=True,
+                _scheme='https',
+            )
+            email_sent = newsletter_sender.send_confirmation_email(
+                subscriber['email'],
+                confirmation_url,
+            )
+            if email_sent:
+                conn.execute(
+                    '''
+                    UPDATE subscribers
+                    SET status = 'PENDING',
+                        confirmation_token_hash = ?,
+                        confirmed_at = NULL
+                    WHERE id = ?
+                    ''',
+                    (token_hash, subscriber['id']),
+                )
+                record_subscriber_event(
+                    conn,
+                    email=subscriber['email'],
+                    event_type='reconfirmation_sent',
+                    reason='suspicious_batch_reconfirmation',
+                    ip_hash=hash_value(request.remote_addr or 'unknown'),
+                    user_agent=(request.headers.get('User-Agent') or '')[:500],
+                    referrer=(request.referrer or '')[:500],
+                    source_path='/admin/subscribers/reconfirm-suspicious',
+                )
+                sent += 1
+            else:
+                record_subscriber_event(
+                    conn,
+                    email=subscriber['email'],
+                    event_type='reconfirmation_failed',
+                    reason='email_send_failed',
+                    ip_hash=hash_value(request.remote_addr or 'unknown'),
+                    user_agent=(request.headers.get('User-Agent') or '')[:500],
+                    referrer=(request.referrer or '')[:500],
+                    source_path='/admin/subscribers/reconfirm-suspicious',
+                )
+                failed += 1
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    if sent or failed:
+        flash(f'Reconfirmation sent to {sent} suspicious subscribers. Failed: {failed}.')
+    else:
+        flash('No suspicious subscribers need reconfirmation.')
+    return redirect(url_for('admin_content.admin_subscribers'))
 
 
 @admin_content_bp.route('/admin/subscribers/delete/<int:id>', methods=['POST'])

@@ -119,7 +119,7 @@ def test_subscribe_records_signup_audit_metadata(client):
 
 def test_confirm_subscription_activates_pending_address(client, monkeypatch):
     _reset_subscribers()
-    monkeypatch.setattr("routes.public.secrets.token_urlsafe", lambda _: "fixed-confirm-token")
+    monkeypatch.setattr("services.subscribers.secrets.token_urlsafe", lambda _: "fixed-confirm-token")
 
     _post_subscribe(client, "confirm@example.com")
     row = _subscriber_rows()[0]
