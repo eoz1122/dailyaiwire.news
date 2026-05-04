@@ -13,6 +13,7 @@ from flask_admin.model import BaseModelView
 from flask_login import current_user, login_required
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from extensions import csrf, limiter
 from db import get_db_connection, DB_PATH
@@ -26,6 +27,7 @@ setup_logging()
 
 logger = logging.getLogger('app')
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 logger.info("✅ APP BOOT: Blueprint Architecture Loaded at %s", datetime.utcnow())
 
 # SECURITY: Force secure secret key
@@ -342,6 +344,7 @@ def inject_config():
         'current_year': datetime.now().year,
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'config_web3forms_key': os.getenv('WEB3FORMS_ACCESS_KEY'),
+        'subscribe_form_loaded_at': int(datetime.utcnow().timestamp()),
         'q': request.args.get('q', '') if has_request_context() else '',
         'emre': emre_data,
         'cagri': cagri_data,

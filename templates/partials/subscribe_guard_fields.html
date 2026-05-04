@@ -1,0 +1,6 @@
+<input type="hidden" name="form_loaded_at" value="{{ subscribe_form_loaded_at }}">
+<input type="hidden" name="subscribe_source_path" value="{{ request.full_path if request.query_string else request.path }}">
+<div aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+    <label for="{{ guard_id|default('newsletter-website') }}">Website</label>
+    <input type="url" id="{{ guard_id|default('newsletter-website') }}" name="newsletter_website" tabindex="-1" autocomplete="off">
+</div>

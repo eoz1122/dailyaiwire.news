@@ -1,6 +1,8 @@
 """
 Helpers for non-destructive duplicate review queueing.
 """
+from __future__ import annotations
+
 import logging
 import sqlite3
 

@@ -538,6 +538,8 @@ Google Gemini.{% endif %}{% endblock %}
 
                     <form action="/subscribe" method="POST" class="w-full">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {% set guard_id = 'inline-newsletter-website' %}
+            {% include 'partials/subscribe_guard_fields.html' %}
                         <div class="flex flex-col gap-3">
                             <label for="inline-newsletter-email" class="sr-only">Email address</label>
                             <input type="email" name="email" placeholder="Enter your email" required autocomplete="email"

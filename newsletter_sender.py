@@ -103,6 +103,47 @@ def send_welcome_email(recipient_email):
         logger.error("❌ Network error sending email: %s", e)
         return False
 
+
+def send_confirmation_email(recipient_email, confirmation_url):
+    """Send a double opt-in confirmation email before activating a subscriber."""
+    if not RESEND_API_KEY:
+        logger.error("❌ ERROR: RESEND_API_KEY missing.")
+        return False
+
+    html_content = f"""
+    <h1>Confirm your DailyAIWire subscription</h1>
+    <p>Click the button below to confirm that you requested DailyAIWire updates.</p>
+    <p>
+      <a href="{confirmation_url}"
+         style="display:inline-block;padding:12px 18px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;">
+        Confirm subscription
+      </a>
+    </p>
+    <p>If you did not request this, ignore this email and you will not be added to the active newsletter list.</p>
+    """
+
+    payload = {
+        "from": f"DailyAIWire <{SENDER_EMAIL}>",
+        "to": [recipient_email],
+        "subject": "Confirm your DailyAIWire subscription",
+        "html": html_content,
+    }
+    headers = {
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.post("https://api.resend.com/emails", headers=headers, json=payload)
+        if response.status_code in [200, 201]:
+            logger.info("✅ Confirmation email sent successfully.")
+            return True
+        logger.error("❌ Confirmation email failed: %s - %s", response.status_code, response.text)
+        return False
+    except Exception as e:
+        logger.error("❌ Network error sending confirmation email: %s", e)
+        return False
+
 def get_active_subscribers():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

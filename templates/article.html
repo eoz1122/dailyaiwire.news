@@ -1471,6 +1471,8 @@
                     <div>
                         <form action="/subscribe" method="POST" class="genui-subscribe-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            {% set guard_id = 'article-strip-newsletter-website' %}
+                            {% include 'partials/subscribe_guard_fields.html' %}
                             <input type="email" name="email" placeholder="Email address" required autocomplete="email"
                                 aria-label="Email address" class="genui-subscribe-input">
                             <button type="submit" class="genui-subscribe-button">Join the Wire</button>
@@ -1495,6 +1497,8 @@
 
                         <form action="/subscribe" method="POST" class="genui-sidebar-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                            {% set guard_id = 'article-sidebar-newsletter-website' %}
+                            {% include 'partials/subscribe_guard_fields.html' %}
                             <input type="email" name="email" placeholder="Email address" required autocomplete="email"
                                 class="genui-sidebar-input">
                             <button type="submit" class="genui-sidebar-submit">

@@ -1292,3 +1292,24 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `fetcher/persistence.py` and `tests/test_persistence_images.py` if card generation causes fetcher latency, image-write errors, or unacceptable visual output.
 - Existing source images and stock fallback behavior remain available as safe fallback paths.
+
+---
+
+## 2026-05-04T22:11:53+02:00 - Newsletter Signup Abuse Guard and Double Opt-In
+
+**Context**: A sudden May 4 subscriber spike showed many Gmail addresses with identical signup timing and request signatures, but no matching GA users. The existing `/subscribe` route immediately inserted `ACTIVE` subscribers and stored only email/status/timestamp, leaving no reliable audit trail.
+
+**Decision**:
+1. Normalize subscriber emails to lowercase before insert and dedupe with `lower(email)`.
+2. Add honeypot, minimum form-age, email-format validation, and subscriber event logging for blocked attempts.
+3. Add subscriber audit metadata: hashed IP, user-agent, referrer, source path, accept-language, and fingerprint hash.
+4. Use `ProxyFix` so Flask-Limiter keys on the real client IP behind nginx.
+5. Change new subscribers to `PENDING` with a one-time confirmation token; only confirmed subscribers become `ACTIVE`.
+6. Send a confirmation email instead of immediately activating the feed.
+7. Track GA conversion only after `status=confirmed`, not on pending or blocked requests.
+
+**Trigger**: User reported many new subscriber emails appearing in a short window without corresponding Google Analytics traffic.
+
+**Rollback**:
+- Revert `routes/public.py`, `newsletter_sender.py`, `templates/thank_you.html`, the subscribe-form partial, subscribe-form includes, `app.py`, and `tests/test_subscribe_abuse.py`.
+- To reactivate quarantined May 4 addresses if needed: `UPDATE subscribers SET status='ACTIVE' WHERE id BETWEEN 59 AND 76;`

@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import sqlite3
-from typing import Any
+from typing import Any, Optional
 
 from google import genai
 from google.genai import types
@@ -31,7 +31,7 @@ def _strip_markdown_fences(text: str) -> str:
     return cleaned
 
 
-def _normalize_timeout_ms(request_options: dict[str, Any] | None) -> int | None:
+def _normalize_timeout_ms(request_options: Optional[dict[str, Any]]) -> Optional[int]:
     if not request_options:
         return None
 
@@ -57,9 +57,9 @@ class AIGateway:
         self,
         model_name: str,
         *,
-        system_instruction: str | None = None,
-        generation_config: dict[str, Any] | None = None,
-        thinking_budget: int | None = None,
+        system_instruction: Optional[str] = None,
+        generation_config: Optional[dict[str, Any]] = None,
+        thinking_budget: Optional[int] = None,
         logger_name: str = 'ai_gateway',
     ):
         api_key = os.getenv("GEMINI_API_KEY")
@@ -75,8 +75,8 @@ class AIGateway:
 
     def _build_config(
         self,
-        generation_config: dict[str, Any] | None,
-        request_options: dict[str, Any] | None,
+        generation_config: Optional[dict[str, Any]],
+        request_options: Optional[dict[str, Any]],
     ) -> types.GenerateContentConfig:
         config_data = dict(self.generation_config)
         if generation_config:
@@ -103,8 +103,8 @@ class AIGateway:
         schema: Any,
         *,
         prompt_type: str,
-        request_options: dict[str, Any] | None = None,
-        generation_config: dict[str, Any] | None = None,
+        request_options: Optional[dict[str, Any]] = None,
+        generation_config: Optional[dict[str, Any]] = None,
     ):
         response = None
         raw_text = ""
@@ -133,8 +133,8 @@ class AIGateway:
         prompt: str,
         *,
         prompt_type: str,
-        request_options: dict[str, Any] | None = None,
-        generation_config: dict[str, Any] | None = None,
+        request_options: Optional[dict[str, Any]] = None,
+        generation_config: Optional[dict[str, Any]] = None,
     ):
         response = None
         raw_text = ""
@@ -154,8 +154,8 @@ class AIGateway:
         self,
         prompt: str,
         *,
-        request_options: dict[str, Any] | None,
-        generation_config: dict[str, Any] | None,
+        request_options: Optional[dict[str, Any]],
+        generation_config: Optional[dict[str, Any]],
     ):
         response = self.client.models.generate_content(
             model=self.model_name,
@@ -171,7 +171,7 @@ class AIGateway:
         response_text: str,
         response: Any,
         *,
-        error_text: str | None,
+        error_text: Optional[str],
     ) -> None:
         try:
             conn = sqlite3.connect(db.DB_PATH)

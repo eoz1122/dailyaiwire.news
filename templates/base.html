@@ -752,6 +752,8 @@
 
                 <form action="/subscribe" method="POST" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    {% set guard_id = 'newsletter-modal-website' %}
+                    {% include 'partials/subscribe_guard_fields.html' %}
                     <label for="newsletter-modal-email" class="sr-only">Email address</label>
                     <input type="email" name="email" placeholder="Enter your business email" required
                         id="newsletter-modal-email"

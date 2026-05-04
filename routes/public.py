@@ -7,6 +7,8 @@ import math
 import sqlite3
 import hashlib
 import re
+import secrets
+import time
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, abort, request, redirect, url_for, flash, make_response, send_from_directory
@@ -22,11 +24,14 @@ logger = logging.getLogger('public')
 public_bp = Blueprint('public', __name__)
 
 VIEW_DEDUPE_MINUTES = 30
+SUBSCRIBE_MIN_SECONDS = 4
+MAX_EMAIL_LENGTH = 254
 BOT_UA_PATTERN = re.compile(
     r"(bot|spider|crawl|slurp|headless|facebookexternalhit|whatsapp|telegrambot|"
     r"linkedinbot|python-requests|curl|wget|uptimerobot|datadog|pingdom)",
     re.IGNORECASE,
 )
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 @public_bp.route('/social-image/<path:filename>')
@@ -74,6 +79,103 @@ def _visitor_hash() -> str:
     user_agent = (request.headers.get('User-Agent') or '').strip().lower()
     accept_lang = (request.headers.get('Accept-Language') or '').strip().lower()
     return _hash_value(f"{client_ip}|{user_agent}|{accept_lang}")
+
+
+def _normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+def _is_valid_email(email: str) -> bool:
+    return bool(email and len(email) <= MAX_EMAIL_LENGTH and EMAIL_PATTERN.match(email))
+
+
+def _sanitize_form_text(value: str, max_len: int = 500) -> str:
+    return (value or "").strip()[:max_len]
+
+
+def _ensure_subscribers_schema(conn):
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            status TEXT DEFAULT 'ACTIVE',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(subscribers)").fetchall()}
+    migrations = {
+        "signup_ip_hash": "ALTER TABLE subscribers ADD COLUMN signup_ip_hash TEXT",
+        "signup_user_agent": "ALTER TABLE subscribers ADD COLUMN signup_user_agent TEXT",
+        "signup_referrer": "ALTER TABLE subscribers ADD COLUMN signup_referrer TEXT",
+        "signup_source_path": "ALTER TABLE subscribers ADD COLUMN signup_source_path TEXT",
+        "signup_accept_language": "ALTER TABLE subscribers ADD COLUMN signup_accept_language TEXT",
+        "signup_fingerprint_hash": "ALTER TABLE subscribers ADD COLUMN signup_fingerprint_hash TEXT",
+        "confirmation_token_hash": "ALTER TABLE subscribers ADD COLUMN confirmation_token_hash TEXT",
+        "confirmed_at": "ALTER TABLE subscribers ADD COLUMN confirmed_at TIMESTAMP",
+    }
+    for column, sql in migrations.items():
+        if column not in existing:
+            conn.execute(sql)
+
+
+def _record_subscriber_event(conn, *, email: str, event_type: str, reason: str):
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS subscriber_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email_hash TEXT,
+            event_type TEXT NOT NULL,
+            reason TEXT,
+            ip_hash TEXT,
+            user_agent TEXT,
+            referrer TEXT,
+            source_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    user_agent = _sanitize_form_text(request.headers.get("User-Agent", ""), 500)
+    referrer = _sanitize_form_text(request.referrer or request.headers.get("Referer", ""), 500)
+    source_path = _sanitize_form_text(request.form.get("subscribe_source_path", ""), 500)
+    conn.execute(
+        '''
+        INSERT INTO subscriber_events (
+            email_hash, event_type, reason, ip_hash, user_agent, referrer, source_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            _hash_value(_normalize_email(email)) if email else None,
+            event_type,
+            reason,
+            _hash_value(_extract_client_ip()),
+            user_agent,
+            referrer,
+            source_path,
+        ),
+    )
+
+
+def _is_subscribe_submission_suspicious():
+    if request.form.get("newsletter_website"):
+        return True, "honeypot"
+
+    raw_loaded_at = request.form.get("form_loaded_at", "")
+    try:
+        loaded_at = float(raw_loaded_at)
+    except (TypeError, ValueError):
+        return True, "missing_form_loaded_at"
+
+    if time.time() - loaded_at < SUBSCRIBE_MIN_SECONDS:
+        return True, "submitted_too_fast"
+
+    return False, ""
+
+
+def _confirmation_token_hash(token: str) -> str:
+    return _hash_value(token)
+
+
+def _create_confirmation_token() -> tuple[str, str]:
+    token = secrets.token_urlsafe(32)
+    return token, _confirmation_token_hash(token)
 
 
 def _fetch_editorials():
@@ -510,34 +612,126 @@ def thank_you_page():
 @limiter.limit("5 per minute", methods=["POST"])
 def subscribe():
     import sqlite3
-    from newsletter_sender import send_welcome_email
+    from newsletter_sender import send_confirmation_email
 
     if request.method == 'POST':
-        email = request.form.get('email')
-        if email:
-            conn = get_db_connection()
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS subscribers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    email TEXT UNIQUE,
-                    status TEXT DEFAULT 'ACTIVE',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        email = _normalize_email(request.form.get('email'))
+        conn = get_db_connection()
+        try:
+            _ensure_subscribers_schema(conn)
 
-            try:
-                conn.execute('INSERT INTO subscribers (email) VALUES (?)', (email,))
+            suspicious, reason = _is_subscribe_submission_suspicious()
+            if suspicious:
+                _record_subscriber_event(conn, email=email, event_type="blocked", reason=reason)
                 conn.commit()
+                logger.warning("Blocked suspicious subscribe submission: %s", reason)
+                return redirect(url_for('public.thank_you_page', status='review'))
 
-                try:
-                    send_welcome_email(email)
-                except Exception as e:
-                    logger.error("Failed to send welcome email: %s", e)
+            if not _is_valid_email(email):
+                _record_subscriber_event(conn, email=email, event_type="blocked", reason="invalid_email")
+                conn.commit()
+                return redirect(url_for('public.thank_you_page', status='review'))
 
-                return redirect(url_for('public.thank_you_page'))
-            except sqlite3.IntegrityError:
+            existing = conn.execute(
+                'SELECT id FROM subscribers WHERE lower(email) = lower(?) LIMIT 1',
+                (email,),
+            ).fetchone()
+            if existing:
                 flash('You are already subscribed. Welcome back!')
                 return redirect(url_for('public.thank_you_page', status='existing'))
-            finally:
-                conn.close()
+
+            user_agent = _sanitize_form_text(request.headers.get("User-Agent", ""), 500)
+            referrer = _sanitize_form_text(request.referrer or request.headers.get("Referer", ""), 500)
+            source_path = _sanitize_form_text(request.form.get("subscribe_source_path", ""), 500)
+            accept_language = _sanitize_form_text(request.headers.get("Accept-Language", ""), 200)
+            ip_hash = _hash_value(_extract_client_ip())
+            fingerprint_hash = _hash_value(
+                f"{_extract_client_ip()}|{user_agent.lower()}|{accept_language.lower()}"
+            )
+            confirmation_token, confirmation_hash = _create_confirmation_token()
+
+            conn.execute(
+                '''
+                INSERT INTO subscribers (
+                    email, status, signup_ip_hash, signup_user_agent, signup_referrer,
+                    signup_source_path, signup_accept_language, signup_fingerprint_hash,
+                    confirmation_token_hash
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    email,
+                    "PENDING",
+                    ip_hash,
+                    user_agent,
+                    referrer,
+                    source_path,
+                    accept_language,
+                    fingerprint_hash,
+                    confirmation_hash,
+                ),
+            )
+            _record_subscriber_event(conn, email=email, event_type="created", reason="pending_confirmation")
+            conn.commit()
+
+            try:
+                confirmation_url = url_for(
+                    "public.confirm_subscription",
+                    token=confirmation_token,
+                    _external=True,
+                )
+                send_confirmation_email(email, confirmation_url)
+            except Exception as e:
+                logger.error("Failed to send confirmation email: %s", e)
+
+            return redirect(url_for('public.thank_you_page', status='pending'))
+        except sqlite3.IntegrityError:
+            flash('You are already subscribed. Welcome back!')
+            return redirect(url_for('public.thank_you_page', status='existing'))
+        finally:
+            conn.close()
     return render_template('subscribe.html')
+
+
+@public_bp.route('/confirm-subscription/<token>')
+def confirm_subscription(token):
+    token = (token or "").strip()
+    if not token:
+        abort(404)
+
+    conn = get_db_connection()
+    try:
+        _ensure_subscribers_schema(conn)
+        token_hash = _confirmation_token_hash(token)
+        subscriber = conn.execute(
+            '''
+            SELECT id, email
+            FROM subscribers
+            WHERE confirmation_token_hash = ?
+              AND status = 'PENDING'
+            LIMIT 1
+            ''',
+            (token_hash,),
+        ).fetchone()
+        if not subscriber:
+            return redirect(url_for('public.thank_you_page', status='invalid'))
+
+        conn.execute(
+            '''
+            UPDATE subscribers
+            SET status = 'ACTIVE',
+                confirmed_at = CURRENT_TIMESTAMP,
+                confirmation_token_hash = NULL
+            WHERE id = ?
+            ''',
+            (subscriber["id"],),
+        )
+        _record_subscriber_event(
+            conn,
+            email=subscriber["email"],
+            event_type="confirmed",
+            reason="double_opt_in",
+        )
+        conn.commit()
+        return redirect(url_for('public.thank_you_page', status='confirmed'))
+    finally:
+        conn.close()
