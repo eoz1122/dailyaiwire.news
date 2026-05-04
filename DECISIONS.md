@@ -1352,3 +1352,21 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Revert `routes/admin_content.py`, `templates/admin/subscribers.html`, `tests/test_admin_subscriber_reconfirmation.py`, and this `DECISIONS.md` entry.
 - If any row is incorrectly expired, restore it with `UPDATE subscribers SET status='PENDING' WHERE id=<id>;` and send a new reconfirmation token if needed.
+
+---
+
+## 2026-05-04T23:08:19+02:00 - Branded Confirmation Email Template
+
+**Context**: Double opt-in confirmation emails were sent through inline HTML inside `newsletter_sender.py`, which made the user-facing email harder to review, style, and test.
+
+**Decision**:
+1. Move the confirmation email HTML into `templates/email/confirmation.html`.
+2. Render the template from `send_confirmation_email()` using the Flask app context.
+3. Keep a minimal escaped fallback HTML path if template rendering fails.
+4. Add a 10 second timeout to the Resend API call so confirmation sends cannot hang indefinitely.
+5. Add tests for both template rendering and sender payload generation.
+
+**Trigger**: User asked whether a click-to-activate confirmation email template existed and approved adding one.
+
+**Rollback**:
+- Revert `newsletter_sender.py`, `templates/email/confirmation.html`, `tests/test_confirmation_email_template.py`, and this `DECISIONS.md` entry.

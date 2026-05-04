@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm your DailyAIWire subscription</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #eef2ff;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .preheader {
+            display: none !important;
+            visibility: hidden;
+            opacity: 0;
+            color: transparent;
+            height: 0;
+            width: 0;
+            overflow: hidden;
+            mso-hide: all;
+        }
+
+        .wrapper {
+            width: 100%;
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            padding: 32px 0 56px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.10);
+        }
+
+        .masthead {
+            background-color: #09090b;
+            border-bottom: 4px solid #2563eb;
+            padding: 28px;
+        }
+
+        .brand-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .logo-cell {
+            width: 52px;
+            vertical-align: middle;
+        }
+
+        .logo {
+            width: 42px;
+            height: 42px;
+            display: block;
+        }
+
+        .brand-name {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            color: #ffffff;
+            font-size: 25px;
+            line-height: 1.1;
+            font-weight: 700;
+            letter-spacing: -0.6px;
+            margin: 0 0 5px;
+        }
+
+        .brand-accent {
+            color: #2563eb;
+        }
+
+        .tagline {
+            font-family: 'IBM Plex Mono', monospace;
+            color: #a1a1aa;
+            font-size: 10px;
+            line-height: 1.4;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .content {
+            padding: 36px 32px 34px;
+        }
+
+        .eyebrow {
+            font-family: 'IBM Plex Mono', monospace;
+            color: #2563eb;
+            font-size: 11px;
+            line-height: 1.5;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin: 0 0 14px;
+        }
+
+        .title {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            color: #0f172a;
+            font-size: 34px;
+            line-height: 1.05;
+            letter-spacing: -1.2px;
+            margin: 0 0 18px;
+        }
+
+        .body-copy {
+            color: #334155;
+            font-size: 16px;
+            line-height: 1.7;
+            margin: 0 0 24px;
+        }
+
+        .button-wrap {
+            margin: 30px 0 28px;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: #2563eb;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff;
+            text-decoration: none;
+            border-radius: 999px;
+            padding: 15px 24px;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+
+        .fallback {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 0;
+            word-break: break-all;
+        }
+
+        .notice {
+            background-color: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 22px 32px;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .notice p {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="preheader">Confirm your DailyAIWire subscription to activate the weekly briefing.</div>
+    <div class="wrapper">
+        <div class="container">
+            <div class="masthead">
+                <table class="brand-table" role="presentation">
+                    <tr>
+                        <td class="logo-cell">
+                            <img src="https://dailyaiwire.news/static/img/brand/logo_nodes.png" class="logo"
+                                alt="DailyAIWire">
+                        </td>
+                        <td>
+                            <p class="brand-name">DailyAI<span class="brand-accent">Wire</span></p>
+                            <p class="tagline">AI-first intelligence feed</p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="content">
+                <p class="eyebrow">Double opt-in required</p>
+                <h1 class="title">Confirm your subscription</h1>
+                <p class="body-copy">
+                    Click below to confirm that you requested DailyAIWire. We only activate your feed after this step.
+                </p>
+                <div class="button-wrap">
+                    <a href="{{ confirmation_url }}" class="button"
+                        style="color:#ffffff !important;text-decoration:none;">Confirm subscription</a>
+                </div>
+                <p class="fallback">
+                    Button not working? Open this link:<br>
+                    <a href="{{ confirmation_url }}" style="color:#2563eb;">{{ confirmation_url }}</a>
+                </p>
+            </div>
+
+            <div class="notice">
+                <p>
+                    If you did not request this, ignore this email. You will not be added to the active newsletter list.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

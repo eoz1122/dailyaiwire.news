@@ -8,6 +8,7 @@ import requests
 import time
 from datetime import datetime
 from dotenv import load_dotenv
+from markupsafe import escape
 
 load_dotenv()
 
@@ -110,17 +111,23 @@ def send_confirmation_email(recipient_email, confirmation_url):
         logger.error("❌ ERROR: RESEND_API_KEY missing.")
         return False
 
-    html_content = f"""
-    <h1>Confirm your DailyAIWire subscription</h1>
-    <p>Click the button below to confirm that you requested DailyAIWire updates.</p>
-    <p>
-      <a href="{confirmation_url}"
-         style="display:inline-block;padding:12px 18px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;">
-        Confirm subscription
-      </a>
-    </p>
-    <p>If you did not request this, ignore this email and you will not be added to the active newsletter list.</p>
-    """
+    try:
+        from flask import render_template
+        from app import app
+        with app.app_context():
+            html_content = render_template(
+                'email/confirmation.html',
+                confirmation_url=confirmation_url,
+            )
+    except Exception as e:
+        logger.warning("⚠️ Confirmation template render failed (%s), using fallback HTML.", e)
+        safe_url = escape(confirmation_url)
+        html_content = f"""
+        <h1>Confirm your DailyAIWire subscription</h1>
+        <p>Click the link below to confirm that you requested DailyAIWire updates.</p>
+        <p><a href="{safe_url}">Confirm subscription</a></p>
+        <p>If you did not request this, ignore this email and you will not be added to the active newsletter list.</p>
+        """
 
     payload = {
         "from": f"DailyAIWire <{SENDER_EMAIL}>",
@@ -134,7 +141,7 @@ def send_confirmation_email(recipient_email, confirmation_url):
     }
 
     try:
-        response = requests.post("https://api.resend.com/emails", headers=headers, json=payload)
+        response = requests.post("https://api.resend.com/emails", headers=headers, json=payload, timeout=10)
         if response.status_code in [200, 201]:
             logger.info("✅ Confirmation email sent successfully.")
             return True
@@ -295,7 +302,7 @@ def send_newsletter(newsletter_id, is_apology=False):
     elif fail_count > 0 and success_count == 0:
         cursor.execute("UPDATE newsletters SET status = 'PARTIAL' WHERE id = ?", (newsletter_id,))
         conn.commit()
-        logger.warning("⚠️ Newsletter marked as PARTIAL — all sends failed but loop completed.")
+        logger.warning("⚠️ Newsletter marked as PARTIAL - all sends failed but loop completed.")
     else:
         logger.warning("⚠️ Newsletter status unchanged (no subscribers processed).")
         
