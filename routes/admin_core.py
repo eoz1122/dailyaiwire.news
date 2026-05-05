@@ -16,11 +16,32 @@ from db import get_db_connection
 
 admin_core_bp = Blueprint('admin_core', __name__)
 
-# F-06: Upload extension whitelist
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'mp3', 'wav', 'ogg'}
+IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+AUDIO_EXTENSIONS = {'mp3', 'wav', 'ogg'}
+STOCK_CATEGORIES = {
+    'Business', 'Technology', 'Policy', 'Science', 'Tools', 'Security',
+    'Finance', 'Health', 'Energy', 'LLMs', 'Robotics', 'Society', 'AI Agents',
+}
 
 import logging
 logger = logging.getLogger('admin_core')
+
+
+def _validate_upload_extension(filename, allowed_extensions):
+    secure_name = secure_filename(filename or "")
+    _, ext = os.path.splitext(secure_name)
+    cleaned_ext = ext.lower().lstrip('.')
+    if not cleaned_ext or cleaned_ext not in allowed_extensions:
+        raise ValueError(f"File type {ext or '(missing extension)'} not allowed.")
+    return secure_name, ext.lower()
+
+
+def _save_uploaded_file(file_storage, save_dir, new_filename, allowed_extensions):
+    secure_name, _ = _validate_upload_extension(file_storage.filename, allowed_extensions)
+    os.makedirs(save_dir, exist_ok=True)
+    path = os.path.join(save_dir, new_filename)
+    file_storage.save(path)
+    return secure_name
 
 
 @admin_core_bp.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
@@ -47,18 +68,18 @@ def admin_edit_article(id):
             file = request.files.get(file_input_name)
             if file and file.filename:
                 save_dir = os.path.join(current_app.static_folder, folder)
-                os.makedirs(save_dir, exist_ok=True)
-
-                filename = secure_filename(file.filename)
-                name, ext = os.path.splitext(filename)
-                # F-06: Validate extension
-                if ext.lower().lstrip('.') not in ALLOWED_EXTENSIONS:
-                    flash(f'File type {ext} not allowed.', 'error')
-                    return None
+                filename, ext = _validate_upload_extension(
+                    file.filename,
+                    IMAGE_EXTENSIONS if folder == 'uploads' else AUDIO_EXTENSIONS,
+                )
+                name, _ = os.path.splitext(filename)
                 new_filename = f"{article_slug}_{name[:20]}_{int(time.time())}{ext}"
-
-                path = os.path.join(save_dir, new_filename)
-                file.save(path)
+                _save_uploaded_file(
+                    file,
+                    save_dir,
+                    new_filename,
+                    IMAGE_EXTENSIONS if folder == 'uploads' else AUDIO_EXTENSIONS,
+                )
                 return f"/static/{folder}/{new_filename}"
             return None
 
@@ -75,19 +96,24 @@ def admin_edit_article(id):
         if request.form.get('delete_audio_female'):
             new_audio_female = None
 
-        uploaded_image = handle_file_upload('image_file', 'uploads', slug or 'art')
-        if uploaded_image:
-            new_image = uploaded_image
-        elif image_url:
-            new_image = image_url
+        try:
+            uploaded_image = handle_file_upload('image_file', 'uploads', slug or 'art')
+            if uploaded_image:
+                new_image = uploaded_image
+            elif image_url:
+                new_image = image_url
 
-        uploaded_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
-        if uploaded_male:
-            new_audio_male = uploaded_male
+            uploaded_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
+            if uploaded_male:
+                new_audio_male = uploaded_male
 
-        uploaded_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
-        if uploaded_female:
-            new_audio_female = uploaded_female
+            uploaded_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
+            if uploaded_female:
+                new_audio_female = uploaded_female
+        except ValueError as e:
+            conn.close()
+            flash(str(e), 'error')
+            return redirect(url_for('admin_core.admin_edit_article', id=id))
 
         try:
             conn.execute('''
@@ -144,24 +170,32 @@ def admin_create_article():
             file = request.files.get(file_input_name)
             if file and file.filename:
                 save_dir = os.path.join(current_app.static_folder, folder)
-                os.makedirs(save_dir, exist_ok=True)
-
-                filename = secure_filename(file.filename)
-                name, ext = os.path.splitext(filename)
+                filename, ext = _validate_upload_extension(
+                    file.filename,
+                    IMAGE_EXTENSIONS if folder == 'uploads' else AUDIO_EXTENSIONS,
+                )
+                name, _ = os.path.splitext(filename)
                 new_filename = f"{article_slug}_{name[:20]}_{int(time.time())}{ext}"
-
-                path = os.path.join(save_dir, new_filename)
-                file.save(path)
+                _save_uploaded_file(
+                    file,
+                    save_dir,
+                    new_filename,
+                    IMAGE_EXTENSIONS if folder == 'uploads' else AUDIO_EXTENSIONS,
+                )
                 return f"/static/{folder}/{new_filename}"
             return None
 
-        new_image = image_url
-        uploaded_image = handle_file_upload('image_file', 'uploads', slug or 'art')
-        if uploaded_image:
-            new_image = uploaded_image
+        try:
+            new_image = image_url
+            uploaded_image = handle_file_upload('image_file', 'uploads', slug or 'art')
+            if uploaded_image:
+                new_image = uploaded_image
 
-        new_audio_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
-        new_audio_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
+            new_audio_male = handle_file_upload('audio_male_file', 'audio', slug or 'art')
+            new_audio_female = handle_file_upload('audio_female_file', 'audio', slug or 'art')
+        except ValueError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('admin_core.admin_create_article'))
 
         try:
             conn = get_db_connection()
@@ -208,11 +242,15 @@ def admin_files():
         category = request.form.get('category')
 
         if file and category:
-            filename = secure_filename(file.filename)
-            save_dir = os.path.join(current_app.static_folder, 'stock', category)
-            os.makedirs(save_dir, exist_ok=True)
-            file.save(os.path.join(save_dir, filename))
-            flash(f'Uploaded {filename} to {category}')
+            try:
+                if category not in STOCK_CATEGORIES:
+                    raise ValueError('Invalid stock category.')
+                filename, _ = _validate_upload_extension(file.filename, IMAGE_EXTENSIONS)
+                save_dir = os.path.join(current_app.static_folder, 'stock', category)
+                _save_uploaded_file(file, save_dir, filename, IMAGE_EXTENSIONS)
+                flash(f'Uploaded {filename} to {category}')
+            except ValueError as e:
+                flash(str(e), 'error')
 
     files_map = {}
 
@@ -250,13 +288,17 @@ def admin_author():
         file = request.files.get('image_file')
 
         if file and file.filename:
-            filename = secure_filename(file.filename)
-            ts = int(time.time())
-            new_name = f"author_{ts}_{filename}"
-            save_path = os.path.join(current_app.static_folder, 'uploads', new_name)
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            file.save(save_path)
-            image_path = f"/static/uploads/{new_name}"
+            try:
+                filename, _ = _validate_upload_extension(file.filename, IMAGE_EXTENSIONS)
+                ts = int(time.time())
+                new_name = f"author_{ts}_{filename}"
+                save_dir = os.path.join(current_app.static_folder, 'uploads')
+                _save_uploaded_file(file, save_dir, new_name, IMAGE_EXTENSIONS)
+                image_path = f"/static/uploads/{new_name}"
+            except ValueError as e:
+                conn.close()
+                flash(str(e), 'error')
+                return redirect(url_for('admin_core.admin_author'))
 
         start = conn.execute('SELECT id FROM author_config LIMIT 1').fetchone()
         if start:

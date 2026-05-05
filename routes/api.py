@@ -3,7 +3,9 @@ API routes — DailyAIWire.news
 Search, trends, and tracking endpoints.
 """
 import base64
+import hashlib
 import logging
+import re
 
 from flask import Blueprint, request, Response
 from flask_login import current_user
@@ -14,6 +16,76 @@ from db import get_db_connection
 logger = logging.getLogger('api')
 
 api_bp = Blueprint('api', __name__)
+
+AUDIO_DEDUPE_MINUTES = 30
+BOT_UA_PATTERN = re.compile(
+    r"(bot|spider|crawl|slurp|headless|facebookexternalhit|whatsapp|telegrambot|"
+    r"linkedinbot|python-requests|curl|wget|uptimerobot|datadog|pingdom)",
+    re.IGNORECASE,
+)
+
+
+def _hash_value(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _extract_client_ip() -> str:
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    if forwarded:
+        first = forwarded.split(',')[0].strip()
+        if first:
+            return first
+    real_ip = (request.headers.get('X-Real-IP') or '').strip()
+    if real_ip:
+        return real_ip
+    remote = (request.remote_addr or '').strip()
+    return remote or 'unknown'
+
+
+def _is_likely_bot(user_agent: str) -> bool:
+    if not user_agent:
+        return True
+    if BOT_UA_PATTERN.search(user_agent):
+        return True
+    purpose = (request.headers.get('Purpose') or request.headers.get('Sec-Purpose') or '').lower()
+    return 'prefetch' in purpose
+
+
+def _visitor_hash() -> str:
+    client_ip = _extract_client_ip()
+    user_agent = (request.headers.get('User-Agent') or '').strip().lower()
+    accept_lang = (request.headers.get('Accept-Language') or '').strip().lower()
+    return _hash_value(f"{client_ip}|{user_agent}|{accept_lang}")
+
+
+def _ensure_audio_play_events_table(conn):
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS audio_play_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id INTEGER NOT NULL,
+            visitor_hash TEXT NOT NULL,
+            ip_hash TEXT,
+            user_agent TEXT,
+            path TEXT,
+            is_bot INTEGER DEFAULT 0,
+            counted_play INTEGER DEFAULT 0,
+            played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_audio_play_events_article_visitor_time
+        ON audio_play_events(article_id, visitor_hash, played_at)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_audio_play_events_played_at
+        ON audio_play_events(played_at)
+        '''
+    )
 
 
 
@@ -83,14 +155,66 @@ def api_trends():
 @csrf.exempt
 @limiter.limit("5 per minute")
 def track_audio_play(id):
+    conn = None
     try:
         conn = get_db_connection()
-        conn.execute('UPDATE articles SET audio_plays = audio_plays + 1 WHERE id = ?', (id,))
+        _ensure_audio_play_events_table(conn)
+
+        article = conn.execute(
+            'SELECT id FROM articles WHERE id = ? LIMIT 1',
+            (id,),
+        ).fetchone()
+        if not article:
+            conn.close()
+            return {"status": "error", "message": "Article not found"}, 404
+
+        user_agent = (request.headers.get('User-Agent') or '')[:512]
+        is_bot = 1 if _is_likely_bot(user_agent) else 0
+        visitor_hash = _visitor_hash()
+        ip_hash = _hash_value(_extract_client_ip())
+        counted_play = 0
+
+        if not is_bot:
+            window_expr = f'-{AUDIO_DEDUPE_MINUTES} minutes'
+            recent = conn.execute(
+                '''
+                SELECT 1
+                FROM audio_play_events
+                WHERE article_id = ?
+                  AND visitor_hash = ?
+                  AND played_at >= datetime('now', ?)
+                LIMIT 1
+                ''',
+                (id, visitor_hash, window_expr)
+            ).fetchone()
+            if not recent:
+                conn.execute(
+                    'UPDATE articles SET audio_plays = COALESCE(audio_plays, 0) + 1 WHERE id = ?',
+                    (id,),
+                )
+                counted_play = 1
+
+        conn.execute(
+            '''
+            INSERT INTO audio_play_events (
+                article_id, visitor_hash, ip_hash, user_agent, path, is_bot, counted_play
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (id, visitor_hash, ip_hash, user_agent, request.path, is_bot, counted_play)
+        )
         conn.commit()
-        conn.close()
-        return {"status": "success", "id": id}, 200
+        return {
+            "status": "success",
+            "id": id,
+            "counted": bool(counted_play),
+            "deduped": not bool(counted_play),
+        }, 200
     except Exception as e:
-        return {"status": "error", "message": str(e)}, 500
+        logger.error("Audio tracking error for article %s: %s", id, e, exc_info=True)
+        return {"status": "error", "message": "Audio tracking failed"}, 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @api_bp.route('/t/nl/<int:newsletter_id>/<string:token>')

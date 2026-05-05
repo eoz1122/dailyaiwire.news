@@ -164,7 +164,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 function shareEditorial(platform) {
     const btn = document.getElementById('btn-' + platform);
     const statusBox = document.getElementById('share-status');
@@ -232,7 +232,7 @@ function shareEditorial(platform) {
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
 (function() {
     const btn = document.getElementById('unpublish-btn');
     const modal = document.getElementById('unpublish-modal');

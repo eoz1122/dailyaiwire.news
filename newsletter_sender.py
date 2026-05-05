@@ -17,6 +17,7 @@ logger = logging.getLogger('newsletter')
 DB_PATH = "news.db"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 SENDER_EMAIL = "briefing@dailyaiwire.news"  # Verified Domain Sender
+RESEND_TIMEOUT_SECONDS = 10
 
 
 def _tracking_token(newsletter_id, email):
@@ -93,7 +94,12 @@ def send_welcome_email(recipient_email):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=RESEND_TIMEOUT_SECONDS,
+        )
         if response.status_code in [200, 201]:
             logger.info("✅ Welcome email sent successfully.")
             return True
@@ -141,7 +147,12 @@ def send_confirmation_email(recipient_email, confirmation_url):
     }
 
     try:
-        response = requests.post("https://api.resend.com/emails", headers=headers, json=payload, timeout=10)
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers=headers,
+            json=payload,
+            timeout=RESEND_TIMEOUT_SECONDS,
+        )
         if response.status_code in [200, 201]:
             logger.info("✅ Confirmation email sent successfully.")
             return True
@@ -269,7 +280,12 @@ def send_newsletter(newsletter_id, is_apology=False):
              raise ValueError(f"CRITICAL PRIVACY ERROR: Attempted to send to {len(payload['to'])} people at once. ABORTING.")
         
         try:
-            response = requests.post(url, headers=headers, json=payload)
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=RESEND_TIMEOUT_SECONDS,
+            )
             if response.status_code in [200, 201]:
                 logger.info("✅ Sent to %s", sub_email)
                 # Log success with tracking token (F-03: store token for open tracking)

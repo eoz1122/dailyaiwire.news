@@ -121,7 +121,7 @@
 
 {% block head_extra %}
 {% if config_ga_id %}
-<script>
+<script nonce="{{ csp_nonce() }}">
     // Fire conversion tracking on page load
     document.addEventListener('DOMContentLoaded', function () {
         // Check if this is a new subscriber or existing

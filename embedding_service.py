@@ -10,13 +10,16 @@ Per GEMINI.md §4: No hardcoded credentials.
 
 import os
 import sqlite3
+import logging
 import numpy as np
 from typing import List, Dict, Optional, Tuple
+from datetime import datetime
 
 
 # Lazy-load heavy models to avoid memory on import
 _model = None
 _qdrant_client = None
+logger = logging.getLogger('embedding_service')
 
 COLLECTION_NAME = "dailyaiwire_articles"
 AD_COLLECTION_NAME = "ad_reference_vectors"
@@ -44,7 +47,21 @@ def get_qdrant():
         from qdrant_client.models import Distance, VectorParams
 
         os.makedirs(QDRANT_PATH, exist_ok=True)
-        _qdrant_client = QdrantClient(path=QDRANT_PATH)
+        try:
+            _qdrant_client = QdrantClient(path=QDRANT_PATH)
+        except Exception as exc:
+            backup_path = None
+            if os.path.isdir(QDRANT_PATH):
+                stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+                backup_path = f"{QDRANT_PATH}_incompatible_{stamp}"
+                os.replace(QDRANT_PATH, backup_path)
+                os.makedirs(QDRANT_PATH, exist_ok=True)
+            logger.warning(
+                "Qdrant local store was incompatible and has been reset. Backup: %s. Error: %s",
+                backup_path,
+                exc,
+            )
+            _qdrant_client = QdrantClient(path=QDRANT_PATH)
 
         # Create collections if they don't exist
         collections = [c.name for c in _qdrant_client.get_collections().collections]

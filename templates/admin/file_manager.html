@@ -80,7 +80,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     function copyToClipboard(text, btn) {
         const fullUrl = window.location.origin + text;
         navigator.clipboard.writeText(fullUrl).then(() => {

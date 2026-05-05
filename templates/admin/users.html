@@ -67,7 +67,7 @@
     </table>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     document.querySelectorAll('.delete-form').forEach(function(form) {
         form.addEventListener('submit', function(e) {
             if (!confirm('Are you sure you want to delete this admin?')) {

@@ -4,10 +4,11 @@ Slim app factory: configuration, Blueprint registration, and middleware.
 Refactored from 1,967-line monolith on 2026-03-10.
 """
 import os
+import secrets
 import sqlite3
 from datetime import datetime
 
-from flask import Flask, request, redirect, url_for, has_request_context, render_template
+from flask import Flask, request, redirect, url_for, has_request_context, render_template, g
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.model import BaseModelView
 from flask_login import current_user, login_required
@@ -120,6 +121,21 @@ def init_db_migrations():
         )''')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_article_view_events_article_visitor_time ON article_view_events(article_id, visitor_hash, viewed_at)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_article_view_events_viewed_at ON article_view_events(viewed_at)')
+
+        # 3c. Audio play events for anti-abuse dedupe.
+        conn.execute('''CREATE TABLE IF NOT EXISTS audio_play_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id INTEGER NOT NULL,
+            visitor_hash TEXT NOT NULL,
+            ip_hash TEXT,
+            user_agent TEXT,
+            path TEXT,
+            is_bot INTEGER DEFAULT 0,
+            counted_play INTEGER DEFAULT 0,
+            played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_audio_play_events_article_visitor_time ON audio_play_events(article_id, visitor_hash, played_at)')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_audio_play_events_played_at ON audio_play_events(played_at)')
 
         # 4. Carousel Slots Table (Manual editorial pinning)
         conn.execute('''CREATE TABLE IF NOT EXISTS carousel_slots (
@@ -268,6 +284,14 @@ admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
 
 
 # --- Context Processor ---
+def get_csp_nonce():
+    nonce = getattr(g, 'csp_nonce', None)
+    if nonce is None:
+        nonce = secrets.token_urlsafe(16)
+        g.csp_nonce = nonce
+    return nonce
+
+
 @app.context_processor
 def inject_config():
     emre_data = {
@@ -344,6 +368,7 @@ def inject_config():
         'current_year': datetime.now().year,
         'config_ga_id': os.getenv('GA_MEASUREMENT_ID'),
         'config_web3forms_key': os.getenv('WEB3FORMS_ACCESS_KEY'),
+        'csp_nonce': get_csp_nonce,
         'subscribe_form_loaded_at': int(datetime.utcnow().timestamp()),
         'q': request.args.get('q', '') if has_request_context() else '',
         'emre': emre_data,
@@ -355,10 +380,15 @@ def inject_config():
 # --- Security Headers ---
 @app.after_request
 def add_security_headers(response):
-    # Tailwind is now compiled to /static/css/tailwind.min.css — unsafe-eval removed.
+    nonce = get_csp_nonce()
     csp = (
         "default-src 'self' https: data: blob:; "
-        "script-src 'self' 'unsafe-inline' https://unpkg.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudflareinsights.com; "
+        "base-uri 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "script-src 'self' https://unpkg.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudflareinsights.com; "
+        f"script-src-elem 'self' 'nonce-{nonce}' https://unpkg.com https://*.googletagmanager.com https://*.google.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudflareinsights.com; "
+        "script-src-attr 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' https: data: blob:; "

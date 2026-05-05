@@ -126,6 +126,18 @@ class LeadExtractionResult(BaseModel):
         return max(0, min(100, score))
 
 
+class ProposalDraft(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    subject: str = ""
+    body_html: str = ""
+
+    @field_validator('subject', 'body_html', mode='before')
+    @classmethod
+    def _normalize_text(cls, value: Any) -> str:
+        return str(value or "").strip()
+
+
 class DuplicatePair(BaseModel):
     model_config = ConfigDict(extra='ignore')
 

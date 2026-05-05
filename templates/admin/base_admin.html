@@ -324,7 +324,7 @@
         </main>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         const sidebar = document.getElementById('admin-sidebar');
         const backdrop = document.getElementById('sidebar-backdrop');
         const toggleBtn = document.getElementById('sidebar-toggle');

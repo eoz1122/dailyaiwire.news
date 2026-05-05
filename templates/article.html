@@ -22,7 +22,7 @@
 {% block canonical %}https://dailyaiwire.news/article/{{ article.slug }}{% endblock %}
 
 {% block head_extra %}
-<script type="application/ld+json">
+<script nonce="{{ csp_nonce() }}" type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "NewsArticle",
@@ -1099,7 +1099,7 @@
                 </div>
             </div>
 
-            <script>
+            <script nonce="{{ csp_nonce() }}">
                 // --- GenUI Configuration ---
                 // Read accent color from CSS custom properties (set by GenUI Engine above)
                 const genui = getComputedStyle(document.querySelector('.genui-article') || document.documentElement);
@@ -1597,7 +1597,7 @@
 
 <!-- DeepDiagram: Mermaid.js — self-contained loader -->
 {% if article.mermaid_diagram %}
-<script>
+<script nonce="{{ csp_nonce() }}">
     (function () {
         var s = document.createElement('script');
         s.src = 'https://unpkg.com/mermaid@11/dist/mermaid.min.js';

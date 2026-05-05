@@ -4,13 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://*.googletagmanager.com https://*.google-analytics.com https://*.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https: data: blob:; connect-src 'self' https: https://*.cloudflareinsights.com;">
 
     <!-- Google Analytics & Consent Mode -->
     {% set enable_analytics = config_ga_id and not request.path.startswith('/admin') and not request.path.startswith('/login') %}
     {% if enable_analytics %}
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         // Define dataLayer and the gtag function.
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
@@ -22,7 +20,7 @@
         });
     </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ config_ga_id }}"></script>
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         gtag('js', new Date());
         gtag('config', '{{ config_ga_id }}', {
             'cookie_flags': 'SameSite=None;Secure'
@@ -71,7 +69,7 @@
     <link rel="alternate" type="application/ld+json" href="{{ url_for('static', filename='schema.json') }}">
 
     <!-- JSON-LD Structured Data for AI Understanding -->
-    <script type="application/ld+json">
+    <script nonce="{{ csp_nonce() }}" type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "NewsMediaOrganization",
@@ -648,7 +646,7 @@
         </div>
     </footer>
 
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         const themeToggle = document.getElementById('theme-toggle');
         const darkIcon = document.getElementById('theme-icon-dark');
         const lightIcon = document.getElementById('theme-icon-light');
@@ -771,7 +769,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         document.addEventListener('DOMContentLoaded', () => {
             const modal = document.getElementById('newsletter-modal');
             const closeBtn = document.getElementById('close-newsletter');

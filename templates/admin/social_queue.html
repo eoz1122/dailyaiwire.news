@@ -167,7 +167,7 @@ https://dailyaiwire.news/article/{{ article['slug'] }}</textarea>
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     function copyToClipboard(elementId) {
         const text = document.getElementById(elementId).value;
         navigator.clipboard.writeText(text).then(() => {

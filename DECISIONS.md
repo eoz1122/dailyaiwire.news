@@ -1370,3 +1370,58 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 **Rollback**:
 - Revert `newsletter_sender.py`, `templates/email/confirmation.html`, `tests/test_confirmation_email_template.py`, and this `DECISIONS.md` entry.
+
+---
+
+## 2026-05-05T04:05:49+02:00 - Stored XSS and Upload Path Hardening
+
+**Context**: The security audit found two active stored-XSS paths and inconsistent upload validation. Public newsletter archive pages rendered newsletter intro HTML unsafely, the admin leads modal injected generated HTML with `innerHTML`, and some upload routes accepted extensions that the article edit flow already blocked.
+
+**Decision**:
+1. Render Signal intro text as escaped plaintext with preserved line breaks instead of trusting stored HTML.
+2. Sanitize admin lead preview HTML through a small allowlist and render it server-side instead of injecting raw model output in the browser.
+3. Generate mailto fallback bodies from sanitized plain text rather than raw HTML.
+4. Centralize upload extension validation and apply it consistently to article create, stock manager, and author image uploads.
+5. Add regression tests covering Signal XSS, lead-preview XSS, and disallowed upload extensions.
+
+**Trigger**: User approved patching the `P1` and `P2` findings from the full website security review.
+
+**Rollback**:
+- Revert `helpers.py`, `routes/signal.py`, `templates/signal_detail.html`, `routes/admin_ops.py`, `templates/admin/leads.html`, `routes/admin_core.py`, `tests/test_security_hardening.py`, and this `DECISIONS.md` entry.
+
+---
+
+## 2026-05-05T12:16:57+02:00 - CSP Nonces, Audio Abuse Dedupe, Request Timeouts, and Local Python 3.12 Upgrade
+
+**Context**: The follow-up security pass still had three open hardening items: outbound email requests could hang without timeouts, `/api/track-audio` could be inflated by repeated calls from the same visitor, and CSP still allowed inline script execution broadly. The local workspace also still relied on Python 3.9.6, which is out of support and produced incomplete dependency-audit results.
+
+**Decision**:
+1. Add a shared 10 second timeout constant to the remaining Resend send paths in `newsletter_sender.py` and `services/proposal_agent.py`.
+2. Add `audio_play_events` persistence and a 30 minute per-visitor dedupe window so repeated audio play pings do not inflate article metrics.
+3. Move CSP to a nonce-based `script-src-elem` policy, remove the stale meta CSP tag, and add per-request nonces to inline script blocks while temporarily keeping `script-src-attr 'unsafe-inline'` for existing `onclick` handlers.
+4. Add self-healing Qdrant recovery in `embedding_service.py` so an incompatible persisted local store is backed up and rebuilt automatically during client initialization.
+5. Build and verify a new local Python 3.12 virtualenv, then promote it to `.venv` only after the full test suite passes.
+
+**Trigger**: User asked to complete all remaining post-audit hardening items instead of stopping after the initial `P1` and `P2` fixes.
+
+**Rollback**:
+- Code rollback: revert `app.py`, `routes/api.py`, `newsletter_sender.py`, `services/proposal_agent.py`, `embedding_service.py`, the touched templates, `tests/test_security_hardening.py`, and this `DECISIONS.md` entry.
+- Local runtime rollback: `mv .venv .venv-py312-failed && mv .venv-py39-backup-20260505T121038 .venv`
+
+---
+
+## 2026-05-05T12:28:57+02:00 - Proposal Agent Migration to google.genai Governance Path
+
+**Context**: The local Python upgrade removed the remaining compatibility pressure, but `services/proposal_agent.py` was still the one active business workflow using deprecated `google.generativeai`. That path bypassed the shared AI governance layer, meaning proposal generation did not inherit the project-wide structured-output conventions or explicit routine-task thinking budget controls.
+
+**Decision**:
+1. Move `ProposalAgent` from direct SDK calls to the shared `AIGateway`.
+2. Treat proposal drafting as a routine-cost task by switching it to `ai_config.ROUTINE_MODEL`.
+3. Enforce structured output through a dedicated `ProposalDraft` schema in `services/ai_schemas.py`.
+4. Keep budget accounting behavior unchanged by continuing to log prompt and output token counts under `Proposal Gen`.
+5. Add governance regression coverage proving proposal generation now goes through the gateway with routine model settings and structured schema validation.
+
+**Trigger**: User approved the remaining `google.generativeai` migration work after the broader security and runtime hardening batch.
+
+**Rollback**:
+- Revert `services/proposal_agent.py`, `services/ai_schemas.py`, `tests/test_ai_governance.py`, and this `DECISIONS.md` entry.

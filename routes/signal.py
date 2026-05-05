@@ -6,6 +6,7 @@ Phase 3: GEO — Automated weekly curation with public archive.
 import json
 from flask import Blueprint, render_template, abort
 from db import get_db_connection
+from helpers import format_plaintext_html
 
 signal_bp = Blueprint('signal', __name__)
 
@@ -83,7 +84,10 @@ def signal_detail(newsletter_id):
 
     conn.close()
 
+    newsletter_intro_html = format_plaintext_html(nl_dict.get('intro_text', ''))
+
     return render_template('signal_detail.html',
                            newsletter=nl_dict,
                            articles=articles,
-                           article_metadata=article_metadata)
+                           article_metadata=article_metadata,
+                           newsletter_intro_html=newsletter_intro_html)

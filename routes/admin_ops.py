@@ -2,14 +2,17 @@
 Admin Ops routes — DailyAIWire.news
 Sources, leads, duplicates, budget, kill article.
 """
+import json
 import sqlite3
 from datetime import datetime
+from urllib.parse import quote
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from db import get_db_connection
 from budget_tracker import BudgetTracker
+from helpers import html_to_plaintext, sanitize_preview_html
 import logging
 
 logger = logging.getLogger('admin_ops')
@@ -119,7 +122,7 @@ def admin_unblock_source():
 def admin_leads():
     conn = get_db_connection()
     try:
-        leads = conn.execute('''
+        leads_raw = conn.execute('''
             SELECT * FROM leads
             ORDER BY
             CASE status
@@ -131,10 +134,39 @@ def admin_leads():
             confidence_score DESC
         ''').fetchall()
     except sqlite3.OperationalError:
-        leads = []
+        leads_raw = []
         flash("Leads table missing.", "error")
 
     conn.close()
+
+    leads = []
+    for row in leads_raw:
+        lead = dict(row)
+        lead["draft_subject_preview"] = ""
+        lead["draft_body_preview_html"] = ""
+        lead["draft_mailto_href"] = f"mailto:{lead.get('detected_email', '')}?subject=..."
+
+        raw_draft = lead.get("draft_proposal")
+        if raw_draft:
+            try:
+                draft = json.loads(raw_draft)
+                if isinstance(draft, list) and draft:
+                    draft = draft[0]
+                if isinstance(draft, dict):
+                    subject = str(draft.get("subject") or "")
+                    body_html = str(draft.get("body_html") or "")
+                    lead["draft_subject_preview"] = subject
+                    lead["draft_body_preview_html"] = sanitize_preview_html(body_html)
+                    plain_body = html_to_plaintext(body_html)
+                    lead["draft_mailto_href"] = (
+                        f"mailto:{lead.get('detected_email', '')}"
+                        f"?subject={quote(subject)}&body={quote(plain_body)}"
+                    )
+            except (TypeError, ValueError, json.JSONDecodeError):
+                logger.warning("Failed to parse draft proposal for lead %s", lead.get("id"))
+
+        leads.append(lead)
+
     return render_template('admin/leads.html', leads=leads)
 
 

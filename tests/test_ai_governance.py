@@ -3,12 +3,13 @@ from types import SimpleNamespace
 
 import pytest
 
+import ai_config
 import db
 from fetcher import ai_processor
 import remove_duplicates
 import services.lead_extractor as lead_extractor_module
 from services.ai_gateway import AIGateway
-from services.ai_schemas import DuplicatePair, DuplicateReviewPayload, LeadExtractionResult
+from services.ai_schemas import DuplicatePair, DuplicateReviewPayload, LeadExtractionResult, ProposalDraft
 
 
 class _FakeResponse:
@@ -104,6 +105,112 @@ def test_ai_gateway_logs_total_tokens_including_thoughts(monkeypatch):
     conn.close()
 
     assert row == (35.0,)
+
+
+def _ensure_proposal_lead_columns():
+    conn = sqlite3.connect(db.DB_PATH)
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(leads)").fetchall()}
+    wanted = {
+        "detected_email": "ALTER TABLE leads ADD COLUMN detected_email TEXT",
+        "draft_proposal": "ALTER TABLE leads ADD COLUMN draft_proposal TEXT",
+        "product_value": "ALTER TABLE leads ADD COLUMN product_value TEXT",
+    }
+    for column, ddl in wanted.items():
+        if column not in existing:
+            conn.execute(ddl)
+    conn.commit()
+    conn.close()
+
+
+def test_proposal_agent_uses_gateway_with_routine_settings(monkeypatch):
+    import services.proposal_agent as proposal_agent_module
+
+    _ensure_proposal_lead_columns()
+    conn = sqlite3.connect(db.DB_PATH)
+    conn.execute("DELETE FROM leads")
+    conn.execute(
+        """
+        INSERT INTO leads (
+            domain, source_url, title, status, confidence_score, opportunity_reason,
+            detected_email, draft_proposal, product_value
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "example.com",
+            "https://example.com/post",
+            "Example Lead",
+            "NEW",
+            90,
+            "Gateway migration test",
+            "lead@example.com",
+            None,
+            "MID_VALUE",
+        ),
+    )
+    lead_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    calls = {}
+    budget_logs = []
+
+    class FakeGateway:
+        def __init__(self, model_name, *, system_instruction=None, generation_config=None, thinking_budget=None, logger_name=None):
+            calls["init"] = {
+                "model_name": model_name,
+                "system_instruction": system_instruction,
+                "generation_config": generation_config,
+                "thinking_budget": thinking_budget,
+                "logger_name": logger_name,
+            }
+
+        def generate_structured(self, prompt, schema, *, prompt_type, request_options=None, generation_config=None):
+            calls["generate"] = {
+                "prompt": prompt,
+                "schema": schema,
+                "prompt_type": prompt_type,
+                "request_options": request_options,
+                "generation_config": generation_config,
+            }
+            return (
+                ProposalDraft(subject="Sharp Subject", body_html="<p>Body</p>"),
+                SimpleNamespace(
+                    usage_metadata=SimpleNamespace(
+                        prompt_token_count=12,
+                        candidates_token_count=8,
+                    )
+                ),
+            )
+
+    monkeypatch.setattr(proposal_agent_module, "AIGateway", FakeGateway)
+    monkeypatch.setattr(proposal_agent_module, "DB_PATH", db.DB_PATH)
+    monkeypatch.setattr(proposal_agent_module.budget, "can_make_request", lambda estimated_tokens=0: True)
+    monkeypatch.setattr(
+        proposal_agent_module.budget,
+        "log_request",
+        lambda input_tokens, output_tokens, category="": budget_logs.append(
+            {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "category": category,
+            }
+        ),
+    )
+
+    agent = proposal_agent_module.ProposalAgent()
+    draft_json = agent.generate_pitch(lead_id)
+
+    assert calls["init"]["model_name"] == ai_config.ROUTINE_MODEL
+    assert calls["init"]["thinking_budget"] == ai_config.ROUTINE_THINKING_BUDGET
+    assert calls["init"]["generation_config"] == {"response_mime_type": "application/json"}
+    assert calls["init"]["logger_name"] == "proposal_agent"
+    assert calls["generate"]["schema"] is ProposalDraft
+    assert calls["generate"]["prompt_type"] == "proposal_generation"
+    assert "Example Lead" in calls["generate"]["prompt"]
+    assert draft_json == '{"subject": "Sharp Subject", "body_html": "<p>Body</p>"}'
+    assert budget_logs == [
+        {"input_tokens": 12, "output_tokens": 8, "category": "Proposal Gen"}
+    ]
 
 
 def test_insufficient_data_article_allows_empty_fields():

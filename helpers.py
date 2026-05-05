@@ -2,8 +2,13 @@
 Shared template filters and utility functions — DailyAIWire.news
 Extracted from app.py during Blueprint refactoring.
 """
+import html
 import re
 from datetime import datetime, timezone
+from html.parser import HTMLParser
+from urllib.parse import urlparse
+
+from markupsafe import Markup
 
 
 def slugify(text):
@@ -93,3 +98,113 @@ def clean_markdown(text):
     if not text:
         return ""
     return text.replace('**', '').replace('__', '').replace('~~', '')
+
+
+def format_plaintext_html(text):
+    """Escape untrusted text and preserve line breaks for safe HTML rendering."""
+    escaped = html.escape(text or "")
+    return Markup(escaped.replace("\n", "<br>"))
+
+
+class _HTMLAllowlistSanitizer(HTMLParser):
+    """Very small HTML sanitizer for admin preview fragments."""
+
+    ALLOWED_TAGS = {"br", "p", "strong", "em", "b", "i", "ul", "ol", "li", "a"}
+    ALLOWED_ATTRS = {"a": {"href", "title", "target", "rel"}}
+    SKIP_CONTENT_TAGS = {"script", "style"}
+    ALLOWED_SCHEMES = {"http", "https", "mailto"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.parts = []
+        self.skip_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.SKIP_CONTENT_TAGS:
+            self.skip_depth += 1
+            return
+        if self.skip_depth or tag not in self.ALLOWED_TAGS:
+            return
+
+        safe_attrs = []
+        for key, value in attrs:
+            if key not in self.ALLOWED_ATTRS.get(tag, set()):
+                continue
+            if value is None:
+                continue
+            cleaned = self._sanitize_attr(tag, key, value)
+            if cleaned is None:
+                continue
+            safe_attrs.append(f' {key}="{html.escape(cleaned, quote=True)}"')
+
+        self.parts.append(f"<{tag}{''.join(safe_attrs)}>")
+
+    def handle_endtag(self, tag):
+        if tag in self.SKIP_CONTENT_TAGS:
+            if self.skip_depth:
+                self.skip_depth -= 1
+            return
+        if self.skip_depth or tag not in self.ALLOWED_TAGS or tag == "br":
+            return
+        self.parts.append(f"</{tag}>")
+
+    def handle_data(self, data):
+        if self.skip_depth:
+            return
+        self.parts.append(html.escape(data))
+
+    def handle_entityref(self, name):
+        if self.skip_depth:
+            return
+        self.parts.append(f"&{name};")
+
+    def handle_charref(self, name):
+        if self.skip_depth:
+            return
+        self.parts.append(f"&#{name};")
+
+    def _sanitize_attr(self, tag, key, value):
+        if tag == "a" and key == "href":
+            parsed = urlparse(value.strip())
+            if parsed.scheme and parsed.scheme.lower() not in self.ALLOWED_SCHEMES:
+                return None
+        return value
+
+
+def sanitize_preview_html(html_fragment):
+    """Sanitize a limited HTML fragment for same-origin admin preview rendering."""
+    sanitizer = _HTMLAllowlistSanitizer()
+    sanitizer.feed(html_fragment or "")
+    sanitizer.close()
+    return Markup("".join(sanitizer.parts))
+
+
+class _PlainTextExtractor(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "br":
+            self.parts.append("\n")
+        elif tag in {"p", "div", "li"}:
+            if self.parts and not self.parts[-1].endswith("\n"):
+                self.parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in {"p", "div", "li"}:
+            if self.parts and not self.parts[-1].endswith("\n"):
+                self.parts.append("\n")
+
+    def handle_data(self, data):
+        self.parts.append(data)
+
+
+def html_to_plaintext(html_fragment):
+    """Convert a small HTML fragment into readable plain text."""
+    parser = _PlainTextExtractor()
+    parser.feed(html_fragment or "")
+    parser.close()
+    text = "".join(parser.parts)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()

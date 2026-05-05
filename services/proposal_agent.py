@@ -2,24 +2,31 @@
 import os
 import sqlite3
 import logging
-import google.generativeai as genai
-from datetime import datetime
 
 # Root imports
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import ai_config
 from budget_tracker import BudgetTracker
 from logging_config import setup_logging
+from services.ai_gateway import AIGateway
+from services.ai_schemas import ProposalDraft
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "news.db")
 setup_logging()
 logger = logging.getLogger('proposal_agent')
 budget = BudgetTracker()
+RESEND_TIMEOUT_SECONDS = 10
 
 class ProposalAgent:
     def __init__(self):
-        self.model_name = "gemini-2.0-flash"
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        self.model_name = ai_config.ROUTINE_MODEL
+        self.gateway = AIGateway(
+            model_name=self.model_name,
+            generation_config={"response_mime_type": "application/json"},
+            thinking_budget=ai_config.ROUTINE_THINKING_BUDGET,
+            logger_name='proposal_agent',
+        )
 
     def generate_pitch(self, lead_id: int):
         conn = sqlite3.connect(DB_PATH)
@@ -73,10 +80,12 @@ class ProposalAgent:
         """
 
         try:
-            model = genai.GenerativeModel(self.model_name)
-            response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-            
-            # Log Usage
+            draft, response = self.gateway.generate_structured(
+                prompt,
+                ProposalDraft,
+                prompt_type="proposal_generation",
+            )
+
             if hasattr(response, 'usage_metadata'):
                 budget.log_request(
                     getattr(response.usage_metadata, 'prompt_token_count', 0),
@@ -84,17 +93,8 @@ class ProposalAgent:
                     category="Proposal Gen"
                 )
 
-            # Clean/Parse Response
             import json
-            text = response.text
-            try:
-                data = json.loads(text)
-                if isinstance(data, list) and len(data) > 0:
-                    data = data[0]
-                return json.dumps(data)
-            except (json.JSONDecodeError, ValueError):
-                return text
-            
+            return json.dumps(draft.model_dump())
         except Exception as e:
             logger.error("Proposal Generation Error for lead %d: %s", lead_id, e, exc_info=True)
             return None
@@ -151,7 +151,12 @@ class ProposalAgent:
         }
         
         try:
-            resp = requests.post(url, headers=headers, json=payload)
+            resp = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=RESEND_TIMEOUT_SECONDS,
+            )
             if resp.status_code == 200:
                 conn.execute("UPDATE leads SET status = 'PROPOSAL_SENT' WHERE id = ?", (lead_id,))
                 conn.commit()

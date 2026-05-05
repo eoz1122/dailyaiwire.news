@@ -168,11 +168,11 @@ Google Gemini.{% endif %}{% endblock %}
 
     @media (max-width: 767px) {
         #carousel-container .hero-text-container {
-            padding-bottom: calc(var(--carousel-indicator-space) + 0.65rem + env(safe-area-inset-bottom));
+            padding-bottom: calc(var(--carousel-indicator-space) + 0.65rem);
         }
 
         .carousel-indicators-wrap {
-            bottom: calc(0.55rem + env(safe-area-inset-bottom));
+            bottom: 0.55rem;
             max-width: calc(100% - 1rem);
             width: fit-content;
             overflow-x: auto;
@@ -824,7 +824,7 @@ Google Gemini.{% endif %}{% endblock %}
 {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     function syncCategoryRailOffset() {
         const rail = document.querySelector('[data-category-rail="true"]');
         const header = document.querySelector('header.sticky');

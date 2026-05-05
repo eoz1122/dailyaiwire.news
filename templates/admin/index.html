@@ -553,7 +553,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce() }}">
     function killArticle(articleId, btn) {
         const originalText = btn.textContent;
         btn.disabled = true;

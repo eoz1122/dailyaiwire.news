@@ -33,7 +33,7 @@
             Editor's Note
         </p>
         <div class="text-[var(--text-secondary)] text-sm leading-relaxed">
-            {{ newsletter.intro_text|replace('\n', '<br>')|safe }}
+            {{ newsletter_intro_html }}
         </div>
     </div>
     {% endif %}
