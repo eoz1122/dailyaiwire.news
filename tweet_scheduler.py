@@ -47,6 +47,7 @@ IG_ENABLED = os.getenv('IG_ENABLED', 'false').lower() == 'true'  # Disabled duri
 IG_GAP_SECONDS = int(os.getenv('IG_GAP_SECONDS', '10800'))  # 3 hours between IG posts
 META_POSTING_ENABLED = os.getenv('META_POSTING_ENABLED', 'false').lower() == 'true'
 X_FAILURE_BACKOFF_SECONDS = int(os.getenv('X_FAILURE_BACKOFF_SECONDS', '3600'))
+X_DAILY_LIMIT = int(os.getenv('X_DAILY_LIMIT', '3'))
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -133,6 +134,23 @@ def _get_last_post_time(col, time_col):
 def get_last_post_time():
     return _get_last_post_time('shared_on_x', 'shared_at')
 
+
+def get_x_posts_today(now_utc=None):
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+
+    local_now = now_utc.astimezone(TIMEZONE)
+    local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_start_utc = local_day_start.astimezone(timezone.utc).isoformat()
+
+    conn = get_db_connection()
+    row = conn.execute(
+        'SELECT COUNT(*) as cnt FROM articles WHERE shared_on_x = 1 AND shared_at >= ?',
+        (day_start_utc,)
+    ).fetchone()
+    conn.close()
+    return row['cnt'] if row else 0
+
 def get_last_ig_post_time():
     return _get_last_post_time('shared_on_ig', 'shared_on_ig_at')
 
@@ -206,6 +224,9 @@ def main_loop():
     logger.info("🚀 Starting Tweet Scheduler v%s", VERSION)
     logger.info("📡 Config: Interval %ds | Quiet %d-%d AM DE | FB Limit %d/day",
                 INTERVAL_SECONDS, QUIET_START, QUIET_END, FB_DAILY_LIMIT)
+    logger.info("📡 X cost control: daily limit %d | URLs %s",
+                X_DAILY_LIMIT,
+                "enabled" if os.getenv('X_INCLUDE_URL', 'false').lower() in {'1', 'true', 'yes', 'on'} else "disabled")
     logger.info("📡 Mode: DECOUPLED — each platform posts independently")
     if not META_POSTING_ENABLED:
         logger.info("📡 Meta posting disabled. Scheduler will post to X only.")
@@ -267,36 +288,49 @@ def main_loop():
                         x_backoff_until = None
                         x_backoff_reason = None
 
-                    last_x_time = get_last_post_time()
-                    x_gap = (now_utc - last_x_time).total_seconds()
-
-                    if x_gap < INTERVAL_SECONDS:
-                        remaining = (INTERVAL_SECONDS - x_gap) / 60
-                        logger.info("🐦 [X] ⏳ %.0f mins until next post.", remaining)
+                    x_posts_today = get_x_posts_today(now_utc=now_utc)
+                    if X_DAILY_LIMIT > 0 and x_posts_today >= X_DAILY_LIMIT:
+                        next_reset_local = now_utc.astimezone(TIMEZONE).replace(
+                            hour=0, minute=0, second=0, microsecond=0
+                        ) + timedelta(days=1)
+                        remaining = (next_reset_local.astimezone(timezone.utc) - now_utc).total_seconds() / 60
+                        logger.info(
+                            "🐦 [X] 🛑 Daily limit reached (%d/%d). Next reset in %.0f mins.",
+                            x_posts_today,
+                            X_DAILY_LIMIT,
+                            remaining,
+                        )
                     else:
-                        x_article = get_next_article_to_share()
-                        if x_article:
-                            payload = _build_article_payload(x_article)
-                            logger.info("🐦 [X] Posting: %s", x_article['title'][:60])
-                            if distributor.post_to_x(payload):
-                                mark_as_shared(x_article['slug'])
-                                logger.info("🐦 [X] ✅ Posted successfully.")
-                                x_backoff_until = None
-                                x_backoff_reason = None
-                                did_any_work = True
-                            else:
-                                x_backoff_until, x_backoff_reason = _build_x_backoff_window(
-                                    'error',
-                                    X_FAILURE_BACKOFF_SECONDS,
-                                    now_utc=now_utc,
-                                )
-                                logger.warning(
-                                    "🐦 [X] ⚠️ Post failed. Backoff engaged (%s) until %s.",
-                                    x_backoff_reason,
-                                    x_backoff_until.strftime('%H:%M UTC'),
-                                )
+                        last_x_time = get_last_post_time()
+                        x_gap = (now_utc - last_x_time).total_seconds()
+
+                        if x_gap < INTERVAL_SECONDS:
+                            remaining = (INTERVAL_SECONDS - x_gap) / 60
+                            logger.info("🐦 [X] ⏳ %.0f mins until next post.", remaining)
                         else:
-                            logger.info("🐦 [X] 📭 No unshared articles.")
+                            x_article = get_next_article_to_share()
+                            if x_article:
+                                payload = _build_article_payload(x_article)
+                                logger.info("🐦 [X] Posting: %s", x_article['title'][:60])
+                                if distributor.post_to_x(payload):
+                                    mark_as_shared(x_article['slug'])
+                                    logger.info("🐦 [X] ✅ Posted successfully.")
+                                    x_backoff_until = None
+                                    x_backoff_reason = None
+                                    did_any_work = True
+                                else:
+                                    x_backoff_until, x_backoff_reason = _build_x_backoff_window(
+                                        'error',
+                                        X_FAILURE_BACKOFF_SECONDS,
+                                        now_utc=now_utc,
+                                    )
+                                    logger.warning(
+                                        "🐦 [X] ⚠️ Post failed. Backoff engaged (%s) until %s.",
+                                        x_backoff_reason,
+                                        x_backoff_until.strftime('%H:%M UTC'),
+                                    )
+                            else:
+                                logger.info("🐦 [X] 📭 No unshared articles.")
             except XPostingPause as x_pause:
                 x_backoff_until, x_backoff_reason = _build_x_backoff_window(
                     x_pause.reason,

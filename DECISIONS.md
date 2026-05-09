@@ -1425,3 +1425,22 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 **Rollback**:
 - Revert `services/proposal_agent.py`, `services/ai_schemas.py`, `tests/test_ai_governance.py`, and this `DECISIONS.md` entry.
+
+---
+
+## 2026-05-09T15:40:00+02:00 - X Cheap Mode Defaults to URL-Free Posts and 3/Day Cap
+
+**Context**: X usage data showed the scheduler was regularly creating 11-12 paid X write events per day, and official X pricing now charges far more for `Content: Create (with URL)` than plain `Content: Create`. The existing formatter always embedded the article URL, which pushed automated posts into the more expensive bucket and made backlog clearing unnecessarily costly.
+
+**Decision**:
+1. Default automated X posts to URL-free copy and keep the article body self-contained with headline, category, gist, `Why it matters`, question, hashtags, and a plain-text DailyAIWire CTA.
+2. Add `X_INCLUDE_URL` as an explicit rollback/override switch so URL-bearing posts can still be re-enabled intentionally.
+3. Add `X_DAILY_LIMIT` with a default of `3` and enforce it in the scheduler against the current Berlin calendar day.
+4. Update the admin social queue X preview to match the new production formatter so manual operators see the same cheaper copy mode.
+5. Add regression coverage for URL-free defaults, opt-in URL mode, and Berlin-day X daily limit counting.
+
+**Trigger**: User approved reducing X API cost by switching to longer URL-free posts and capping automated volume at 3 posts per day.
+
+**Rollback**:
+- Set `X_INCLUDE_URL=true` and raise `X_DAILY_LIMIT` in the environment if an immediate behavioral rollback is needed without code changes.
+- Full code rollback: revert `social_distributor.py`, `tweet_scheduler.py`, `templates/admin/social_queue.html`, `tests/test_x_posting.py`, `tests/test_smoke.py`, and this `DECISIONS.md` entry.

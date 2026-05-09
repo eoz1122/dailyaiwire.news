@@ -31,6 +31,13 @@ def _env_int(name, default):
         return default
 
 
+def _env_bool(name, default):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
 class XPostingPause(Exception):
     def __init__(self, reason, retry_after_seconds, message):
         super().__init__(message)
@@ -79,7 +86,7 @@ def _build_tracked_url(base_url, slug):
     return article_url, article_url
 
 
-def build_x_post_text(article, base_url):
+def build_x_post_text(article, base_url, include_url=None):
     headline = _compact_text(article.get('headline') or 'New Intelligence')
     gist = _compact_text(article.get('gist'))
     why_it_matters = _compact_text(article.get('why_it_matters'))
@@ -87,6 +94,8 @@ def build_x_post_text(article, base_url):
     category = _compact_text(article.get('category')).upper()
     slug = article.get('seo_slug')
     article_url, tracked_url = _build_tracked_url(base_url, slug)
+    if include_url is None:
+        include_url = _env_bool("X_INCLUDE_URL", False)
 
     tags = []
     for tag in article.get('hashtags') or []:
@@ -103,8 +112,10 @@ def build_x_post_text(article, base_url):
     if why_it_matters:
         parts.append(f"Why it matters: {why_it_matters}")
 
-    # Keep the canonical article URL visible before optional engagement copy.
-    parts.append(tracked_url)
+    if include_url:
+        parts.append(tracked_url)
+    else:
+        parts.append("Follow DailyAIWire for the full brief.")
 
     if question:
         parts.append(f"🤔 {question}")

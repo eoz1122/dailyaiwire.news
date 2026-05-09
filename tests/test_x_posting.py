@@ -91,13 +91,15 @@ def test_build_x_post_text_uses_canonical_article_url_and_editorial_structure():
     )
 
     assert article_url == "https://dailyaiwire.news/article/ai-policy-update"
-    assert "https://dailyaiwire.news/article/ai-policy-update" in tweet_text
+    assert "https://dailyaiwire.news/article/ai-policy-update" not in tweet_text
+    assert "dailyaiwire.news" not in tweet_text.lower()
     assert "utm_source=twitter" not in tweet_text
     assert "s.dailyaiwire.news" not in tweet_text
     assert "[POLICY]" in tweet_text
     assert "Source:" not in tweet_text
     assert "Why it matters:" in tweet_text
     assert "This changes how public institutions evaluate AI systems before deployment." in tweet_text
+    assert "Follow DailyAIWire for the full brief." in tweet_text
     assert "#AI #Policy #AIGovernance" in tweet_text
 
 
@@ -113,7 +115,8 @@ def test_post_to_x_does_not_use_shortener():
 
     mock_shorten.assert_not_called()
     posted_text = mock_client.return_value.create_tweet.call_args.kwargs["text"]
-    assert "https://dailyaiwire.news/article/ai-policy-update" in posted_text
+    assert "https://dailyaiwire.news/article/ai-policy-update" not in posted_text
+    assert "dailyaiwire.news" not in posted_text.lower()
     assert "utm_source=twitter" not in posted_text
 
 
@@ -125,3 +128,52 @@ def test_build_x_backoff_window_is_deterministic():
 
     assert until == now_utc + timedelta(hours=6)
     assert label == "billing/credits"
+
+
+def test_build_x_post_text_can_opt_in_to_url():
+    from social_distributor import build_x_post_text
+
+    tweet_text, article_url = build_x_post_text(
+        _dummy_article(),
+        "https://dailyaiwire.news",
+        include_url=True,
+    )
+
+    assert article_url == "https://dailyaiwire.news/article/ai-policy-update"
+    assert "https://dailyaiwire.news/article/ai-policy-update" in tweet_text
+    assert "Follow DailyAIWire for the full brief." not in tweet_text
+
+
+def test_get_x_posts_today_counts_current_berlin_day(monkeypatch):
+    import sqlite3
+
+    import tweet_scheduler
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        """
+        CREATE TABLE articles (
+            slug TEXT,
+            shared_on_x BOOLEAN DEFAULT 0,
+            shared_at TIMESTAMP
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO articles (slug, shared_on_x, shared_at) VALUES (?, ?, ?)",
+        ("before-window", 1, "2026-05-08T21:59:00+00:00"),
+    )
+    conn.execute(
+        "INSERT INTO articles (slug, shared_on_x, shared_at) VALUES (?, ?, ?)",
+        ("inside-window", 1, "2026-05-08T22:01:00+00:00"),
+    )
+    conn.commit()
+
+    monkeypatch.setattr(tweet_scheduler, "get_db_connection", lambda: conn)
+
+    count = tweet_scheduler.get_x_posts_today(
+        now_utc=datetime(2026, 5, 9, 10, 0, tzinfo=timezone.utc)
+    )
+
+    assert count == 1
