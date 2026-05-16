@@ -1,0 +1,243 @@
+:root {
+  --bg: #0f1115;
+  --surface: #171a21;
+  --surface-2: #1f232c;
+  --border: #2a2f3a;
+  --text: #e7eaf0;
+  --muted: #8a92a3;
+  --accent: #4f8cff;
+  --accent-hover: #3d7aef;
+  --danger: #ef5a5a;
+  --done: #5fbf6a;
+  --radius: 10px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface-2: #f0f2f7;
+    --border: #e2e5ec;
+    --text: #1a1d24;
+    --muted: #6b7280;
+    --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+}
+
+body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.app {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px 28px 20px;
+}
+
+.header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.new-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.new-input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.new-input:focus {
+  border-color: var(--accent);
+}
+
+.add-btn {
+  padding: 0 18px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.add-btn:hover { background: var(--accent-hover); }
+.add-btn:active { transform: translateY(1px); }
+
+.filters {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  width: fit-content;
+}
+
+.filter {
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter:hover { color: var(--text); }
+
+.filter.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: opacity 0.15s ease;
+}
+
+.item.done .text {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.checkbox:hover { border-color: var(--accent); }
+
+.checkbox:checked {
+  background: var(--done);
+  border-color: var(--done);
+}
+
+.checkbox:checked::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.delete-btn:hover {
+  color: var(--danger);
+  background: rgba(239, 90, 90, 0.1);
+}
+
+.empty {
+  margin: 24px 0 8px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.clear-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}

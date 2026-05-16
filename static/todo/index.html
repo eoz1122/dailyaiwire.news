@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Todo</title>
+  <link rel="icon" href="/static/favicon.png" />
+  <link rel="stylesheet" href="/static/todo/styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <h1>Todo</h1>
+      <p class="subtitle" id="counter">No tasks yet</p>
+    </header>
+
+    <form id="new-form" class="new-form" autocomplete="off">
+      <input
+        id="new-input"
+        class="new-input"
+        type="text"
+        placeholder="What needs doing?"
+        aria-label="New task"
+        maxlength="280"
+        required
+      />
+      <button class="add-btn" type="submit" aria-label="Add task">Add</button>
+    </form>
+
+    <nav class="filters" role="tablist" aria-label="Filter tasks">
+      <button class="filter is-active" data-filter="all" role="tab" aria-selected="true">All</button>
+      <button class="filter" data-filter="active" role="tab" aria-selected="false">Active</button>
+      <button class="filter" data-filter="completed" role="tab" aria-selected="false">Done</button>
+    </nav>
+
+    <ul id="list" class="list" aria-live="polite"></ul>
+
+    <p id="empty" class="empty" hidden>Nothing here. Add a task above.</p>
+
+    <footer class="footer">
+      <button id="clear-completed" class="clear-btn" type="button" hidden>Clear completed</button>
+    </footer>
+  </main>
+
+  <script src="/static/todo/app.js"></script>
+</body>
+</html>
