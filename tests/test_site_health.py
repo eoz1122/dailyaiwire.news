@@ -121,6 +121,55 @@ class TestSiteHealthRegressions:
         assert 'data-mobile-article-audio-controls="true"' in page
         assert 'data-mobile-article-eli5="true"' in page
 
+    def test_article_page_uses_single_public_audio_button(self, client):
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute(
+            """
+            UPDATE articles
+            SET audio_male = ?, audio_female = ?
+            WHERE slug = ?
+            """,
+            (
+                "/static/audio/test_male.mp3",
+                "/static/audio/test_female.mp3",
+                "test-article-slug",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/article/test-article-slug")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'id="btn-play-primary"' in page
+        assert 'id="btn-play-female"' not in page
+        assert "Listen" in page
+
+    def test_article_page_falls_back_to_legacy_female_audio(self, client):
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute(
+            """
+            UPDATE articles
+            SET audio_male = ?, audio_female = ?
+            WHERE slug = ?
+            """,
+            (
+                None,
+                "/static/audio/test_female.mp3",
+                "test-article-slug",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/article/test-article-slug")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'id="btn-play-primary"' in page
+        assert 'data-src="/static/audio/test_female.mp3"' in page
+
     def test_high_intensity_article_omits_hero_alert_badge(self, client):
         resp = client.get("/article/test-article-with-diagram")
         page = resp.get_data(as_text=True)

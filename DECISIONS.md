@@ -5,6 +5,27 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-05-13T21:47:00+02:00 - Newsletter Subscribe Cooldown for Repeated Blocked Sources
+
+**Context**: The newsletter signup form already used a honeypot field and minimum render-time guard, but production telemetry showed a bot repeatedly tripping the honeypot from the same source. The defense was blocking inserts correctly, yet every repeated hit still generated new DB events and log noise.
+
+**Changes**:
+- `routes/public.py`:
+  - Added a short server-side cooldown for repeated blocked subscribe sources.
+  - If the same IP hash and user-agent pair has a recent blocked subscribe event, the request is silently dropped to the normal review path without writing a new subscriber or a new event.
+  - Added an IP-only burst safeguard for unusually noisy blocked traffic from one source.
+- `tests/test_subscribe_abuse.py`:
+  - Added a regression test proving that a second request from the same blocked source no longer inserts a subscriber or writes a second abuse event.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_subscribe_abuse.py` -> passed.
+- `python3 -m pytest -q tests/test_security.py -k subscribe` -> passed.
+- `python3 -m pytest -q tests/test_smoke.py -k "thank_you_page or subscribe"` -> passed.
+
+**Rollback**:
+- Revert `routes/public.py`, `tests/test_subscribe_abuse.py`, and this `DECISIONS.md` entry.
+- No schema rollback is needed because this change reuses the existing `subscriber_events` table.
+
 ## 2026-05-01T17:43:24+02:00 - Migrate Shared Gemini Gateway to Google GenAI with Thinking Controls
 
 **Context**: The emergency cost brake moved routine deduplication to Flash-Lite, but the shared `services/ai_gateway.py` still used the deprecated `google.generativeai` SDK. That SDK path did not expose explicit thinking-budget controls, leaving Gemini 2.5 structured calls vulnerable to billable dynamic thinking tokens.
@@ -1444,3 +1465,22 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Set `X_INCLUDE_URL=true` and raise `X_DAILY_LIMIT` in the environment if an immediate behavioral rollback is needed without code changes.
 - Full code rollback: revert `social_distributor.py`, `tweet_scheduler.py`, `templates/admin/social_queue.html`, `tests/test_x_posting.py`, `tests/test_smoke.py`, and this `DECISIONS.md` entry.
+
+---
+
+## 2026-05-20T11:15:13+02:00 - Male-Only Public Audio Rollout
+
+**Context**: Google Cloud Text-to-Speech spend remained materially above target because every published article generated two premium audio reads. Product direction was to cut recurring TTS cost without deleting legacy female files or breaking public article playback.
+
+**Decision**:
+1. Default new generated article audio to male-only by setting `AUDIO_GENERATE_FEMALE` off unless explicitly re-enabled.
+2. Treat `audio_male` alone as the completion signal for automated backfill so new articles do not get stuck in a permanent "missing female audio" regeneration loop.
+3. Preserve any existing `audio_female` database reference when a legacy article is manually or automatically regenerated under male-only mode.
+4. Replace the public male/female selector with one neutral `Listen` control that prefers `audio_male` and falls back to legacy `audio_female` when needed.
+5. Leave admin upload fields and historic female files untouched so rollback stays non-destructive.
+
+**Trigger**: User approved option 2: generate male-only for new articles, remove female from the public site, and leave old female assets in place.
+
+**Rollback**:
+- Set `AUDIO_GENERATE_FEMALE=true` to resume dual-voice generation without further code changes.
+- Full code rollback: revert `audio_generator.py`, `generate_missing_audio.py`, `routes/admin_content.py`, `templates/article.html`, `tests/test_audio_rollout.py`, `tests/test_site_health.py`, and this `DECISIONS.md` entry.

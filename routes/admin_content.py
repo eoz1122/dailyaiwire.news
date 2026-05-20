@@ -573,7 +573,7 @@ def admin_generate_audio(id):
             conn = get_db_connection()
             article = conn.execute('''
                 SELECT slug, title, gist, why_it_matters, bull_case, bear_case,
-                       key_details, narration_script
+                       key_details, narration_script, audio_female
                 FROM articles WHERE id = ?
             ''', (article_id,)).fetchone()
 
@@ -581,7 +581,7 @@ def admin_generate_audio(id):
                 logger.error("Article %s not found", article_id)
                 return
 
-            slug, title, gist, matters, bull, bear, details_json, script = article
+            slug, title, gist, matters, bull, bear, details_json, script, existing_female = article
 
             if script and len(script) > 50:
                 text_to_read = script
@@ -604,10 +604,10 @@ def admin_generate_audio(id):
             audio_gen = AudioGenerator()
             male, female = audio_gen.generate_audio_reads(slug, text_to_read)
 
-            if male and female:
+            if male:
                 conn.execute(
                     'UPDATE articles SET audio_male = ?, audio_female = ? WHERE id = ?',
-                    (male, female, article_id)
+                    (male, female or existing_female, article_id)
                 )
                 conn.commit()
                 logger.info("Audio generated for article %s", article_id)

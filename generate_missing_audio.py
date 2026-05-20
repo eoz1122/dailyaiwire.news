@@ -14,9 +14,9 @@ def generate_audio_for_recent_articles(limit=10):
     # Get recent articles without audio
     articles = cursor.execute('''
         SELECT slug, title, gist, why_it_matters, 
-               bull_case, bear_case, key_details, narration_script
+               bull_case, bear_case, key_details, narration_script, audio_female
         FROM articles 
-        WHERE (audio_male IS NULL OR audio_female IS NULL)
+        WHERE audio_male IS NULL
         ORDER BY published_at DESC 
         LIMIT ?
     ''', (limit,)).fetchall()
@@ -30,7 +30,7 @@ def generate_audio_for_recent_articles(limit=10):
     audio_gen = AudioGenerator()
     
     for art in articles:
-        slug, title, gist, matters, bull, bear, details_json, script = art
+        slug, title, gist, matters, bull, bear, details_json, script, existing_female = art
         
         # Build audio script: Prioritize AI Narrative Script, fallback to multi-field
         if script and len(script) > 50:
@@ -55,10 +55,10 @@ def generate_audio_for_recent_articles(limit=10):
         
         male, female = audio_gen.generate_audio_reads(slug, text_to_read)
         
-        if male and female:
+        if male:
             cursor.execute(
                 'UPDATE articles SET audio_male = ?, audio_female = ? WHERE slug = ?',
-                (male, female, slug)
+                (male, female or existing_female, slug)
             )
             conn.commit()
             print(f"✅ Generated and committed audio for: {art[1][:50]}...")

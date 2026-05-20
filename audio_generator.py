@@ -11,6 +11,9 @@ class AudioGenerator:
         # Google Cloud looks for GOOGLE_APPLICATION_CREDENTIALS environment variable
         # which should point to your service account JSON file.
         self.credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        self.generate_female = os.getenv("AUDIO_GENERATE_FEMALE", "false").lower() in {
+            "1", "true", "yes", "on"
+        }
         
         try:
             if self.credentials_path and os.path.exists(self.credentials_path):
@@ -44,6 +47,8 @@ class AudioGenerator:
         
         male_filename = f"{slug}_male.mp3"
         female_filename = f"{slug}_female.mp3"
+        male_url = f"/static/audio/{male_filename}"
+        female_url = f"/static/audio/{female_filename}" if self.generate_female else None
         
         male_path = audio_dir / male_filename
         female_path = audio_dir / female_filename
@@ -110,7 +115,7 @@ class AudioGenerator:
 
             
             # 2. Generate Female (Journey F)
-            if not female_path.exists():
+            if self.generate_female and not female_path.exists():
                 print(f"Generating Female Audio (Journey): {female_filename}")
                 combined_audio = b""
                 
@@ -156,7 +161,7 @@ class AudioGenerator:
                     print(f"   ⚠️ Mixing failed ({mix_err}), using raw TTS.")
                     if os.path.exists(temp_female): os.rename(temp_female, female_path)
                 
-            return f"/static/audio/{male_filename}", f"/static/audio/{female_filename}"
+            return male_url, female_url
             
         except Exception as e:
             print(f"Error during Google audio generation: {e}")
