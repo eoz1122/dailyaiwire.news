@@ -267,7 +267,8 @@ def test_homepage_and_related_section_link_to_reader_picks(client, _patch_db):
     article_html = client.get("/article/test-article-slug").get_data(as_text=True)
 
     assert 'data-reader-picks="true"' in homepage_html
-    assert 'grid grid-cols-1 md:grid-cols-3 gap-3' in homepage_html
+    assert 'aria-labelledby="reader-picks-title"' in homepage_html
+    assert '>Reader Picks</h2>' in homepage_html
     assert 'data-reader-pick-slug="promotion-test-reader-pick"' in homepage_html
     assert 'href="/article/promotion-test-reader-pick"' in article_html
 
