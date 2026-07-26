@@ -18,6 +18,7 @@ def _cleanup_persistence_test_articles():
         WHERE slug LIKE 'agent-benchmarks-%'
            OR slug LIKE 'hugging-face-%-test'
            OR slug LIKE 'deepsearch-world-%-test'
+           OR slug LIKE 'source-url-collision-%-test'
         """
     )
     conn.commit()
@@ -75,7 +76,7 @@ def test_save_to_db_separates_onsite_image_from_social_card(monkeypatch):
     monkeypatch.setattr(persistence, "run_post_publication_audit", lambda *args, **kwargs: None)
     monkeypatch.setattr(ig_card_generator, "generate_card", lambda *args, **kwargs: generated_path)
 
-    persistence.save_to_db([_processed_article(slug)], [_original_article(slug)])
+    result = persistence.save_to_db([_processed_article(slug)], [_original_article(slug)])
 
     conn = sqlite3.connect(db_module.DB_PATH)
     row = conn.execute(
@@ -87,6 +88,7 @@ def test_save_to_db_separates_onsite_image_from_social_card(monkeypatch):
     assert row is not None
     assert row[0].startswith("/static/fallbacks/")
     assert row[1] == "/static/img/social/agent-benchmarks-visual-context.png"
+    assert result.articles_saved == 1
 
 
 def test_save_to_db_keeps_stock_fallback_when_card_generation_fails(monkeypatch):
@@ -320,3 +322,115 @@ def test_save_to_db_blocks_old_cross_source_copy_of_same_research_paper(monkeypa
     conn.close()
 
     assert duplicate is None
+
+
+def test_save_to_db_never_replaces_existing_article_on_source_url_collision(monkeypatch):
+    import db as db_module
+    import fetcher.persistence as persistence
+    import ig_card_generator
+
+    source_url = "https://example.com/source-url-collision"
+    conn = sqlite3.connect(db_module.DB_PATH)
+    existing_id = conn.execute(
+        """
+        INSERT INTO articles (
+            slug, title, category, gist, source, source_url, published_at,
+            importance_score, is_published
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-10 days'), ?, 1)
+        """,
+        (
+            "source-url-collision-existing-test",
+            "Existing Canonical Source Story",
+            "Business",
+            "Existing source story.",
+            "Existing Source",
+            source_url,
+            80,
+        ),
+    ).lastrowid
+    conn.commit()
+    conn.close()
+
+    processed = _processed_article("source-url-collision-new-test")
+    processed.update(
+        {
+            "headline": "Unrelated New Analysis Must Not Replace Existing Record",
+            "seo_slug": "source-url-collision-new-test",
+            "gist": "A distinct analysis that arrived with a reused source URL.",
+        }
+    )
+    original = _original_article("source-url-collision-new-test")
+    original.update(
+        {
+            "title": processed["headline"],
+            "source": "New Source",
+            "link": source_url,
+        }
+    )
+
+    fake_embedding = SimpleNamespace(
+        score_ad_likelihood=lambda *args, **kwargs: 0.0,
+        find_duplicates=lambda *args, **kwargs: None,
+        score_article=lambda *args, **kwargs: (0.8, []),
+        index_article=lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(persistence, "DB_PATH", db_module.DB_PATH)
+    monkeypatch.setitem(sys.modules, "embedding_service", fake_embedding)
+    monkeypatch.setattr(persistence, "notify_google_index", lambda *args, **kwargs: None)
+    monkeypatch.setattr(persistence, "run_post_publication_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(ig_card_generator, "generate_card", lambda *args, **kwargs: None)
+
+    persistence.save_to_db([processed], [original])
+
+    conn = sqlite3.connect(db_module.DB_PATH)
+    rows = conn.execute(
+        "SELECT id, slug, title FROM articles WHERE source_url = ?",
+        (source_url,),
+    ).fetchall()
+    conn.close()
+
+    assert rows == [
+        (
+            existing_id,
+            "source-url-collision-existing-test",
+            "Existing Canonical Source Story",
+        )
+    ]
+
+
+@pytest.mark.parametrize("invalid_batch_id", [None, -1, 99, [0], True])
+def test_save_to_db_rejects_invalid_batch_id_without_source_fallback(
+    monkeypatch,
+    invalid_batch_id,
+):
+    import db as db_module
+    import fetcher.persistence as persistence
+    import ig_card_generator
+
+    slug = "agent-benchmarks-invalid-source-map"
+    processed = _processed_article(slug)
+    processed["batch_id"] = invalid_batch_id
+
+    fake_embedding = SimpleNamespace(
+        score_ad_likelihood=lambda *args, **kwargs: 0.0,
+        find_duplicates=lambda *args, **kwargs: None,
+        score_article=lambda *args, **kwargs: (0.8, []),
+        index_article=lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(persistence, "DB_PATH", db_module.DB_PATH)
+    monkeypatch.setitem(sys.modules, "embedding_service", fake_embedding)
+    monkeypatch.setattr(persistence, "notify_google_index", lambda *args, **kwargs: None)
+    monkeypatch.setattr(persistence, "run_post_publication_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(ig_card_generator, "generate_card", lambda *args, **kwargs: None)
+
+    result = persistence.save_to_db([processed], [_original_article(slug)])
+
+    conn = sqlite3.connect(db_module.DB_PATH)
+    row = conn.execute(
+        "SELECT id FROM articles WHERE slug = ?",
+        (slug,),
+    ).fetchone()
+    conn.close()
+
+    assert row is None
+    assert result.articles_saved == 0
