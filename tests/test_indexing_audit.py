@@ -40,6 +40,7 @@ def _clear_indexing_audit(_patch_db):
 def test_notify_google_index_records_success(monkeypatch, _patch_db):
     import google_indexer
 
+    monkeypatch.setenv("ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API", "true")
     posted = {}
 
     def fake_post(endpoint, headers, json, timeout):
@@ -73,6 +74,7 @@ def test_notify_google_index_records_success(monkeypatch, _patch_db):
 def test_notify_google_index_records_quota_and_request_failure(monkeypatch, _patch_db):
     import google_indexer
 
+    monkeypatch.setenv("ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API", "true")
     monkeypatch.setattr(google_indexer, "get_credentials", lambda: FakeCredentials())
     monkeypatch.setattr(
         google_indexer.requests,
@@ -100,6 +102,7 @@ def test_notify_google_index_records_quota_and_request_failure(monkeypatch, _pat
 def test_notify_google_index_records_skipped_when_credentials_missing(monkeypatch, _patch_db):
     import google_indexer
 
+    monkeypatch.setenv("ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API", "true")
     monkeypatch.setattr(google_indexer, "get_credentials", lambda: None)
 
     google_indexer.notify_google_index("https://dailyaiwire.news/article/no-creds")
@@ -108,6 +111,26 @@ def test_notify_google_index_records_skipped_when_credentials_missing(monkeypatc
     assert len(rows) == 1
     assert rows[0]["status"] == "skipped"
     assert "credentials unavailable" in rows[0]["error"]
+
+
+def test_notify_google_index_skips_general_articles_by_default(monkeypatch, _patch_db):
+    import google_indexer
+
+    monkeypatch.delenv("ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API", raising=False)
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("General article URLs must not call the Indexing API")
+
+    monkeypatch.setattr(google_indexer.requests, "post", fail_if_called)
+
+    google_indexer.notify_google_index(
+        "https://dailyaiwire.news/article/default-policy-skip"
+    )
+
+    rows = _fetch_audit_rows()
+    assert len(rows) == 1
+    assert rows[0]["status"] == "skipped"
+    assert "JobPosting and BroadcastEvent" in rows[0]["error"]
 
 
 def test_admin_indexing_requires_login(client):

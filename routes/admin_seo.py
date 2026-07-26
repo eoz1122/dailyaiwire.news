@@ -23,7 +23,7 @@ VALID_STATUS_FILTERS = {"", "eligible", "not_eligible"}
 
 def _article_select_columns() -> str:
     return """
-        id, slug, title, image, category, gist, why_it_matters, bull_case,
+        id, slug, title, image, social_image, category, gist, why_it_matters, bull_case,
         bear_case, key_details, deep_analysis, source, source_url,
         published_at, importance_score, compass_score, is_published
     """
