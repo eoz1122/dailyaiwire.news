@@ -8,6 +8,7 @@ import sqlite3
 from bs4 import BeautifulSoup
 
 import db as db_module
+from routes import public as public_routes
 
 
 def _create_blog_posts_table(conn: sqlite3.Connection) -> None:
@@ -393,7 +394,23 @@ class TestSiteHealthRegressions:
             for phrase in legacy_phrases:
                 assert phrase not in page
 
-    def test_homepage_first_grid_keeps_eight_articles_plus_cta(self, client):
+    def test_homepage_first_grid_fills_ninth_slot_with_latest_brief(
+        self,
+        client,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            public_routes,
+            "_fetch_latest_sent_newsletter",
+            lambda _conn: {
+                "id": 42,
+                "subject": "AI Weekly Wrap: Test Signals",
+                "intro_preview": "A concise test briefing.",
+                "scheduled_date": "2026-07-26 14:00:00",
+                "article_count": 7,
+            },
+            raising=False,
+        )
         conn = sqlite3.connect(db_module.DB_PATH)
         _create_blog_posts_table(conn)
 
@@ -477,5 +494,21 @@ class TestSiteHealthRegressions:
                 grid_child_counts.append(len(div.find_all("div", recursive=False)))
 
         assert grid_child_counts
-        assert max(grid_child_counts) == 8
+        assert max(grid_child_counts) == 9
         assert len(soup.select('[data-homepage-newsletter-cta="true"]')) == 1
+        brief_cards = soup.select('[data-homepage-weekly-brief-card="true"]')
+        assert len(brief_cards) == 1
+        assert brief_cards[0].get("class")
+        assert "homepage-weekly-brief-card" in brief_cards[0]["class"]
+        brief_link = brief_cards[0].find("a", href="/signal/42")
+        assert brief_link is not None
+        assert "homepage-weekly-brief-link" in (brief_link.get("class") or [])
+        assert "AI Weekly Wrap: Test Signals" in brief_link.get_text(" ", strip=True)
+        page = resp.get_data(as_text=True)
+        assert "grid-column: span 2 / span 2" in page
+        assert "background: linear-gradient" in page
+        assert (
+            "body.light-mode .homepage-weekly-brief-link "
+            "h2.homepage-weekly-brief-title {\n"
+            "        color: #ffffff !important;"
+        ) in page
