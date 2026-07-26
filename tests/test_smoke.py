@@ -3,6 +3,10 @@ Smoke tests — DailyAIWire.news
 Validates that the app boots and all critical routes respond correctly.
 """
 import sqlite3
+from pathlib import Path
+from types import SimpleNamespace
+
+from PIL import Image
 
 
 def _seed_published_editorial():
@@ -82,6 +86,17 @@ class TestPublicRoutes:
         resp = client.get('/')
         assert resp.status_code == 200
 
+    def test_homepage_analytics_has_client_bot_guard(self, client, monkeypatch):
+        monkeypatch.setenv("GA_MEASUREMENT_ID", "G-TEST123")
+
+        resp = client.get('/')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert "dailyaiwireBotPattern" in html
+        assert "navigator.webdriver" in html
+        assert "ga-disable-G-TEST123" in html
+
     def test_homepage_with_search(self, client):
         resp = client.get('/?q=test')
         assert resp.status_code == 200
@@ -118,8 +133,17 @@ class TestPublicRoutes:
 
         before_views, before_verified = get_counts()
 
-        human_headers = {'User-Agent': 'Mozilla/5.0 (DailyAIWire-Test)'}
-        bot_headers = {'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)'}
+        human_headers = {
+            'User-Agent': (
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                'AppleWebKit/537.36 Chrome/146.0.0.0 Safari/537.36'
+            )
+        }
+        bot_headers = [
+            {'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)'},
+            {'User-Agent': 'DailyAIWire-Monitor/1.0'},
+            {'User-Agent': 'Scrapy/2.16.0 (+https://scrapy.org)'},
+        ]
 
         resp = client.get('/article/test-article-slug', headers=human_headers)
         assert resp.status_code == 200
@@ -135,11 +159,93 @@ class TestPublicRoutes:
         assert h2_verified == h1_verified
 
         # Bot request should not count as verified.
-        resp = client.get('/article/test-article-slug', headers=bot_headers)
+        previous_views = h2_views
+        for headers in bot_headers:
+            resp = client.get('/article/test-article-slug', headers=headers)
+            assert resp.status_code == 200
+            b_views, b_verified = get_counts()
+            assert b_views == previous_views + 1
+            assert b_verified == h2_verified
+            previous_views = b_views
+
+    def test_article_head_request_does_not_break_analytics(self, client):
+        import db as db_module
+        import sqlite3
+
+        def get_counts():
+            conn = sqlite3.connect(db_module.DB_PATH)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT views, verified_views FROM articles WHERE slug = ?",
+                ('test-article-slug',)
+            ).fetchone()
+            conn.close()
+            return int(row['views'] or 0), int(row['verified_views'] or 0)
+
+        before_views, before_verified = get_counts()
+
+        resp = client.head('/article/test-article-slug', headers={'User-Agent': 'HeadCheck/1.0'})
+
+        after_views, after_verified = get_counts()
+
         assert resp.status_code == 200
-        b_views, b_verified = get_counts()
-        assert b_views == h2_views + 1
-        assert b_verified == h2_verified
+        assert after_views == before_views
+        assert after_verified == before_verified
+
+    def test_record_article_view_uses_short_timeout_for_get(self, monkeypatch):
+        import routes.public as public_module
+        from app import app
+
+        calls = {"timeout": None, "queries": []}
+
+        class FakeConn:
+            def execute(self, sql, params=()):
+                calls["queries"].append((sql, params))
+                return SimpleNamespace(fetchone=lambda: None)
+
+            def commit(self):
+                calls["committed"] = True
+
+            def close(self):
+                calls["closed"] = True
+
+        def fake_get_db_connection(*, timeout=None):
+            calls["timeout"] = timeout
+            return FakeConn()
+
+        monkeypatch.setattr(public_module, "get_db_connection", fake_get_db_connection)
+
+        with app.test_request_context(
+            "/article/test-article-slug",
+            method="GET",
+            headers={"User-Agent": "Mozilla/5.0"},
+        ):
+            public_module._record_article_view(123)
+
+        assert calls["timeout"] == public_module.ANALYTICS_DB_TIMEOUT_SECONDS
+        assert calls["committed"] is True
+        assert any("UPDATE articles SET views" in sql for sql, _params in calls["queries"])
+
+    def test_record_article_view_skips_db_for_head(self, monkeypatch):
+        import routes.public as public_module
+        from app import app
+
+        called = {"db": False}
+
+        def fake_get_db_connection(*, timeout=None):
+            called["db"] = True
+            raise AssertionError("HEAD analytics should not open a DB connection")
+
+        monkeypatch.setattr(public_module, "get_db_connection", fake_get_db_connection)
+
+        with app.test_request_context(
+            "/article/test-article-slug",
+            method="HEAD",
+            headers={"User-Agent": "HeadCheck/1.0"},
+        ):
+            public_module._record_article_view(123)
+
+        assert called["db"] is False
 
     def test_article_not_found(self, client):
         resp = client.get('/article/nonexistent-slug-xyz')
@@ -148,6 +254,72 @@ class TestPublicRoutes:
     def test_about_page(self, client):
         resp = client.get('/about')
         assert resp.status_code == 200
+
+    def test_about_page_falls_back_when_author_upload_is_missing(self, client):
+        import db as db_module
+
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute("DELETE FROM author_config")
+        conn.execute(
+            """
+            INSERT INTO author_config (name, title, bio, linkedin, image)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "Emre Ozen",
+                "VP, Head of Ad Operations & Analytics",
+                "Bio",
+                "https://www.linkedin.com/in/emreozen/",
+                "/static/uploads/missing-emre.jpg",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get('/about')
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert '/static/emre.jpg' in page
+        assert '/static/uploads/missing-emre.jpg' not in page
+
+    def test_about_page_rejects_banner_shaped_author_image(self, client):
+        import db as db_module
+
+        uploads_dir = Path("static/uploads")
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        bad_image = uploads_dir / "test-wide-author.jpg"
+
+        with Image.new("RGB", (500, 50), "white") as img:
+            img.save(bad_image)
+
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute("DELETE FROM author_config")
+        conn.execute(
+            """
+            INSERT INTO author_config (name, title, bio, linkedin, image)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "Emre Ozen",
+                "VP, Head of Ad Operations & Analytics",
+                "Bio",
+                "https://www.linkedin.com/in/emreozen/",
+                "/static/uploads/test-wide-author.jpg",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        try:
+            resp = client.get('/about')
+            page = resp.get_data(as_text=True)
+        finally:
+            bad_image.unlink(missing_ok=True)
+
+        assert resp.status_code == 200
+        assert '/static/emre.jpg' in page
+        assert '/static/uploads/test-wide-author.jpg' not in page
 
     def test_contact_page(self, client):
         resp = client.get('/contact')
@@ -220,9 +392,46 @@ class TestAdminRoutesAuthenticated:
         assert resp.status_code == 200
         assert b'Verified' in resp.data
 
+    def test_admin_dashboard_includes_observation_only_traffic_monitor(self, auth_client):
+        resp = auth_client.get('/admin/')
+
+        assert resp.status_code == 200
+        assert b'Traffic Quality Monitor' in resp.data
+        assert b'Observation only' in resp.data
+
     def test_admin_sources(self, auth_client):
         resp = auth_client.get('/admin/sources')
         assert resp.status_code == 200
+
+    def test_admin_sources_lists_article_publishers_without_creating_feed_rows(self, auth_client):
+        import db as db_module
+
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute(
+            """
+            INSERT INTO articles (slug, title, source, source_url)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                "source-page-attribution-test",
+                "Source page attribution test",
+                "Discovered Publisher",
+                "https://example.com/source-page-attribution-test",
+            ),
+        )
+        before = conn.execute("SELECT COUNT(*) FROM sources").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        resp = auth_client.get('/admin/sources')
+
+        conn = sqlite3.connect(db_module.DB_PATH)
+        after = conn.execute("SELECT COUNT(*) FROM sources").fetchone()[0]
+        conn.close()
+
+        assert resp.status_code == 200
+        assert b"Discovered Publisher" in resp.data
+        assert after == before
 
     def test_admin_leads(self, auth_client):
         resp = auth_client.get('/admin/leads')
@@ -335,6 +544,17 @@ class TestSEORoutes:
         resp = client.get('/rss.xml')
         assert resp.status_code == 200
 
+    def test_malformed_html_escaped_utm_query_redirects_to_clean_url(self, client):
+        resp = client.get(
+            '/article/test-article-slug?utm_source=linkedin&amp%3Butm_medium=social&amp%3Butm_campaign=dailyaiwire_automation',
+            follow_redirects=False,
+        )
+
+        assert resp.status_code == 301
+        assert resp.headers['Location'].endswith(
+            '/article/test-article-slug?utm_source=linkedin&utm_medium=social&utm_campaign=dailyaiwire_automation'
+        )
+
     def test_login_page(self, client):
         resp = client.get('/login')
         assert resp.status_code == 200
@@ -348,6 +568,111 @@ class TestSEORoutes:
         resp = client.get('/rss/linkedin')
         assert resp.status_code == 200
         assert b'<rss' in resp.data
+
+    def test_linkedin_rss_feed_caps_research_and_blocks_low_intent_sources(self, client):
+        import db as db_module
+
+        conn = sqlite3.connect(db_module.DB_PATH)
+        for idx in range(12):
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO articles (
+                    slug, title, image, category, gist, why_it_matters,
+                    bull_case, bear_case, key_details, eli5, deep_analysis,
+                    source, source_url, full_json, published_at, importance_score,
+                    is_published, design_tokens
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?), ?, ?, ?)
+                """,
+                (
+                    f"linkedin-research-paper-{idx}",
+                    f"HF Research Paper {idx}",
+                    "/static/fallbacks/tools_0.jpg",
+                    "LLMs",
+                    "Research gist.",
+                    "Research context.",
+                    "Upside.",
+                    "Risk.",
+                    '["Detail"]',
+                    "Simple explanation.",
+                    "Deep analysis.",
+                    "Hugging Face Papers",
+                    f"https://huggingface.co/papers/test-{idx}",
+                    "{}",
+                    f"-{idx} minutes",
+                    92,
+                    1,
+                    '{"intensity": "standard"}',
+                ),
+            )
+
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO articles (
+                slug, title, image, category, gist, why_it_matters,
+                bull_case, bear_case, key_details, eli5, deep_analysis,
+                source, source_url, full_json, published_at, importance_score,
+                is_published, design_tokens
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '-1 minute'), ?, ?, ?)
+            """,
+            (
+                "linkedin-low-intent-stock-pitch",
+                "Low Intent Stock Pitch",
+                "/static/fallbacks/tools_0.jpg",
+                "Business",
+                "Stock pitch gist.",
+                "Stock pitch context.",
+                "Upside.",
+                "Risk.",
+                '["Detail"]',
+                "Simple explanation.",
+                "Deep analysis.",
+                "The Motley Fool",
+                "https://www.fool.com/investing/ai-stock-pitch",
+                "{}",
+                99,
+                1,
+                '{"intensity": "standard"}',
+            ),
+        )
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO articles (
+                slug, title, image, category, gist, why_it_matters,
+                bull_case, bear_case, key_details, eli5, deep_analysis,
+                source, source_url, full_json, published_at, importance_score,
+                is_published, design_tokens
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '-30 minutes'), ?, ?, ?)
+            """,
+            (
+                "linkedin-mainstream-product-launch",
+                "Mainstream Product Launch",
+                "/static/fallbacks/tools_0.jpg",
+                "Business",
+                "Product launch gist.",
+                "Product launch context.",
+                "Upside.",
+                "Risk.",
+                '["Detail"]',
+                "Simple explanation.",
+                "Deep analysis.",
+                "TechCrunch",
+                "https://techcrunch.com/example-ai-launch",
+                "{}",
+                86,
+                1,
+                '{"intensity": "standard"}',
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get('/rss/linkedin')
+
+        assert resp.status_code == 200
+        text = resp.get_data(as_text=True)
+        assert "Low Intent Stock Pitch" not in text
+        assert "Mainstream Product Launch" in text
+        assert text.count("HF Research Paper") <= 8
 
     def test_touch_icon_aliases(self, client):
         for path in ('/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'):
@@ -375,7 +700,27 @@ class TestSEORobotsDirectives:
         assert 'content="noindex, follow"' in html
         assert resp.headers.get('X-Robots-Tag') == 'noindex, follow'
 
-    def test_clean_article_url_stays_indexable(self, client):
+    def test_clean_promoted_article_url_stays_indexable(self, client, _patch_db):
+        from services.indexing_promotions import ensure_google_index_promotions_table
+
+        conn = sqlite3.connect(_patch_db)
+        ensure_google_index_promotions_table(conn)
+        conn.execute("DELETE FROM google_index_promotions")
+        article_id = conn.execute(
+            "SELECT id FROM articles WHERE slug = ?",
+            ('test-article-slug',),
+        ).fetchone()[0]
+        conn.execute(
+            """
+            INSERT INTO google_index_promotions (
+                article_id, promoted_on, verified_views_at_promotion, raw_views_at_promotion
+            ) VALUES (?, ?, 0, 0)
+            """,
+            (article_id, '2026-03-10'),
+        )
+        conn.commit()
+        conn.close()
+
         resp = client.get('/article/test-article-slug')
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
@@ -506,12 +851,13 @@ class TestSitemapCaching:
         cc = resp.headers.get('Cache-Control', '')
         assert 'max-age=21600' in cc
 
-    def test_sitemap_archive_is_contracted_for_indexing_recovery(self, client):
-        from routes import seo
-        from services.indexability import SITEMAP_ELIGIBILITY_THRESHOLD
+    def test_sitemap_index_excludes_legacy_archive_during_recovery(self, client):
+        index = client.get('/sitemap.xml').get_data(as_text=True)
+        archive = client.get('/sitemap-archive.xml').get_data(as_text=True)
 
-        assert seo.ARCHIVE_SITEMAP_LIMIT <= 500
-        assert SITEMAP_ELIGIBILITY_THRESHOLD >= 88
+        assert 'sitemap-core.xml' in index
+        assert 'sitemap-archive.xml' not in index
+        assert '<url>' not in archive
 
 
 class TestArticleSEOEnhancements:

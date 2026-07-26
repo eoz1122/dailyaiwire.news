@@ -4,10 +4,11 @@
 {% if article_social_preview_image.startswith('/static/img/social/') %}
 {% set article_social_preview_image = article_social_preview_image.replace('/static/img/social/', '/social-image/') %}
 {% endif %}
+{% set article_meta_description = (((article.gist or '') ~ ' ' ~ (article.why_it_matters or '')) | striptags | replace('**', '') | trim) %}
 
 {% block title %}{{ article.title }} | DailyAIWire.news{% endblock %}
 {% block meta_title %}{{ article.title }} | DailyAIWire.news{% endblock %}
-{% block meta_description %}{{ article.gist[:155] }}...{% endblock %}
+{% block meta_description %}{{ article_meta_description | truncate(155, false, '') }}{% endblock %}
 {% block meta_keywords %}{{ article.category }}, AI news, {{ article.title }}, artificial intelligence{% endblock %}
 
 {% block og_type %}article{% endblock %}
@@ -1443,6 +1444,7 @@
                         <form action="/subscribe" method="POST" class="genui-subscribe-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             {% set guard_id = 'article-strip-newsletter-website' %}
+                            {% set subscribe_placement = 'article_inline' %}
                             {% include 'partials/subscribe_guard_fields.html' %}
                             <input type="email" name="email" placeholder="Email address" required autocomplete="email"
                                 aria-label="Email address" class="genui-subscribe-input">
@@ -1458,22 +1460,23 @@
         <aside data-article-sidebar-tone="editorial" class="lg:col-span-4 min-w-0">
             <div class="lg:sticky lg:top-24">
                 <div class="genui-sidebar-rail">
-                    <section class="genui-sidebar-section">
-                        <div class="genui-sidebar-kicker">Newsletter</div>
-                        <h3 class="genui-sidebar-title">Get the next signal<span data-article-sidebar-motion="chameleon"
+                    <section data-article-sidebar-newsletter="true" class="genui-sidebar-section">
+                        <div class="genui-sidebar-kicker">Weekly briefing</div>
+                        <h3 class="genui-sidebar-title">Know what changed. Understand why.<span data-article-sidebar-motion="chameleon"
                                 class="chameleon-cursor">|</span></h3>
                         <p class="genui-sidebar-note">
-                            Weekly AI reporting, concise analysis, and direct links back to the original source.
+                            What changed, why it matters, and the original sources. One concise briefing each week.
                         </p>
 
                         <form action="/subscribe" method="POST" class="genui-sidebar-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             {% set guard_id = 'article-sidebar-newsletter-website' %}
+                            {% set subscribe_placement = 'article_sidebar' %}
                             {% include 'partials/subscribe_guard_fields.html' %}
                             <input type="email" name="email" placeholder="Email address" required autocomplete="email"
                                 class="genui-sidebar-input">
                             <button type="submit" class="genui-sidebar-submit">
-                                Subscribe Free
+                                Get the weekly briefing
                             </button>
                         </form>
                         <p class="genui-sidebar-meta">Free. Unsubscribe anytime.</p>
@@ -1551,7 +1554,9 @@
                 </div>
                 {% endif %}
                 <div class="genui-digest-meta">
-                    <div class="genui-digest-category">{{ related.category }}</div>
+                    <div class="genui-digest-category">
+                        {{ related.category }}{% if related.is_reader_pick %} · Reader Pick{% endif %}
+                    </div>
                     <h4 class="genui-digest-item-title">{{ related.title }}</h4>
                     {% if related.gist %}
                     <p class="genui-digest-item-gist">{{ related.gist[:120] }}{% if related.gist|length > 120

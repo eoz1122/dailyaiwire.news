@@ -48,24 +48,31 @@ def admin_sources():
             conn.commit()
             flash("Source deleted.", "warning")
 
-    # Auto-Discover Sources from Articles
-    try:
-        conn.execute('''
-            INSERT OR IGNORE INTO sources (name, is_active)
-            SELECT DISTINCT source, 1 FROM articles
-            WHERE source IS NOT NULL AND source != ''
-        ''')
-        conn.commit()
-    except Exception as e:
-        logger.warning("Source discovery warning: %s", e)
-
     try:
         sources_managed = conn.execute('''
-            SELECT s.*, COUNT(a.id) as count
-            FROM sources s
-            LEFT JOIN articles a ON a.source = s.name
-            GROUP BY s.id
-            ORDER BY s.is_active DESC, count DESC
+            WITH article_counts AS (
+                SELECT source AS name, COUNT(id) AS count
+                FROM articles
+                WHERE source IS NOT NULL AND source != ''
+                GROUP BY source
+            ),
+            source_inventory AS (
+                SELECT s.id, s.name, s.url, s.is_active,
+                       COALESCE(a.count, 0) AS count
+                FROM sources s
+                LEFT JOIN article_counts a ON a.name = s.name
+
+                UNION ALL
+
+                SELECT NULL AS id, a.name, NULL AS url, 1 AS is_active, a.count
+                FROM article_counts a
+                LEFT JOIN sources s ON s.name = a.name
+                WHERE s.id IS NULL
+            )
+            SELECT *
+            FROM source_inventory
+            ORDER BY is_active DESC, count DESC, name ASC
+            LIMIT 50
         ''').fetchall()
     except sqlite3.OperationalError:
         flash("Sources table missing or query error. Please run migration.", "error")

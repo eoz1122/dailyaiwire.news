@@ -142,6 +142,95 @@
     </div>
 </div>
 
+<!-- Traffic Quality Monitor -->
+<section class="bg-white border border-gray-200 rounded-xl p-4 lg:p-6 shadow-sm mb-6 lg:mb-8">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-5">
+        <div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-lg lg:text-xl font-bold text-gray-900">Traffic Quality Monitor</h2>
+                <span
+                    class="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                    Observation only
+                </span>
+            </div>
+            <p class="text-xs lg:text-sm text-gray-500 mt-1">
+                Flags unusual verified-reading patterns. No traffic is blocked and no view counts are changed.
+            </p>
+        </div>
+        <div class="text-[10px] text-gray-400 font-mono">
+            Last {{ traffic_quality.days }} days
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div class="text-[9px] uppercase tracking-wider font-bold text-gray-400">Flagged sessions</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ traffic_quality.flagged_sessions }}</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div class="text-[9px] uppercase tracking-wider font-bold text-gray-400">High volume</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ traffic_quality.high_volume_sessions }}</div>
+            <div class="text-[9px] text-gray-400 mt-1">&gt; {{ traffic_quality.daily_article_limit }} articles/day</div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div class="text-[9px] uppercase tracking-wider font-bold text-gray-400">Fast bursts</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ traffic_quality.fast_burst_sessions }}</div>
+            <div class="text-[9px] text-gray-400 mt-1">
+                {{ traffic_quality.burst_articles }}+ in {{ traffic_quality.burst_minutes }} min
+            </div>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div class="text-[9px] uppercase tracking-wider font-bold text-gray-400">Observed excess</div>
+            <div class="text-2xl font-bold text-gray-900 mt-1">{{ traffic_quality.observed_excess_views }}</div>
+            <div class="text-[9px] text-gray-400 mt-1">Above proposed daily limit</div>
+        </div>
+    </div>
+
+    {% if traffic_quality.rows %}
+    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+        <table class="w-full min-w-[760px] text-left">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr class="text-[9px] uppercase tracking-wider text-gray-400">
+                    <th class="px-3 py-2 font-bold">Visitor</th>
+                    <th class="px-3 py-2 font-bold">Day</th>
+                    <th class="px-3 py-2 font-bold">Articles</th>
+                    <th class="px-3 py-2 font-bold">Elapsed</th>
+                    <th class="px-3 py-2 font-bold">Signals</th>
+                    <th class="px-3 py-2 font-bold">User agent</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for row in traffic_quality.rows %}
+                <tr class="text-xs text-gray-600">
+                    <td class="px-3 py-2 font-mono">{{ row.visitor_id }}...</td>
+                    <td class="px-3 py-2">{{ row.viewed_on }}</td>
+                    <td class="px-3 py-2 font-bold text-gray-900">{{ row.article_count }}</td>
+                    <td class="px-3 py-2">{{ row.elapsed_minutes }} min</td>
+                    <td class="px-3 py-2">
+                        <div class="flex gap-1 flex-wrap">
+                            {% if row.high_volume %}
+                            <span class="text-[9px] font-bold text-red-700 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">VOLUME</span>
+                            {% endif %}
+                            {% if row.fast_burst %}
+                            <span class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">SPEED</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-3 py-2 font-mono text-[10px] max-w-md truncate" title="{{ row.user_agent }}">
+                        {{ row.user_agent }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">
+        No unusual verified-reading sessions detected in this period.
+    </div>
+    {% endif %}
+</section>
+
 <!-- Target Acquisition Widget -->
 <div
     class="bg-white rounded-xl p-4 lg:p-6 border border-gray-200 shadow-sm mb-6 lg:mb-8 relative overflow-hidden group">

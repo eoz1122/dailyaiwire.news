@@ -3,6 +3,7 @@ Site health regression tests for DailyAIWire.news.
 Guards against broken public routes, feed leakage, and missing machine-facing assets.
 """
 
+import json
 import sqlite3
 from bs4 import BeautifulSoup
 
@@ -32,6 +33,52 @@ def _create_blog_posts_table(conn: sqlite3.Connection) -> None:
 
 
 class TestSiteHealthRegressions:
+    def test_homepage_has_primary_heading(self, client):
+        resp = client.get("/")
+        soup = BeautifulSoup(resp.get_data(as_text=True), "html.parser")
+
+        assert resp.status_code == 200
+        assert soup.find("h1") is not None
+        assert "AI Intelligence" in soup.find("h1").get_text(" ", strip=True)
+
+    def test_permanent_pages_have_unique_meta_descriptions(self, client):
+        paths = ("/about", "/privacy", "/impressum", "/subscribe", "/lab")
+        descriptions = []
+
+        for path in paths:
+            resp = client.get(path)
+            soup = BeautifulSoup(resp.get_data(as_text=True), "html.parser")
+            descriptions.append(soup.find("meta", attrs={"name": "description"})["content"])
+
+        assert len(set(descriptions)) == len(paths)
+        assert all(70 <= len(description) <= 165 for description in descriptions)
+
+    def test_article_meta_description_uses_existing_context(self, client):
+        conn = sqlite3.connect(db_module.DB_PATH)
+        conn.execute(
+            """
+            UPDATE articles
+            SET gist = ?, why_it_matters = ?
+            WHERE slug = ?
+            """,
+            (
+                "A short AI update.",
+                "The change affects enterprise adoption, operating costs, and how teams evaluate production deployments.",
+                "test-article-slug",
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/article/test-article-slug")
+        soup = BeautifulSoup(resp.get_data(as_text=True), "html.parser")
+        description = soup.find("meta", attrs={"name": "description"})["content"]
+
+        assert resp.status_code == 200
+        assert description.startswith("A short AI update.")
+        assert "enterprise adoption" in description
+        assert 70 <= len(description) <= 160
+
     def test_lab_route_ignores_unpublished_editorials(self, client):
         conn = sqlite3.connect(db_module.DB_PATH)
         _create_blog_posts_table(conn)
@@ -76,6 +123,28 @@ class TestSiteHealthRegressions:
 
         assert resp.status_code == 200
         assert "/static/lab/tiredless_team.jpg" not in page
+
+    def test_lab_post_emits_complete_blog_posting_schema(self, client):
+        slug = "the-tiredless-team-how-we-automated-our-entire-invoice-lifecycle"
+        resp = client.get(f"/lab/{slug}")
+        soup = BeautifulSoup(resp.get_data(as_text=True), "html.parser")
+
+        schemas = [
+            json.loads(node.string)
+            for node in soup.select('script[type="application/ld+json"]')
+        ]
+        blog_posting = next(
+            schema for schema in schemas if schema.get("@type") == "BlogPosting"
+        )
+
+        assert resp.status_code == 200
+        assert blog_posting["headline"].startswith("The Tiredless Team")
+        assert blog_posting["datePublished"] == "2025-12-15"
+        assert blog_posting["author"]["name"] == "Ali Emre Ozen"
+        assert blog_posting["image"][0].startswith("https://dailyaiwire.news/")
+        assert blog_posting["mainEntityOfPage"]["@id"] == (
+            f"https://dailyaiwire.news/lab/{slug}"
+        )
 
     def test_homepage_mobile_category_rail_keeps_selected_topic_visible(self, client):
         resp = client.get("/?category=Tools")
@@ -229,6 +298,28 @@ class TestSiteHealthRegressions:
         assert 'data-carousel-image-loading="deferred"' in page
         assert 'data-deferred-slide-image="true"' in page
 
+    def test_homepage_newsletter_cta_sits_below_carousel_before_grid(self, client):
+        resp = client.get("/")
+        page = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert page.count('data-homepage-newsletter-cta="true"') == 1
+        assert page.count('data-homepage-newsletter-layout="responsive-split"') == 1
+        assert page.count('value="homepage_inline"') == 1
+        assert "md:grid-cols-2" in page
+        assert "sm:flex-row" in page
+        soup = BeautifulSoup(page, "html.parser")
+        cta = soup.select_one('[data-homepage-newsletter-cta="true"]')
+        assert "h-12" in cta.select_one('input[type="email"]').get("class", [])
+        assert "h-12" in cta.select_one('button[type="submit"]').get("class", [])
+
+        carousel_position = page.index('id="carousel-container"')
+        cta_position = page.index('data-homepage-newsletter-cta="true"')
+        grid_position = page.index(
+            'class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 homepage-grid"'
+        )
+        assert carousel_position < cta_position < grid_position
+
     def test_rss_route_excludes_unpublished_editorials(self, client):
         conn = sqlite3.connect(db_module.DB_PATH)
         _create_blog_posts_table(conn)
@@ -302,7 +393,7 @@ class TestSiteHealthRegressions:
             for phrase in legacy_phrases:
                 assert phrase not in page
 
-    def test_homepage_first_grid_keeps_nine_tile_budget(self, client):
+    def test_homepage_first_grid_keeps_eight_articles_plus_cta(self, client):
         conn = sqlite3.connect(db_module.DB_PATH)
         _create_blog_posts_table(conn)
 
@@ -386,4 +477,5 @@ class TestSiteHealthRegressions:
                 grid_child_counts.append(len(div.find_all("div", recursive=False)))
 
         assert grid_child_counts
-        assert max(grid_child_counts) == 9
+        assert max(grid_child_counts) == 8
+        assert len(soup.select('[data-homepage-newsletter-cta="true"]')) == 1
