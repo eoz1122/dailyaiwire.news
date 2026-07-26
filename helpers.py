@@ -68,6 +68,20 @@ def time_ago(dt_str):
         return dt_str
 
 
+def format_admin_datetime(value):
+    """Format stored newsletter timestamps for readable admin display."""
+    if not value:
+        return ""
+    try:
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.strftime("%d %b %Y, %H:%M")
+    except (TypeError, ValueError):
+        return str(value)
+
+
 def add_utm_to_html(html_content):
     """Add UTM parameters to all links in HTML content."""
     if not html_content:
@@ -89,6 +103,7 @@ def add_utm_to_html(html_content):
 def register_filters(app):
     """Register all custom Jinja2 template filters on the Flask app."""
     app.jinja_env.filters['time_ago'] = time_ago
+    app.jinja_env.filters['admin_datetime'] = format_admin_datetime
     app.jinja_env.filters['remove_emojis'] = remove_emojis
     app.template_filter('add_utm_to_html')(add_utm_to_html)
 

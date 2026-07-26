@@ -124,7 +124,7 @@
 
                 <a href="{{ url_for('admin_core.admin_create_article') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_create_article' %}bg-green-600 text-white border border-green-500/50 shadow-green-500/20
+                {% if request.endpoint == 'admin_core.admin_create_article' %}bg-green-600 text-white border border-green-500/50 shadow-green-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -135,7 +135,7 @@
 
                 <a href="{{ url_for('admin_carousel.admin_carousel') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_carousel' %}bg-blue-600 text-white border border-blue-500/50 shadow-blue-500/20
+                {% if request.endpoint == 'admin_carousel.admin_carousel' %}bg-blue-600 text-white border border-blue-500/50 shadow-blue-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -147,7 +147,7 @@
                 </a>
                 <a href="{{ url_for('admin_ops.admin_sources') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_sources' %}bg-amber-600 text-white border border-amber-500/50 shadow-amber-500/20
+                {% if request.endpoint == 'admin_ops.admin_sources' %}bg-amber-600 text-white border border-amber-500/50 shadow-amber-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -187,8 +187,8 @@
 
                 <a href="{{ url_for('admin_ops.admin_leads') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_leads' %}bg-emerald-600 text-white border border-emerald-500/50 shadow-emerald-500/20
-                {% else %}bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-500/50{% endif %}">
+                {% if request.endpoint == 'admin_ops.admin_leads' %}bg-emerald-600 text-white border border-emerald-500/50 shadow-emerald-500/20
+                {% else %}bg-gray-50 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -200,7 +200,7 @@
 
                 <a href="{{ url_for('admin_content.admin_subscribers') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_subscribers' %}bg-purple-600 text-white border border-purple-500/50 shadow-purple-500/20
+                {% if request.endpoint == 'admin_content.admin_subscribers' %}bg-purple-600 text-white border border-purple-500/50 shadow-purple-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -213,7 +213,7 @@
 
                 <a href="{{ url_for('admin_content.admin_newsletters') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_newsletters' %}bg-pink-600 text-white border border-pink-500/50 shadow-pink-500/20
+                {% if request.endpoint in ['admin_content.admin_newsletters', 'admin_content.admin_edit_newsletter', 'admin_content.admin_send_newsletter', 'admin_content.admin_newsletter_preview'] %}bg-pink-600 text-white border border-pink-500/50 shadow-pink-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-pink-50 hover:text-pink-600 hover:border-pink-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -228,7 +228,7 @@
 
                 <a href="{{ url_for('admin_content.admin_social_queue') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_social_queue' %}bg-sky-600 text-white border border-sky-500/50 shadow-sky-500/20
+                {% if request.endpoint == 'admin_content.admin_social_queue' %}bg-sky-600 text-white border border-sky-500/50 shadow-sky-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -240,7 +240,7 @@
 
                 <a href="{{ url_for('admin_ops.admin_budget') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_budget' %}bg-indigo-600 text-white border border-indigo-500/50 shadow-indigo-500/20
+                {% if request.endpoint == 'admin_ops.admin_budget' %}bg-indigo-600 text-white border border-indigo-500/50 shadow-indigo-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -253,7 +253,7 @@
 
                 <a href="{{ url_for('admin_content.admin_editorials') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_editorials' %}bg-teal-600 text-white border border-teal-500/50 shadow-teal-500/20
+                {% if request.endpoint == 'admin_content.admin_editorials' or request.endpoint.startswith('admin_content.admin_editorial') %}bg-teal-600 text-white border border-teal-500/50 shadow-teal-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-teal-50 hover:text-teal-600 hover:border-teal-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">
@@ -266,7 +266,7 @@
 
                 <a href="{{ url_for('admin_ops.admin_duplicates') }}"
                     class="group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
-                {% if request.endpoint == 'admin_duplicates' %}bg-rose-600 text-white border border-rose-500/50 shadow-rose-500/20
+                {% if request.endpoint == 'admin_ops.admin_duplicates' %}bg-rose-600 text-white border border-rose-500/50 shadow-rose-500/20
                 {% else %}bg-gray-50 text-gray-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 border border-gray-100{% endif %}">
                     <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" fill="none"
                         viewBox="0 0 24 24" stroke="currentColor">

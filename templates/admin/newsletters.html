@@ -49,7 +49,9 @@
 
                     <!-- Scheduled Date -->
                     <span class="text-sm text-zinc-400 font-medium">
-                        Scheduled: <span class="text-zinc-300">{{ nl.scheduled_date }}</span>
+                        Scheduled:
+                        <time datetime="{{ nl.scheduled_date }}"
+                            class="text-zinc-300">{{ nl.scheduled_date|admin_datetime }}</time>
                     </span>
 
                     {% if nl.sent_count %}
