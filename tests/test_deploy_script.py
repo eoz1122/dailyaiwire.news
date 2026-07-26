@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEPLOY_SCRIPT = ROOT / "deploy_to_vps.sh"
 
 
-def test_deploy_script_exposes_scheduler_restart_option():
+def test_deploy_script_exposes_fetcher_restart_option_only():
     result = subprocess.run(
         ["bash", str(DEPLOY_SCRIPT), "--help"],
         capture_output=True,
@@ -14,19 +14,23 @@ def test_deploy_script_exposes_scheduler_restart_option():
         text=True,
     )
 
-    assert "--with-scheduler" in result.stdout
-    assert "tweet_scheduler" in result.stdout
+    assert "--with-fetcher" in result.stdout
+    assert "--with-scheduler" not in result.stdout
+    assert "tweet_scheduler" not in result.stdout
 
 
-def test_deploy_script_auto_restarts_scheduler_for_social_posting_changes():
+def test_deploy_script_restarts_web_service_through_systemd():
     script = DEPLOY_SCRIPT.read_text()
 
-    assert "SCHEDULER_CHANGED" in script
-    assert "restart_scheduler" in script
-    assert "tweet_scheduler\\.py|social_distributor\\.py|url_shortener\\.py|requirements\\.txt" in script
+    assert 'SYSTEMCTL_BIN="${SYSTEMCTL_BIN:-/usr/bin/systemctl}"' in script
+    assert 'WEB_SERVICE="${WEB_SERVICE:-dailyaiwire-web.service}"' in script
+    assert 'run_systemctl restart "$WEB_SERVICE"' in script
+    assert 'run_systemctl status "$WEB_SERVICE"' in script
 
 
-def test_deploy_script_scheduler_pid_matcher_requires_python_process():
+def test_deploy_script_keeps_fetcher_restart_explicit():
     script = DEPLOY_SCRIPT.read_text()
 
-    assert '$2 ~ /^python/' in script
+    assert "FETCHER_CHANGED=0" in script
+    assert 'RESTART_FETCHER" -eq 1' in script
+    assert "rerun with --with-fetcher" in script

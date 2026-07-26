@@ -1,0 +1,3 @@
+Cmnd_Alias DAILYAIWIRE_WEB = /usr/bin/systemctl restart dailyaiwire-web.service, /usr/bin/systemctl status dailyaiwire-web.service
+Cmnd_Alias DAILYAIWIRE_FETCHER = /usr/bin/supervisorctl restart dailyaiwire_fetcher, /usr/bin/supervisorctl status dailyaiwire_fetcher
+dailyai ALL=(root) NOPASSWD: DAILYAIWIRE_WEB, DAILYAIWIRE_FETCHER

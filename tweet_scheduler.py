@@ -9,7 +9,10 @@ from datetime import datetime, timedelta, timezone
 import pytz
 
 from dotenv import load_dotenv
-load_dotenv()
+from db import DB_PATH
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
 from logging_config import setup_logging
 setup_logging()
@@ -33,7 +36,6 @@ logger.debug("[6/6] Importing Remove Duplicates...")
 from remove_duplicates import remove_duplicates
 logger.debug("[6.5/6] Remove Duplicates imported.")
 
-DB_PATH = "news.db"
 INTERVAL_SECONDS = int(os.getenv('SCHEDULER_INTERVAL_SECONDS', '7200'))  # 2 hours
 QUIET_START = int(os.getenv('SCHEDULER_QUIET_START', '4'))   # 4 AM
 QUIET_END = int(os.getenv('SCHEDULER_QUIET_END', '9'))       # 9 AM
@@ -102,12 +104,17 @@ def get_next_article_for_fb():
 def clear_stale_queue():
     """Marks all unshared articles older than 48 hours as 'Skipped' on X."""
     conn = get_db_connection()
-    limit_time = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
-    count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND published_at < ?", (limit_time,)).rowcount
-    if count > 0:
-        logger.info("🧹 Queue Maintenance: Cleared %d stale articles.", count)
-    conn.commit()
-    conn.close()
+    try:
+        limit_time = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+        count = conn.execute("UPDATE articles SET shared_on_x = 1 WHERE (shared_on_x = 0 OR shared_on_x IS NULL) AND published_at < ?", (limit_time,)).rowcount
+        if count > 0:
+            logger.info("🧹 Queue Maintenance: Cleared %d stale articles.", count)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 def _parse_timestamp(ts):
     """Parse an ISO or space-separated timestamp string into a UTC-aware datetime."""
