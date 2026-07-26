@@ -1,0 +1,16 @@
+[Unit]
+Description=Generate the DailyAIWire weekly newsletter draft
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dailyai
+Group=dailyai
+WorkingDirectory=/home/dailyai/dailyaiwire.news
+EnvironmentFile=/home/dailyai/dailyaiwire.news/.env
+ExecStart=/home/dailyai/dailyaiwire.news/venv/bin/python /home/dailyai/dailyaiwire.news/scripts/run_weekly_newsletter.py
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

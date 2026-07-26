@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the DailyAIWire weekly newsletter generator
+
+[Timer]
+OnCalendar=Sun *-*-* 14:00:00 Europe/Berlin
+Persistent=true
+RandomizedDelaySec=5m
+Unit=dailyaiwire-weekly-newsletter.service
+
+[Install]
+WantedBy=timers.target
