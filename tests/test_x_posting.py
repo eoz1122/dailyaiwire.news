@@ -177,3 +177,36 @@ def test_get_x_posts_today_counts_current_berlin_day(monkeypatch):
     )
 
     assert count == 1
+
+
+def test_clear_stale_queue_rolls_back_and_closes_after_commit_failure(monkeypatch):
+    import sqlite3
+    from types import SimpleNamespace
+
+    import tweet_scheduler
+
+    class FailingConnection:
+        def __init__(self):
+            self.rolled_back = False
+            self.closed = False
+
+        def execute(self, *args, **kwargs):
+            return SimpleNamespace(rowcount=1)
+
+        def commit(self):
+            raise sqlite3.OperationalError("database is locked")
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def close(self):
+            self.closed = True
+
+    conn = FailingConnection()
+    monkeypatch.setattr(tweet_scheduler, "get_db_connection", lambda: conn)
+
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        tweet_scheduler.clear_stale_queue()
+
+    assert conn.rolled_back is True
+    assert conn.closed is True
