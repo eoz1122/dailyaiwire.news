@@ -1,9 +1,12 @@
+import ast
 import io
 import os
 import re
 import sqlite3
+from pathlib import Path
 
 import db as db_module
+import pytest
 
 
 def _ensure_newsletter_tables():
@@ -30,7 +33,9 @@ def _ensure_newsletter_tables():
             recipient_email TEXT,
             status TEXT,
             tracking_token TEXT,
-            opened_at TEXT
+            opened_at TEXT,
+            resend_message_id TEXT,
+            provider_response TEXT
         )
         """
     )
@@ -234,6 +239,18 @@ def test_welcome_email_uses_request_timeout(monkeypatch):
     assert captured["timeout"] == newsletter_sender.RESEND_TIMEOUT_SECONDS
 
 
+def test_tracking_token_requires_secret_key(monkeypatch):
+    import newsletter_sender
+
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+
+    try:
+        newsletter_sender._tracking_token(1, "reader@example.com")
+        assert False, "Expected RuntimeError when SECRET_KEY is missing"
+    except RuntimeError as exc:
+        assert "SECRET_KEY" in str(exc)
+
+
 def test_send_newsletter_uses_request_timeout(monkeypatch):
     import newsletter_sender
 
@@ -285,6 +302,194 @@ def test_send_newsletter_uses_request_timeout(monkeypatch):
 
     assert newsletter_sender.send_newsletter(newsletter_id) is True
     assert captured["timeout"] == newsletter_sender.RESEND_TIMEOUT_SECONDS
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"to": ["reader@example.com"], "cc": ["other@example.com"]},
+        {"to": ["reader@example.com"], "bcc": ["other@example.com"]},
+        {"to": ["reader@example.com", "other@example.com"]},
+        {"to": "reader@example.com"},
+        {"to": ["other@example.com"]},
+    ],
+)
+def test_newsletter_recipient_isolation_rejects_non_private_payloads(payload):
+    import newsletter_sender
+
+    with pytest.raises(ValueError, match="CRITICAL PRIVACY ERROR"):
+        newsletter_sender._assert_recipient_isolation(payload, "reader@example.com")
+
+
+def test_newsletter_recipient_isolation_accepts_one_matching_recipient():
+    import newsletter_sender
+
+    newsletter_sender._assert_recipient_isolation(
+        {"to": ["reader@example.com"]},
+        "reader@example.com",
+    )
+
+
+def test_subscriber_email_module_has_one_guarded_network_gateway():
+    import newsletter_sender
+
+    tree = ast.parse(Path(newsletter_sender.__file__).read_text(encoding="utf-8"))
+    functions_with_direct_posts = []
+
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call):
+                continue
+            func = child.func
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr == "post"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "requests"
+            ):
+                functions_with_direct_posts.append(node.name)
+
+    assert functions_with_direct_posts == ["_post_private_email"]
+
+
+def test_private_email_gateway_rejects_before_network(monkeypatch):
+    import newsletter_sender
+
+    network_called = False
+
+    def fake_post(*_args, **_kwargs):
+        nonlocal network_called
+        network_called = True
+
+    monkeypatch.setattr(newsletter_sender.requests, "post", fake_post)
+
+    with pytest.raises(ValueError, match="CRITICAL PRIVACY ERROR"):
+        newsletter_sender._post_private_email(
+            {
+                "to": ["reader@example.com", "other@example.com"],
+                "subject": "Unsafe",
+            },
+            "reader@example.com",
+        )
+
+    assert network_called is False
+
+
+def test_send_newsletter_adds_unsubscribe_headers_and_provider_id(monkeypatch):
+    import newsletter_sender
+
+    _ensure_newsletter_tables()
+    _ensure_subscribers_table()
+    conn = sqlite3.connect(db_module.DB_PATH)
+    conn.execute("DELETE FROM newsletters")
+    conn.execute("DELETE FROM newsletter_deliveries")
+    conn.execute("DELETE FROM subscribers")
+    conn.execute(
+        """
+        INSERT INTO newsletters (
+            subject, intro_text, article_ids, article_metadata, scheduled_date, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "Weekly Briefing",
+            "Intro",
+            "[]",
+            "{}",
+            "2026-05-05 09:00:00",
+            "DRAFT",
+            "2026-05-05 09:00:00",
+        ),
+    )
+    newsletter_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO subscribers (email, status, created_at) VALUES (?, ?, ?)",
+        ("reader@example.com", "ACTIVE", "2026-05-05 09:01:00"),
+    )
+    conn.commit()
+    conn.close()
+
+    captured = {}
+
+    class DummyResponse:
+        status_code = 200
+        text = '{"id":"email_123"}'
+
+        def json(self):
+            return {"id": "email_123"}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["json"] = json
+        return DummyResponse()
+
+    monkeypatch.setattr(newsletter_sender, "DB_PATH", db_module.DB_PATH)
+    monkeypatch.setattr(newsletter_sender, "RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("SECRET_KEY", "ci-test-newsletter-secret")
+    monkeypatch.setattr(newsletter_sender.requests, "post", fake_post)
+    monkeypatch.setattr(newsletter_sender.time, "sleep", lambda *_args, **_kwargs: None)
+
+    assert newsletter_sender.send_newsletter(newsletter_id) is True
+
+    payload_headers = captured["json"]["headers"]
+    assert "List-Unsubscribe" in payload_headers
+    assert "List-Unsubscribe-Post" in payload_headers
+    assert payload_headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
+    assert f"/unsubscribe/{newsletter_id}/" in payload_headers["List-Unsubscribe"]
+    assert f"/unsubscribe/{newsletter_id}/" in captured["json"]["html"]
+
+    conn = sqlite3.connect(db_module.DB_PATH)
+    row = conn.execute(
+        """
+        SELECT resend_message_id, provider_response
+        FROM newsletter_deliveries
+        WHERE newsletter_id = ? AND recipient_email = ?
+        """,
+        (newsletter_id, "reader@example.com"),
+    ).fetchone()
+    conn.close()
+    assert row == ("email_123", '{"id":"email_123"}')
+
+
+def test_newsletter_unsubscribe_token_marks_subscriber_inactive(client):
+    _ensure_newsletter_tables()
+    _ensure_subscribers_table()
+    conn = sqlite3.connect(db_module.DB_PATH)
+    conn.execute("DELETE FROM newsletter_deliveries")
+    conn.execute("DELETE FROM subscribers")
+    conn.execute("DROP TABLE IF EXISTS subscriber_events")
+    conn.execute(
+        "INSERT INTO subscribers (email, status, created_at) VALUES (?, ?, ?)",
+        ("reader@example.com", "ACTIVE", "2026-05-05 09:01:00"),
+    )
+    conn.execute(
+        """
+        INSERT INTO newsletter_deliveries (
+            newsletter_id, recipient_email, status, tracking_token
+        ) VALUES (?, ?, ?, ?)
+        """,
+        (42, "reader@example.com", "DELIVERED", "abcdef1234567890"),
+    )
+    conn.commit()
+    conn.close()
+
+    resp = client.post("/unsubscribe/42/abcdef1234567890")
+
+    assert resp.status_code == 200
+    assert b"unsubscribed" in resp.data.lower()
+    assert "no-store" in resp.headers["Cache-Control"]
+
+    conn = sqlite3.connect(db_module.DB_PATH)
+    status = conn.execute(
+        "SELECT status FROM subscribers WHERE email = ?",
+        ("reader@example.com",),
+    ).fetchone()[0]
+    event = conn.execute(
+        "SELECT event_type, reason FROM subscriber_events ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    assert status == "UNSUBSCRIBED"
+    assert event == ("unsubscribed", "newsletter_unsubscribe")
 
 
 def test_proposal_send_uses_request_timeout(monkeypatch):
