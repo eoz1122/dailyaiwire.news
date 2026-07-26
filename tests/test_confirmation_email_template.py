@@ -47,3 +47,33 @@ def test_send_confirmation_email_uses_confirmation_template(client, monkeypatch)
     assert captured["payload"]["subject"] == "Confirm your DailyAIWire subscription"
     assert "Confirm your subscription" in captured["payload"]["html"]
     assert "https://dailyaiwire.news/confirm-subscription/test-token" in captured["payload"]["html"]
+
+
+def test_confirmation_send_result_includes_provider_message_id(client, monkeypatch):
+    import newsletter_sender
+
+    class FakeResponse:
+        status_code = 200
+        text = '{"id":"confirmation_message_123"}'
+
+        @staticmethod
+        def json():
+            return {"id": "confirmation_message_123"}
+
+    monkeypatch.setattr(newsletter_sender, "RESEND_API_KEY", "test-key")
+    monkeypatch.setattr(
+        newsletter_sender.requests,
+        "post",
+        lambda *_args, **_kwargs: FakeResponse(),
+    )
+
+    result = newsletter_sender.send_confirmation_email(
+        "reader@example.com",
+        "https://dailyaiwire.news/confirm-subscription/test-token",
+        include_result=True,
+    )
+
+    assert result == {
+        "accepted": True,
+        "message_id": "confirmation_message_123",
+    }

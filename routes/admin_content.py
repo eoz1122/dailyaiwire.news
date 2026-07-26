@@ -12,10 +12,18 @@ from flask_login import login_required
 
 from db import get_db_connection
 from budget_tracker import BudgetTracker
+from services.resend_webhooks import (
+    RESEND_WEBHOOK_TRACKING_STARTED_AT,
+    ensure_resend_webhook_schema,
+)
 from services.subscribers import (
+    FUNNEL_PERIODS,
     create_confirmation_token,
     ensure_subscribers_schema,
+    get_subscriber_acquisition,
+    get_subscriber_funnel,
     hash_value,
+    normalize_email,
     record_subscriber_event,
 )
 import logging
@@ -23,7 +31,16 @@ import logging
 logger = logging.getLogger('admin_content')
 
 admin_content_bp = Blueprint('admin_content', __name__)
-SUBSCRIBER_STATUS_FILTERS = ("ACTIVE", "PENDING", "SUSPICIOUS", "EXPIRED", "BOUNCED", "COMPLAINED")
+SUBSCRIBER_STATUS_FILTERS = (
+    "ACTIVE",
+    "PENDING",
+    "SUSPICIOUS",
+    "EXPIRED",
+    "UNSUBSCRIBED",
+    "BOUNCED",
+    "COMPLAINED",
+    "SUPPRESSED",
+)
 PENDING_EXPIRY_DAYS = 14
 
 
@@ -42,6 +59,9 @@ def _slugify(text):
 def admin_subscribers():
     conn = get_db_connection()
     ensure_subscribers_schema(conn)
+    days = request.args.get('days', default=30, type=int)
+    if days not in FUNNEL_PERIODS:
+        days = 30
     status_filter = (request.args.get('status') or '').strip().upper()
     if status_filter not in SUBSCRIBER_STATUS_FILTERS:
         status_filter = ''
@@ -60,6 +80,8 @@ def admin_subscribers():
             'SELECT status, COUNT(*) AS count FROM subscribers GROUP BY status'
         ).fetchall()
     }
+    funnel = get_subscriber_funnel(conn, days)
+    acquisition = get_subscriber_acquisition(conn, days)
     conn.close()
     return render_template(
         'admin/subscribers.html',
@@ -68,6 +90,9 @@ def admin_subscribers():
         status_filter=status_filter,
         status_options=SUBSCRIBER_STATUS_FILTERS,
         pending_expiry_days=PENDING_EXPIRY_DAYS,
+        acquisition=acquisition,
+        funnel=funnel,
+        funnel_periods=FUNNEL_PERIODS,
     )
 
 
@@ -214,13 +239,35 @@ def delete_subscriber(id):
 @login_required
 def admin_newsletters():
     conn = get_db_connection()
+    ensure_resend_webhook_schema(conn)
     newsletters = conn.execute('''
         SELECT n.*,
         (SELECT COUNT(*) FROM newsletter_deliveries WHERE newsletter_id = n.id) as sent_count,
-        (SELECT COUNT(*) FROM newsletter_deliveries WHERE newsletter_id = n.id AND status = 'OPENED') as open_count
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND (status = 'DELIVERED' OR delivered_at IS NOT NULL)) as delivered_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND status IN ('BOUNCED', 'COMPLAINED', 'FAILED', 'SUPPRESSED')) as failed_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND opened_at IS NOT NULL) as open_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND clicked_at IS NOT NULL) as clicked_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND unsubscribed_at IS NOT NULL) as unsubscribed_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND last_event_type IS NOT NULL) as provider_event_count,
+        (SELECT COUNT(*) FROM newsletter_deliveries
+         WHERE newsletter_id = n.id AND datetime(sent_at) >= datetime(?)) as provider_eligible_count
+        ,(SELECT COUNT(*) FROM newsletter_deliveries
+          WHERE newsletter_id = n.id
+            AND datetime(sent_at) >= datetime(?)
+            AND datetime(sent_at) <= datetime('now', '-15 minutes')
+            AND last_event_type IS NULL) as provider_events_overdue_count
         FROM newsletters n
         ORDER BY created_at DESC
-    ''').fetchall()
+    ''', (
+        RESEND_WEBHOOK_TRACKING_STARTED_AT,
+        RESEND_WEBHOOK_TRACKING_STARTED_AT,
+    )).fetchall()
     conn.close()
     return render_template('admin/newsletters.html', newsletters=newsletters)
 
@@ -301,25 +348,84 @@ def admin_generate_newsletter():
 @admin_content_bp.route('/admin/newsletter/send/<int:id>', methods=['GET', 'POST'])
 @login_required
 def admin_send_newsletter(id):
-    # GET requests (e.g. direct URL navigation) redirect gracefully
+    from newsletter_sender import (
+        finalize_newsletter_send,
+        get_newsletter_audience_summary,
+        reserve_newsletter_send,
+        send_newsletter,
+    )
+
+    summary = get_newsletter_audience_summary(id)
+    if not summary:
+        abort(404)
+
     if request.method == 'GET':
-        flash("Use the Send Now button from the newsletters list.", "warning")
-        return redirect(url_for('admin_content.admin_newsletters'))
+        return render_template('admin/newsletter_send_confirm.html', **summary)
 
     import threading
-    from newsletter_sender import send_newsletter
+
+    try:
+        expected_count = int(request.form.get('expected_recipient_count', '-1'))
+    except (TypeError, ValueError):
+        expected_count = -1
+
+    if expected_count != summary['remaining_count']:
+        flash(
+            "The newsletter audience changed. Review the updated recipient count before sending.",
+            "warning",
+        )
+        return redirect(url_for('admin_content.admin_send_newsletter', id=id))
+
+    if summary['remaining_count'] <= 0:
+        flash("There are no remaining active recipients for this newsletter.", "warning")
+        return redirect(url_for('admin_content.admin_send_newsletter', id=id))
+
+    if not reserve_newsletter_send(id):
+        flash("This newsletter is already sending or is no longer eligible.", "warning")
+        return redirect(url_for('admin_content.admin_send_newsletter', id=id))
 
     def _send():
         try:
-            send_newsletter(id)
+            send_newsletter(
+                id,
+                reservation_held=True,
+                expected_recipient_count=expected_count,
+            )
         except Exception as e:
             logger.error("Background newsletter send error (id=%s): %s", id, e)
+            finalize_newsletter_send(id, 'PARTIAL', str(e))
 
-    t = threading.Thread(target=_send, daemon=True)
-    t.start()
+    try:
+        t = threading.Thread(target=_send, daemon=True)
+        t.start()
+    except Exception as exc:
+        finalize_newsletter_send(id, 'PARTIAL', f"Could not start send worker: {exc}")
+        logger.error("Could not start newsletter worker (id=%s): %s", id, exc)
+        flash("The broadcast worker could not start. No emails were sent.", "error")
+        return redirect(url_for('admin_content.admin_send_newsletter', id=id))
 
-    flash("Signal broadcast initiated. Emails are being delivered in the background.")
+    flash(
+        f"Signal broadcast reserved for {summary['remaining_count']} recipients.",
+        "success",
+    )
     return redirect(url_for('admin_content.admin_newsletters'))
+
+
+@admin_content_bp.route('/admin/newsletter/test/<int:id>', methods=['POST'])
+@login_required
+def admin_test_newsletter(id):
+    from newsletter_sender import EMAIL_PATTERN, send_test_newsletter
+
+    recipient_email = normalize_email(request.form.get('recipient_email'))
+    if not EMAIL_PATTERN.fullmatch(recipient_email):
+        flash("Enter a valid email address for the test send.", "warning")
+        return redirect(url_for('admin_content.admin_send_newsletter', id=id))
+
+    if send_test_newsletter(id, recipient_email):
+        flash(f"Test newsletter sent privately to {recipient_email}.", "success")
+    else:
+        flash("Test newsletter failed. No broadcast state was changed.", "error")
+    return redirect(url_for('admin_content.admin_send_newsletter', id=id))
 
 
 @admin_content_bp.route('/admin/newsletter/preview')

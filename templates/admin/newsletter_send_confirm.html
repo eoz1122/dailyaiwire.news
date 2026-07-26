@@ -1,0 +1,59 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block admin_content %}
+<div class="max-w-3xl mx-auto">
+    <a href="/admin/newsletters"
+        class="inline-flex text-zinc-500 hover:text-zinc-900 transition-colors text-[10px] font-black uppercase tracking-widest mb-5">
+        Back to reports
+    </a>
+
+    <div class="min-w-0 overflow-hidden bg-white border border-zinc-200 rounded-2xl p-5 md:p-8 shadow-sm">
+        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-blue-600 mb-3">Broadcast Review</p>
+        <h1 class="text-2xl font-black text-zinc-950 leading-tight mb-7">{{ newsletter.subject }}</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+            <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div class="text-2xl font-black text-zinc-950">{{ active_count }}</div>
+                <div class="text-xs font-bold text-zinc-500 mt-1">{{ active_count }} active subscribers</div>
+            </div>
+            <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div class="text-2xl font-black text-zinc-950">{{ delivered_count }}</div>
+                <div class="text-xs font-bold text-zinc-500 mt-1">{{ delivered_count }} already delivered</div>
+            </div>
+            <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <div class="text-2xl font-black text-blue-700">{{ remaining_count }}</div>
+                <div class="text-xs font-bold text-blue-700 mt-1">{{ remaining_count }} recipient{% if remaining_count != 1 %}s{% endif %} remaining</div>
+            </div>
+        </div>
+
+        <div class="break-words rounded-xl border border-amber-200 bg-amber-50 p-4 mb-7 text-sm text-amber-900 leading-relaxed">
+            Each recipient receives a separate email. The server will stop this action if the audience count changes or another broadcast has already started.
+        </div>
+
+        <form method="POST" action="/admin/newsletter/send/{{ newsletter.id }}" class="mb-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="expected_recipient_count" value="{{ remaining_count }}">
+            <button type="submit" {% if remaining_count == 0 or newsletter.status == 'SENDING' %}disabled{% endif %}
+                class="w-full min-h-[48px] rounded-xl bg-blue-600 text-white px-4 py-3 text-center text-xs leading-4 font-black uppercase tracking-wider hover:bg-blue-500 disabled:bg-zinc-300 disabled:cursor-not-allowed transition-colors">
+                Confirm private send ({{ remaining_count }})
+            </button>
+        </form>
+
+        <div class="border-t border-zinc-200 pt-7">
+            <h2 class="text-sm font-black text-zinc-950 mb-2">Send a private test first</h2>
+            <p class="text-xs text-zinc-500 mb-4">The test does not change newsletter status or create a subscriber delivery record.</p>
+            <form method="POST" action="/admin/newsletter/test/{{ newsletter.id }}" class="flex flex-col sm:flex-row gap-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="recipient_email" class="sr-only">Test recipient email</label>
+                <input id="recipient_email" name="recipient_email" type="email" required autocomplete="email"
+                    placeholder="you@example.com"
+                    class="w-full min-w-0 flex-1 min-h-[48px] rounded-xl border border-zinc-300 bg-white px-4 text-zinc-950 focus:outline-none focus:border-blue-600">
+                <button type="submit"
+                    class="min-h-[48px] rounded-xl bg-zinc-900 text-white px-5 py-3 text-xs font-black uppercase tracking-widest hover:bg-zinc-700 transition-colors">
+                    Send test
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

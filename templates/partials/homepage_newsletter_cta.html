@@ -1,0 +1,33 @@
+<section data-homepage-newsletter-cta="true"
+    class="mb-6 md:mb-8 overflow-hidden rounded-2xl border border-blue-500/20 bg-[var(--card-bg)] shadow-sm">
+    <div data-homepage-newsletter-layout="responsive-split"
+        class="grid gap-5 p-5 sm:p-6 md:grid-cols-2 md:items-center md:gap-8">
+        <div class="min-w-0">
+            <p class="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-blue-600">
+                The weekly intelligence brief
+            </p>
+            <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)] sm:text-2xl">
+                The signal, not the noise.
+            </h2>
+            <p class="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text-secondary)]">
+                Get the week's most important AI developments, why they matter, and direct links to the original reporting.
+            </p>
+        </div>
+
+        <form action="/subscribe" method="POST"
+            class="flex w-full flex-col gap-3 sm:flex-row md:justify-self-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            {% set guard_id = 'inline-newsletter-website' %}
+            {% set subscribe_placement = 'homepage_inline' %}
+            {% include 'partials/subscribe_guard_fields.html' %}
+            <label for="inline-newsletter-email" class="sr-only">Email address</label>
+            <input type="email" name="email" placeholder="Email address" required autocomplete="email"
+                id="inline-newsletter-email"
+                class="h-12 min-w-0 w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-color)] px-4 text-sm font-bold text-[var(--text-primary)] outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 sm:flex-1">
+            <button type="submit"
+                class="h-12 shrink-0 rounded-xl bg-blue-600 px-6 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500">
+                Join the Wire
+            </button>
+        </form>
+    </div>
+</section>

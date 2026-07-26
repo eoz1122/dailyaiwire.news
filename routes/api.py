@@ -5,26 +5,28 @@ Search, trends, and tracking endpoints.
 import base64
 import hashlib
 import logging
-import re
+import os
 
-from flask import Blueprint, request, Response
+from flask import Blueprint, jsonify, request, Response
 from flask_login import current_user
 
 from extensions import csrf, limiter
 from db import get_db_connection
+from services.resend_webhooks import process_resend_event, verify_resend_webhook
+from services.traffic_quality import is_likely_bot
+from services.subscribers import (
+    SUBSCRIBE_PLACEMENTS,
+    ensure_subscriber_events_schema,
+    record_subscriber_event,
+)
 
 logger = logging.getLogger('api')
 
 api_bp = Blueprint('api', __name__)
 
 AUDIO_DEDUPE_MINUTES = 30
-BOT_UA_PATTERN = re.compile(
-    r"(bot|spider|crawl|slurp|headless|facebookexternalhit|whatsapp|telegrambot|"
-    r"linkedinbot|python-requests|curl|wget|uptimerobot|datadog|pingdom)",
-    re.IGNORECASE,
-)
-
-
+SUBSCRIBE_VIEW_DEDUPE_MINUTES = 30
+RESEND_WEBHOOK_MAX_BYTES = 256 * 1024
 def _hash_value(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -43,12 +45,11 @@ def _extract_client_ip() -> str:
 
 
 def _is_likely_bot(user_agent: str) -> bool:
-    if not user_agent:
-        return True
-    if BOT_UA_PATTERN.search(user_agent):
-        return True
-    purpose = (request.headers.get('Purpose') or request.headers.get('Sec-Purpose') or '').lower()
-    return 'prefetch' in purpose
+    return is_likely_bot(
+        user_agent,
+        purpose=request.headers.get("Purpose", ""),
+        sec_purpose=request.headers.get("Sec-Purpose", ""),
+    )
 
 
 def _visitor_hash() -> str:
@@ -86,6 +87,70 @@ def _ensure_audio_play_events_table(conn):
         ON audio_play_events(played_at)
         '''
     )
+
+
+def _no_store_json(payload, status=200):
+    response = jsonify(payload)
+    response.status_code = status
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@api_bp.route('/api/track-subscribe-view', methods=['POST'])
+@csrf.exempt
+@limiter.limit("30 per minute")
+def track_subscribe_view():
+    """Record a privacy-safe, deduplicated view of a newsletter signup form."""
+    placement = (request.form.get('placement') or '').strip().lower()[:50]
+    if placement not in SUBSCRIBE_PLACEMENTS:
+        return _no_store_json({"error": "Invalid placement"}, 400)
+
+    user_agent = (request.headers.get('User-Agent') or '')[:500]
+    if _is_likely_bot(user_agent):
+        return _no_store_json({"counted": False, "reason": "bot"})
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        ensure_subscriber_events_schema(conn)
+        ip_hash = _hash_value(_extract_client_ip())
+        recent = conn.execute(
+            '''
+            SELECT 1
+            FROM subscriber_events
+            WHERE event_type = 'form_view'
+              AND placement = ?
+              AND ip_hash = ?
+              AND datetime(created_at) >= datetime('now', ?)
+            LIMIT 1
+            ''',
+            (
+                placement,
+                ip_hash,
+                f'-{SUBSCRIBE_VIEW_DEDUPE_MINUTES} minutes',
+            ),
+        ).fetchone()
+        counted = not bool(recent)
+        if counted:
+            record_subscriber_event(
+                conn,
+                email='',
+                event_type='form_view',
+                reason='visible_1s',
+                ip_hash=ip_hash,
+                user_agent=user_agent,
+                referrer=(request.referrer or '')[:500],
+                source_path=(request.form.get('source_path') or '')[:500],
+                placement=placement,
+            )
+            conn.commit()
+        return _no_store_json({"counted": counted})
+    except Exception:
+        logger.exception("Subscriber form view tracking failed")
+        return _no_store_json({"error": "Tracking failed"}, 500)
+    finally:
+        if conn:
+            conn.close()
 
 
 
@@ -220,21 +285,65 @@ def track_audio_play(id):
 @api_bp.route('/t/nl/<int:newsletter_id>/<string:token>')
 def track_newsletter_open(newsletter_id, token):
     """Tracks newsletter opens via a 1x1 pixel. Uses HMAC token instead of raw email (F-03)."""
+    conn = None
     try:
         conn = get_db_connection()
         conn.execute('''
             UPDATE newsletter_deliveries
-            SET status = 'OPENED', opened_at = CURRENT_TIMESTAMP
-            WHERE newsletter_id = ? AND tracking_token = ? AND (opened_at IS NULL OR status = 'DELIVERED')
+            SET opened_at = COALESCE(opened_at, CURRENT_TIMESTAMP)
+            WHERE newsletter_id = ? AND tracking_token = ?
         ''', (newsletter_id, token))
         conn.commit()
     except Exception as e:
         logger.error("Tracking error: %s", e)
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
     pixel_data = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
     return Response(pixel_data, mimetype='image/gif')
+
+
+@api_bp.route('/api/webhooks/resend', methods=['POST'])
+@csrf.exempt
+@limiter.limit("120 per minute")
+def resend_webhook():
+    """Verify and idempotently process Resend provider events."""
+    webhook_secret = os.getenv("RESEND_WEBHOOK_SECRET")
+    if not webhook_secret:
+        logger.critical("RESEND_WEBHOOK_SECRET is not configured")
+        return {"error": "Webhook unavailable"}, 503
+
+    if request.content_length and request.content_length > RESEND_WEBHOOK_MAX_BYTES:
+        return {"error": "Payload too large"}, 413
+
+    signature_headers = {
+        "svix-id": request.headers.get("svix-id", ""),
+        "svix-timestamp": request.headers.get("svix-timestamp", ""),
+        "svix-signature": request.headers.get("svix-signature", ""),
+    }
+    if not all(signature_headers.values()):
+        return {"error": "Invalid webhook"}, 400
+
+    raw_body = request.get_data(cache=False)
+    if not raw_body or len(raw_body) > RESEND_WEBHOOK_MAX_BYTES:
+        return {"error": "Invalid webhook"}, 400
+
+    try:
+        payload = verify_resend_webhook(raw_body, signature_headers, webhook_secret)
+    except Exception:
+        logger.warning("Rejected webhook with invalid Resend signature")
+        return {"error": "Invalid webhook"}, 400
+
+    try:
+        result = process_resend_event(signature_headers["svix-id"], payload)
+        return {"received": True, **result}, 200
+    except ValueError:
+        logger.warning("Rejected malformed verified Resend event")
+        return {"error": "Invalid event"}, 400
+    except Exception:
+        logger.exception("Failed to persist verified Resend webhook")
+        return {"error": "Webhook processing failed"}, 500
 
 
 # ── Answer-Engine API (Phase 3: GEO) ────────────────────────────────

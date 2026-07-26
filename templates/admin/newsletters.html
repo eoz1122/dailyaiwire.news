@@ -2,7 +2,7 @@
 
 {% block admin_content %}
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-    <h1 class="text-xl font-bold text-white uppercase tracking-widest">Intelligence Reports</h1>
+    <h1 class="text-xl font-bold text-gray-900 uppercase tracking-widest">Intelligence Reports</h1>
     <div class="flex flex-wrap gap-3">
         <a href="/admin/newsletter/preview" target="_blank"
             class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all min-h-[44px] flex items-center">
@@ -53,27 +53,70 @@
                     </span>
 
                     {% if nl.sent_count %}
-                    <!-- Delivery Stats (show regardless of status) -->
+                    {% if nl.provider_eligible_count or nl.provider_event_count %}
                     <span class="text-sm font-semibold text-blue-400">
-                        📨 {{ nl.sent_count }} sent
+                        {{ nl.sent_count }} accepted
                     </span>
                     <span class="text-sm font-semibold text-emerald-400">
-                        👁 {{ nl.open_count }} opens
+                        {{ nl.delivered_count }} delivered
+                    </span>
+                    <span class="text-sm font-semibold text-red-400">
+                        {{ nl.failed_count }} failed
+                    </span>
+                    <span class="text-sm font-semibold text-blue-400">
+                        {% set open_denominator = nl.delivered_count if nl.delivered_count else nl.sent_count %}
+                        {{ nl.open_count }} opened/read ({{ '%.1f'|format((nl.open_count * 100.0 / open_denominator) if open_denominator else 0) }}%)
+                    </span>
+                    <span class="text-sm font-semibold text-blue-400">
+                        {{ nl.clicked_count }} clicked
+                    </span>
+                    <span class="text-sm font-semibold text-zinc-400">
+                        {{ nl.unsubscribed_count }} unsubscribed
+                    </span>
+                    {% if nl.provider_event_count %}
+                        <span class="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-400">
+                            Provider-confirmed
+                        </span>
+                    {% else %}
+                        <span class="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-400">
+                            Awaiting provider events
+                        </span>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-sm font-semibold text-blue-400">
+                        {{ nl.sent_count }} sent/accepted
+                    </span>
+                    <span class="text-sm font-semibold text-amber-400">
+                        Delivery was not tracked historically
+                    </span>
+                    <span class="text-sm font-semibold text-blue-400">
+                        {{ nl.open_count }} opened/read ({{ '%.1f'|format((nl.open_count * 100.0 / nl.sent_count) if nl.sent_count else 0) }}%)
+                    </span>
+                    <span class="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-400">
+                        Legacy/inferred
                     </span>
                     {% endif %}
+                    {% endif %}
                 </div>
+                {% if nl.provider_eligible_count and not nl.provider_event_count and nl.provider_events_overdue_count %}
+                <div class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400">
+                    Provider tracking warning: no signed Resend event was received within 15 minutes.
+                </div>
+                {% endif %}
+                {% if nl.sent_count >= 5 and nl.failed_count >= 3 and (nl.failed_count * 5) >= nl.sent_count %}
+                <div class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300">
+                    Delivery warning: provider failures are above 20%.
+                </div>
+                {% endif %}
             </div>
 
             <!-- Actions -->
             <div class="flex items-center gap-2 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 {% if nl.status in ['DRAFT', 'PARTIAL', 'SCHEDULED'] %}
-                <form method="POST" action="/admin/newsletter/send/{{ nl.id }}" class="inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors min-h-[40px] flex items-center cursor-pointer">
-                        Send Now
-                    </button>
-                </form>
+                <a href="/admin/newsletter/send/{{ nl.id }}"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors min-h-[40px] flex items-center">
+                    Review Send
+                </a>
                 {% endif %}
                 <a href="/admin/newsletter/edit/{{ nl.id }}"
                     class="px-4 py-2 bg-zinc-800 text-white rounded-lg text-xs font-bold hover:bg-zinc-700 transition-colors min-h-[40px] flex items-center">

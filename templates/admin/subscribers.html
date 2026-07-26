@@ -1,9 +1,9 @@
 {% extends 'admin/base_admin.html' %}
 
 {% block admin_content %}
-<div class="mb-8 flex items-center justify-between">
+<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div>
-        <h1 class="text-xl font-bold text-white uppercase tracking-widest">Intelligence Feed Subscribers</h1>
+        <h1 class="text-xl font-bold text-gray-900 uppercase tracking-widest">Intelligence Feed Subscribers</h1>
         <div class="mt-2 text-zinc-500 font-mono text-xs">
             ACTIVE {{ status_counts.get('ACTIVE', 0) }} /
             PENDING {{ status_counts.get('PENDING', 0) }} /
@@ -11,7 +11,11 @@
             EXPIRED {{ status_counts.get('EXPIRED', 0) }}
         </div>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
+        <a href="{{ url_for('admin_content.admin_newsletters') }}"
+            class="rounded-full border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-blue-300 hover:bg-blue-500/20 transition-colors">
+            Email Delivery Stats
+        </a>
         {% if status_counts.get('PENDING', 0) %}
         <form action="{{ url_for('admin_content.expire_pending_subscribers') }}" method="POST"
             class="expire-pending-form">
@@ -36,21 +40,293 @@
     </div>
 </div>
 
+<section class="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl sm:p-6">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400">Subscriber Conversion</p>
+            <h2 class="mt-1 text-lg font-bold text-white">Acquisition funnel</h2>
+            <p class="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500">
+                Signup and activation totals use subscribers created during the selected period.
+                Qualified submissions passed the abuse and email-format checks and are deduplicated for 30 minutes.
+                Provider accepted and failed are confirmation-email attempts, not inbox delivery results.
+                Explicit confirmations have a confirmation timestamp; legacy activated records only have a historical active status.
+                View tracking starts from this deployment; historical signup-to-confirm data remains available.
+                View-to-confirm uses explicit confirmations acquired after view tracking began.
+            </p>
+        </div>
+        <div class="flex gap-2">
+            {% for period in funnel_periods %}
+            <a href="{{ url_for('admin_content.admin_subscribers', days=period, status=status_filter or none) }}"
+                class="rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors {% if funnel.days == period %}bg-blue-600 text-white{% else %}bg-zinc-950 text-zinc-400 hover:text-white{% endif %}">
+                {{ period }} days
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Form Views</p>
+            <p class="mt-2 text-2xl font-black text-white">{{ funnel.summary.views }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Qualified Submissions</p>
+            <p class="mt-2 text-2xl font-black text-white">{{ funnel.summary.qualified_submissions }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">New Signups</p>
+            <p class="mt-2 text-2xl font-black text-white">{{ funnel.summary.signups }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Explicit Confirmed</p>
+            <p class="mt-2 text-2xl font-black text-green-400">{{ funnel.summary.explicit_confirmed }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Legacy Activated</p>
+            <p class="mt-2 text-2xl font-black text-amber-300">{{ funnel.summary.legacy_activated }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Provider Accepted</p>
+            <p class="mt-2 text-2xl font-black text-green-400">{{ funnel.summary.confirmation_sent }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Provider Failed</p>
+            <p class="mt-2 text-2xl font-black text-red-400">{{ funnel.summary.confirmation_failed }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Acceptance Rate</p>
+            <p class="mt-2 text-2xl font-black text-blue-400">{{ funnel.summary.provider_acceptance_rate }}%</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Current Pending</p>
+            <p class="mt-2 text-2xl font-black text-amber-300">{{ funnel.summary.pending }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Activated Total</p>
+            <p class="mt-2 text-2xl font-black text-white">{{ funnel.summary.confirmed }}</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">View to Submit</p>
+            <p class="mt-2 text-2xl font-black text-blue-400">{{ funnel.summary.view_to_submit_rate }}%</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Submit to Signup</p>
+            <p class="mt-2 text-2xl font-black text-blue-400">{{ funnel.summary.submission_to_signup_rate }}%</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">View to Confirm</p>
+            <p class="mt-2 text-2xl font-black text-blue-400">{{ funnel.summary.view_to_confirm_rate }}%</p>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+            <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Signup to Activated</p>
+            <p class="mt-2 text-2xl font-black text-blue-400">{{ funnel.summary.signup_to_confirm_rate }}%</p>
+        </div>
+    </div>
+
+    <div class="mt-5 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+        <div class="mb-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-green-400">
+                Confirmation Delivery
+            </p>
+            <p class="mt-2 text-xs leading-relaxed text-zinc-500">
+                Actual provider webhook results for confirmation emails accepted during this period.
+                Delivered does not mean confirmed; the subscriber must still click the double-opt-in link.
+            </p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Tracked Messages</p>
+                <p class="mt-2 text-2xl font-black text-white">{{ funnel.summary.confirmation_tracked }}</p>
+            </div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Actually Delivered</p>
+                <p class="mt-2 text-2xl font-black text-green-400">{{ funnel.summary.confirmation_delivered }}</p>
+            </div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Webhook Pending</p>
+                <p class="mt-2 text-2xl font-black text-blue-400">{{ funnel.summary.confirmation_webhook_pending }}</p>
+            </div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Delayed</p>
+                <p class="mt-2 text-2xl font-black text-amber-300">{{ funnel.summary.confirmation_delayed }}</p>
+            </div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Delivery Issues</p>
+                <p class="mt-2 text-2xl font-black text-red-400">{{ funnel.summary.confirmation_delivery_issues }}</p>
+            </div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+                <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Tracked Delivery Rate</p>
+                <p class="mt-2 text-2xl font-black text-green-400">{{ funnel.summary.confirmation_delivery_rate }}%</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5 overflow-x-auto rounded-xl border border-zinc-800">
+        <table class="min-w-[1600px] w-full text-left">
+            <thead class="bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                <tr>
+                    <th class="px-4 py-3">Placement</th>
+                    <th class="px-4 py-3">Views</th>
+                    <th class="px-4 py-3">Qualified</th>
+                    <th class="px-4 py-3">New Signups</th>
+                    <th class="px-4 py-3">Explicit</th>
+                    <th class="px-4 py-3">Legacy</th>
+                    <th class="px-4 py-3">Provider Accepted</th>
+                    <th class="px-4 py-3">Provider Failed</th>
+                    <th class="px-4 py-3">Acceptance Rate</th>
+                    <th class="px-4 py-3">Current Pending</th>
+                    <th class="px-4 py-3">Activated</th>
+                    <th class="px-4 py-3">View to Submit</th>
+                    <th class="px-4 py-3">Submit to Signup</th>
+                    <th class="px-4 py-3">View to Confirm</th>
+                    <th class="px-4 py-3">Signup to Activated</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800 text-xs text-zinc-300">
+                {% for row in funnel.placements %}
+                <tr>
+                    <td class="px-4 py-3 font-bold text-white">{{ row.label }}</td>
+                    <td class="px-4 py-3">{{ row.views }}</td>
+                    <td class="px-4 py-3">{{ row.qualified_submissions }}</td>
+                    <td class="px-4 py-3">{{ row.signups }}</td>
+                    <td class="px-4 py-3">{{ row.explicit_confirmed }}</td>
+                    <td class="px-4 py-3">{{ row.legacy_activated }}</td>
+                    <td class="px-4 py-3">{{ row.confirmation_sent }}</td>
+                    <td class="px-4 py-3">{{ row.confirmation_failed }}</td>
+                    <td class="px-4 py-3">{{ row.provider_acceptance_rate }}%</td>
+                    <td class="px-4 py-3">{{ row.pending }}</td>
+                    <td class="px-4 py-3">{{ row.confirmed }}</td>
+                    <td class="px-4 py-3">{{ row.view_to_submit_rate }}%</td>
+                    <td class="px-4 py-3">{{ row.submission_to_signup_rate }}%</td>
+                    <td class="px-4 py-3">{{ row.view_to_confirm_rate }}%</td>
+                    <td class="px-4 py-3">{{ row.signup_to_confirm_rate }}%</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="15" class="px-4 py-6 text-center text-zinc-500">No funnel activity in this period.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="mt-3 text-[10px] text-zinc-600">
+        Blocked signup attempts in this period: {{ funnel.summary.blocked }}.
+        Anonymous form views and qualified submissions are deduplicated by placement for 30 minutes.
+    </p>
+</section>
+
+<section data-subscriber-attribution="true"
+    class="mb-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl sm:p-6">
+    <div class="mb-5">
+        <p class="text-[10px] font-black uppercase tracking-[0.25em] text-blue-400">Audience attribution</p>
+        <h2 class="mt-1 text-lg font-bold text-white">Acquisition sources</h2>
+        <p class="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-500">
+            Explicit UTM parameters take priority over the page-load referrer. Historical unknowns remain unattributed
+            rather than being guessed. New page-load referrer capture uses the existing subscriber record and adds no cookie.
+            This period contains {{ acquisition.summary.explicit_confirmed }} explicit confirmations and
+            {{ acquisition.summary.legacy_activated }} legacy activated records.
+        </p>
+    </div>
+
+    <div class="grid gap-5 lg:grid-cols-2">
+        <div class="overflow-x-auto rounded-xl border border-zinc-800">
+            <table class="min-w-[640px] w-full text-left">
+                <thead class="bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                    <tr>
+                        <th class="px-4 py-3">Channel</th>
+                        <th class="px-4 py-3">Signups</th>
+                        <th class="px-4 py-3">Explicit</th>
+                        <th class="px-4 py-3">Legacy</th>
+                        <th class="px-4 py-3">Activated</th>
+                        <th class="px-4 py-3">Activated share</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800 text-xs text-zinc-300">
+                    {% for row in acquisition.channels %}
+                    <tr>
+                        <td class="px-4 py-3 font-bold text-white">{{ row.label }}</td>
+                        <td class="px-4 py-3">{{ row.signups }}</td>
+                        <td class="px-4 py-3">{{ row.explicit_confirmed }}</td>
+                        <td class="px-4 py-3">{{ row.legacy_activated }}</td>
+                        <td class="px-4 py-3">{{ row.confirmed }}</td>
+                        <td class="px-4 py-3">{{ row.confirmed_share }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-6 text-center text-zinc-500">No attributed signups in this period.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-zinc-800">
+            <table class="min-w-[420px] w-full text-left">
+                <thead class="bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                    <tr>
+                        <th class="px-4 py-3">Landing page</th>
+                        <th class="px-4 py-3">Signups</th>
+                        <th class="px-4 py-3">Activated</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800 text-xs text-zinc-300">
+                    {% for row in acquisition.landing_pages %}
+                    <tr>
+                        <td class="max-w-[260px] truncate px-4 py-3 font-mono text-white" title="{{ row.path }}">{{ row.label }}</td>
+                        <td class="px-4 py-3">{{ row.signups }}</td>
+                        <td class="px-4 py-3">{{ row.confirmed }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="px-4 py-6 text-center text-zinc-500">No landing-page data in this period.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-5 overflow-x-auto rounded-xl border border-zinc-800">
+        <table class="min-w-[420px] w-full text-left">
+            <thead class="bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                <tr>
+                    <th class="px-4 py-3">Weekly trend</th>
+                    <th class="px-4 py-3">Signups</th>
+                    <th class="px-4 py-3">Activated</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800 text-xs text-zinc-300">
+                {% for row in acquisition.weeks %}
+                <tr>
+                    <td class="px-4 py-3 font-mono font-bold text-white">Week of {{ row.week_start }}</td>
+                    <td class="px-4 py-3">{{ row.signups }}</td>
+                    <td class="px-4 py-3">{{ row.confirmed }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="px-4 py-6 text-center text-zinc-500">No weekly activity in this period.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
 <div class="mb-6 flex flex-wrap gap-2">
-    <a href="{{ url_for('admin_content.admin_subscribers') }}"
+    <a href="{{ url_for('admin_content.admin_subscribers', days=funnel.days) }}"
         class="rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors {% if not status_filter %}bg-blue-600 text-white{% else %}bg-zinc-900 text-zinc-400 hover:text-white{% endif %}">
         All {{ subscribers|length if not status_filter else '' }}
     </a>
     {% for status in status_options %}
-    <a href="{{ url_for('admin_content.admin_subscribers', status=status) }}"
+    <a href="{{ url_for('admin_content.admin_subscribers', status=status, days=funnel.days) }}"
         class="rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors {% if status_filter == status %}bg-blue-600 text-white{% else %}bg-zinc-900 text-zinc-400 hover:text-white{% endif %}">
         {{ status }} {{ status_counts.get(status, 0) }}
     </a>
     {% endfor %}
 </div>
 
-<div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
-    <table class="w-full text-left">
+<div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-x-auto shadow-2xl">
+    <table class="min-w-[760px] w-full text-left">
         <thead>
             <tr
                 class="bg-zinc-950 text-[10px] font-black uppercase tracking-widest text-zinc-500 border-b border-zinc-800">
