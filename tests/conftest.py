@@ -102,7 +102,15 @@ def _patch_db(tmp_path_factory):
             prompt_type TEXT,
             prompt_text TEXT,
             response_text TEXT,
-            cost_estimate REAL
+            cost_estimate REAL,
+            prompt_tokens INTEGER,
+            output_tokens INTEGER,
+            thoughts_tokens INTEGER,
+            total_tokens INTEGER,
+            cached_input_tokens INTEGER,
+            prompt_char_count INTEGER,
+            response_char_count INTEGER,
+            request_status TEXT
         )
     ''')
     conn.execute('''

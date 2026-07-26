@@ -5,7 +5,14 @@ import generate_missing_audio as missing_audio_module
 from generate_missing_audio import generate_audio_for_recent_articles
 
 
-def _insert_article(slug, *, audio_male=None, audio_female=None, published_at="2026-05-20T12:00:00+00:00"):
+def _insert_article(
+    slug,
+    *,
+    audio_male=None,
+    audio_female=None,
+    published_at="2026-05-20T12:00:00+00:00",
+    is_published=1,
+):
     conn = sqlite3.connect(db_module.DB_PATH)
     conn.execute(
         """
@@ -33,7 +40,7 @@ def _insert_article(slug, *, audio_male=None, audio_female=None, published_at="2
             "{}",
             published_at,
             70,
-            1,
+            is_published,
             "Intelligence from DailyAIWire dot news. Test narration script.",
             audio_male,
             audio_female,
@@ -120,3 +127,31 @@ def test_generate_audio_for_recent_articles_preserves_legacy_female_reference(mo
         "/static/audio/legacy-female-only_male.mp3",
         "/static/audio/legacy-female-only_female.mp3",
     )
+
+
+def test_generate_audio_skips_unpublished_articles(monkeypatch):
+    _delete_articles("retired-duplicate", "published-story")
+    monkeypatch.setattr(missing_audio_module, "DB_PATH", db_module.DB_PATH)
+    _insert_article(
+        "retired-duplicate",
+        published_at="2099-05-20T12:02:00+00:00",
+        is_published=0,
+    )
+    _insert_article(
+        "published-story",
+        published_at="2099-05-20T12:01:00+00:00",
+    )
+    calls = []
+
+    class StubAudioGenerator:
+        def generate_audio_reads(self, slug, text):
+            calls.append(slug)
+            return (f"/static/audio/{slug}_male.mp3", None)
+
+    monkeypatch.setattr("generate_missing_audio.AudioGenerator", StubAudioGenerator)
+
+    generate_audio_for_recent_articles(limit=2)
+
+    assert "published-story" in calls
+    assert "retired-duplicate" not in calls
+    assert _get_audio("retired-duplicate") == (None, None)

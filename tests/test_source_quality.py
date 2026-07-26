@@ -372,6 +372,50 @@ def test_build_headline_filter_prompt_caps_recent_titles_and_avoids_duplicate_he
     assert "HEADLINES:" not in prompt
 
 
+def test_candidate_pool_limits_research_aggregators_when_news_is_available():
+    research = [
+        {"title": f"Research paper {index}", "source": "ArXiv cs.AI"}
+        for index in range(8)
+    ]
+    news = [
+        {"title": f"Industry story {index}", "source": "Reuters"}
+        for index in range(8)
+    ]
+
+    selected = src._diversify_candidate_pool(
+        research + news,
+        pool_size=10,
+        max_research_share=0.4,
+    )
+
+    assert len(selected) == 10
+    assert sum(src._is_research_aggregator(article) for article in selected) == 4
+    assert [article["title"] for article in selected[:4]] == [
+        "Research paper 0",
+        "Research paper 1",
+        "Research paper 2",
+        "Research paper 3",
+    ]
+
+
+def test_candidate_pool_backfills_research_instead_of_reducing_volume():
+    research = [
+        {"title": f"Research paper {index}", "source": "Hugging Face Papers"}
+        for index in range(12)
+    ]
+
+    selected = src._diversify_candidate_pool(
+        research,
+        pool_size=10,
+        max_research_share=0.4,
+    )
+
+    assert len(selected) == 10
+    assert [article["title"] for article in selected] == [
+        f"Research paper {index}" for index in range(10)
+    ]
+
+
 def test_recent_title_guard_blocks_cross_source_rewording():
     candidate = "Hugging Face Confirms AI Agent-Driven Security Breach"
     published = "Hugging Face Network Breached by Autonomous AI Agent"
