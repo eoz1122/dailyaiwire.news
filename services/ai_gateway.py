@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sqlite3
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from google import genai
@@ -16,6 +17,88 @@ import db
 
 
 logger = logging.getLogger('ai_gateway')
+
+
+AI_LOG_COLUMNS = {
+    "prompt_tokens": "ALTER TABLE ai_logs ADD COLUMN prompt_tokens INTEGER",
+    "output_tokens": "ALTER TABLE ai_logs ADD COLUMN output_tokens INTEGER",
+    "thoughts_tokens": "ALTER TABLE ai_logs ADD COLUMN thoughts_tokens INTEGER",
+    "total_tokens": "ALTER TABLE ai_logs ADD COLUMN total_tokens INTEGER",
+    "cached_input_tokens": "ALTER TABLE ai_logs ADD COLUMN cached_input_tokens INTEGER",
+    "prompt_char_count": "ALTER TABLE ai_logs ADD COLUMN prompt_char_count INTEGER",
+    "response_char_count": "ALTER TABLE ai_logs ADD COLUMN response_char_count INTEGER",
+    "request_status": "ALTER TABLE ai_logs ADD COLUMN request_status TEXT",
+}
+
+
+def _fallback_log_path() -> str:
+    return os.getenv(
+        "AI_LOG_FALLBACK_PATH",
+        os.path.join(os.path.dirname(db.DB_PATH), "logs", "ai_logs_fallback.jsonl"),
+    )
+
+
+def _extract_usage_counts(response: Any) -> dict[str, Optional[int]]:
+    usage = getattr(response, 'usage_metadata', None)
+    prompt_tokens = 0
+    output_tokens = 0
+    thoughts_tokens = 0
+    cached_input_tokens = 0
+    token_total = None
+
+    if usage is not None:
+        prompt_tokens = int(getattr(usage, 'prompt_token_count', 0) or 0)
+        output_tokens = int(getattr(usage, 'candidates_token_count', 0) or 0)
+        thoughts_tokens = int(getattr(usage, 'thoughts_token_count', 0) or 0)
+        cached_input_tokens = int(
+            getattr(usage, 'cached_content_token_count', 0)
+            or getattr(usage, 'cached_input_token_count', 0)
+            or 0
+        )
+        token_total = getattr(usage, 'total_token_count', None)
+        if token_total is None:
+            token_total = prompt_tokens + output_tokens + thoughts_tokens
+        token_total = int(token_total)
+
+    return {
+        "prompt_tokens": prompt_tokens,
+        "output_tokens": output_tokens,
+        "thoughts_tokens": thoughts_tokens,
+        "cached_input_tokens": cached_input_tokens,
+        "total_tokens": token_total,
+    }
+
+
+def _write_ai_log_fallback(
+    *,
+    model_name: str,
+    prompt_type: str,
+    prompt_text: str,
+    response_text: str,
+    request_status: str,
+    usage_counts: dict[str, Optional[int]],
+    db_error: str,
+) -> None:
+    fallback_path = _fallback_log_path()
+    os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
+
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": model_name,
+        "prompt_type": prompt_type,
+        "request_status": request_status,
+        "prompt_tokens": usage_counts["prompt_tokens"],
+        "output_tokens": usage_counts["output_tokens"],
+        "thoughts_tokens": usage_counts["thoughts_tokens"],
+        "cached_input_tokens": usage_counts["cached_input_tokens"],
+        "total_tokens": usage_counts["total_tokens"],
+        "prompt_char_count": len(prompt_text or ""),
+        "response_char_count": len(response_text or ""),
+        "db_error": db_error,
+    }
+
+    with open(fallback_path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=True) + "\n")
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -48,6 +131,33 @@ def _normalize_timeout_ms(request_options: Optional[dict[str, Any]]) -> Optional
         timeout_value *= 1000
 
     return int(timeout_value)
+
+
+def ensure_ai_logs_schema(cur: sqlite3.Cursor) -> None:
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS ai_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            model TEXT,
+            prompt_type TEXT,
+            prompt_text TEXT,
+            response_text TEXT,
+            cost_estimate REAL,
+            prompt_tokens INTEGER,
+            output_tokens INTEGER,
+            thoughts_tokens INTEGER,
+            total_tokens INTEGER,
+            cached_input_tokens INTEGER,
+            prompt_char_count INTEGER,
+            response_char_count INTEGER,
+            request_status TEXT
+        )
+    ''')
+
+    existing_columns = {row[1] for row in cur.execute("PRAGMA table_info(ai_logs)").fetchall()}
+    for column_name, ddl in AI_LOG_COLUMNS.items():
+        if column_name not in existing_columns:
+            cur.execute(ddl)
 
 
 class AIGateway:
@@ -173,50 +283,69 @@ class AIGateway:
         *,
         error_text: Optional[str],
     ) -> None:
+        usage_counts = _extract_usage_counts(response)
+        stored_response = response_text
+        if error_text:
+            stored_response = f"ERROR: {error_text}\n\n{response_text}"
+
+        request_status = "ERROR" if error_text else "SUCCESS"
+        conn = None
         try:
-            conn = sqlite3.connect(db.DB_PATH)
+            timeout = float(os.getenv("AI_LOG_DB_TIMEOUT_SECONDS", "30"))
+            conn = db.get_db_connection(timeout=timeout)
             cur = conn.cursor()
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS ai_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    model TEXT,
-                    prompt_type TEXT,
-                    prompt_text TEXT,
-                    response_text TEXT,
-                    cost_estimate REAL
-                )
-            ''')
-
-            usage = getattr(response, 'usage_metadata', None)
-            token_total = None
-            if usage is not None:
-                prompt_tokens = getattr(usage, 'prompt_token_count', 0) or 0
-                output_tokens = getattr(usage, 'candidates_token_count', 0) or 0
-                thoughts_tokens = getattr(usage, 'thoughts_token_count', 0) or 0
-                token_total = getattr(usage, 'total_token_count', None)
-                if token_total is None:
-                    token_total = prompt_tokens + output_tokens + thoughts_tokens
-                token_total = float(token_total)
-
-            stored_response = response_text
-            if error_text:
-                stored_response = f"ERROR: {error_text}\n\n{response_text}"
+            ensure_ai_logs_schema(cur)
 
             cur.execute(
                 '''
-                INSERT INTO ai_logs (model, prompt_type, prompt_text, response_text, cost_estimate)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO ai_logs (
+                    model,
+                    prompt_type,
+                    prompt_text,
+                    response_text,
+                    cost_estimate,
+                    prompt_tokens,
+                    output_tokens,
+                    thoughts_tokens,
+                    total_tokens,
+                    cached_input_tokens,
+                    prompt_char_count,
+                    response_char_count,
+                    request_status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
                     self.model_name,
                     prompt_type,
                     prompt_text,
                     stored_response,
-                    token_total,
+                    float(usage_counts["total_tokens"]) if usage_counts["total_tokens"] is not None else None,
+                    usage_counts["prompt_tokens"],
+                    usage_counts["output_tokens"],
+                    usage_counts["thoughts_tokens"],
+                    usage_counts["total_tokens"],
+                    usage_counts["cached_input_tokens"],
+                    len(prompt_text or ""),
+                    len(response_text or ""),
+                    request_status,
                 ),
             )
             conn.commit()
-            conn.close()
         except Exception as exc:
+            try:
+                _write_ai_log_fallback(
+                    model_name=self.model_name,
+                    prompt_type=prompt_type,
+                    prompt_text=prompt_text,
+                    response_text=response_text,
+                    request_status=request_status,
+                    usage_counts=usage_counts,
+                    db_error=str(exc),
+                )
+            except Exception as fallback_exc:
+                self.logger.warning("Failed to write ai_logs fallback entry: %s", fallback_exc)
             self.logger.warning("Failed to write ai_logs entry: %s", exc)
+        finally:
+            if conn is not None:
+                conn.close()

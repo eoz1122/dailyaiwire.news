@@ -7,12 +7,15 @@ import os
 import secrets
 import sqlite3
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import urlencode
 
 from flask import Flask, request, redirect, url_for, has_request_context, render_template, g
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.model import BaseModelView
 from flask_login import current_user, login_required
 from dotenv import load_dotenv
+from PIL import Image
 from werkzeug.security import generate_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -20,6 +23,7 @@ from extensions import csrf, limiter
 from db import get_db_connection, DB_PATH
 from helpers import register_filters
 from logging_config import setup_logging
+from services.traffic_quality import get_traffic_anomaly_summary
 import logging
 
 # --- App Setup ---
@@ -152,6 +156,12 @@ def init_db_migrations():
         from services.indexing_audit import ensure_indexing_notifications_table
         ensure_indexing_notifications_table(conn)
 
+        from services.indexing_promotions import ensure_google_index_promotions_table
+        ensure_google_index_promotions_table(conn)
+
+        from services.article_redirects import ensure_article_redirects_table
+        ensure_article_redirects_table(conn)
+
         conn.commit()
     except Exception as e:
         logger.error("Migration failed: %s", e)
@@ -245,6 +255,7 @@ class MyAdminIndexView(AdminIndexView):
         total_query_result = conn.execute(total_query, params).fetchone()
         total = total_query_result[0] if total_query_result else 0
         has_next = (offset + per_page) < total
+        traffic_quality = get_traffic_anomaly_summary(conn, days=7)
 
         conn.close()
 
@@ -276,11 +287,37 @@ class MyAdminIndexView(AdminIndexView):
             leads=leads, carousel_pinned_ids=carousel_pinned_ids,
             emergency_mode=is_emergency_mode(),
             sort_by=sort_by, sort_dir=sort_dir, status_filter=status_filter,
+            traffic_quality=traffic_quality,
         )
 
 
 
 admin = Admin(app, name='DailyAIWire Admin', index_view=MyAdminIndexView())
+
+
+@app.before_request
+def normalize_html_escaped_utm_params():
+    """Clean malformed UTM keys like amp;utm_medium before analytics can see them."""
+    if request.method not in ("GET", "HEAD"):
+        return None
+
+    normalized_args = []
+    changed = False
+    for key, values in request.args.lists():
+        normalized_key = key[4:] if key.startswith("amp;utm_") else key
+        if normalized_key != key:
+            changed = True
+        for value in values:
+            normalized_args.append((normalized_key, value))
+
+    if not changed:
+        return None
+
+    query = urlencode(normalized_args, doseq=True)
+    target = request.path
+    if query:
+        target = f"{target}?{query}"
+    return redirect(target, code=301)
 
 
 # --- Context Processor ---
@@ -290,6 +327,35 @@ def get_csp_nonce():
         nonce = secrets.token_urlsafe(16)
         g.csp_nonce = nonce
     return nonce
+
+
+def _is_usable_author_image(static_root: str, image_path: str) -> bool:
+    if not image_path or not image_path.startswith("/static/"):
+        return False
+
+    abs_path = Path(static_root) / image_path.removeprefix("/static/")
+    if not abs_path.exists():
+        return False
+
+    try:
+        with Image.open(abs_path) as img:
+            width, height = img.size
+    except Exception:
+        return False
+
+    if width < 120 or height < 120:
+        return False
+
+    aspect_ratio = width / max(height, 1)
+    return 0.5 <= aspect_ratio <= 1.8
+
+
+def _resolve_author_image(static_root: str, preferred_path: str, fallback_path: str, avatar_url: str) -> str:
+    if _is_usable_author_image(static_root, preferred_path):
+        return preferred_path
+    if _is_usable_author_image(static_root, fallback_path):
+        return fallback_path
+    return avatar_url
 
 
 @app.context_processor
@@ -326,25 +392,19 @@ def inject_config():
     except Exception:
         pass
 
-    current_img = emre_data.get('image', '')
-    if current_img.startswith('/'):
-        if current_img.startswith('/static/'):
-            rel_path = current_img[8:]
-            abs_path = os.path.join(app.static_folder, rel_path)
+    emre_data['image'] = _resolve_author_image(
+        app.static_folder,
+        emre_data.get('image', ''),
+        '/static/emre.jpg',
+        "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff",
+    )
 
-            if not os.path.exists(abs_path):
-                fallback_local = os.path.join(app.static_folder, 'emre.jpg')
-                if os.path.exists(fallback_local):
-                    emre_data['image'] = '/static/emre.jpg'
-                else:
-                    emre_data['image'] = "https://ui-avatars.com/api/?name=Emre+Ozen&size=512&background=2563eb&color=fff"
-
-    # Cagri image fallback
-    cagri_img = cagri_data.get('image', '')
-    if cagri_img.startswith('/static/'):
-        cagri_abs = os.path.join(app.static_folder, cagri_img[8:])
-        if not os.path.exists(cagri_abs):
-            cagri_data['image'] = "https://ui-avatars.com/api/?name=Cagri+Eralp&size=512&background=2563eb&color=fff"
+    cagri_data['image'] = _resolve_author_image(
+        app.static_folder,
+        cagri_data.get('image', ''),
+        '/static/cagri.jpg',
+        "https://ui-avatars.com/api/?name=Cagri+Eralp&size=512&background=2563eb&color=fff",
+    )
 
     def get_cat_color(c):
         colors = {

@@ -16,6 +16,15 @@ load_dotenv()
 
 DEDUP_SIGNATURE_RETENTION_DAYS = int(os.getenv("AI_DEDUP_SIGNATURE_RETENTION_DAYS", "7"))
 
+
+def _post_publication_ai_dedup_enabled():
+    return os.getenv("ENABLE_POST_PUBLICATION_AI_DEDUP", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
 def tokenize(text):
     if not text: return set()
     return set(re.findall(r'\w+', text.lower()))
@@ -159,19 +168,22 @@ def ai_deduplicate(recent_only=True):
     conn.close()
 
 def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
-    """Standard fuzzy deduplication followed by AI semantic check."""
+    """Retire fuzzy duplicates, followed by an optional AI semantic check."""
     conn = sqlite3.connect(db.DB_PATH)
     cursor = conn.cursor()
     
     if recent_only:
         cursor.execute("""
-            SELECT id, title, slug FROM articles 
-            WHERE datetime(published_at) >= datetime('now', '-1 hour')
+            SELECT id, title, slug FROM articles
+            WHERE is_published = 1
+              AND datetime(published_at) >= datetime('now', '-1 hour')
             ORDER BY id ASC
         """)
         print("Scanning recent articles (last hour) for fuzzy duplicates...")
     else:
-        cursor.execute("SELECT id, title, slug FROM articles ORDER BY id ASC")
+        cursor.execute(
+            "SELECT id, title, slug FROM articles WHERE is_published = 1 ORDER BY id ASC"
+        )
         print(f"Scanning ALL articles for fuzzy duplicates...")
     
     articles = cursor.fetchall()
@@ -201,19 +213,32 @@ def remove_duplicates(seq_threshold=0.8, word_threshold=0.6, recent_only=True):
             seen_titles.append((current_id, current_title, current_slug))
             
     if to_delete:
-        cursor.execute(f"DELETE FROM articles WHERE id IN ({','.join(map(str, to_delete))})")
+        placeholders = ",".join("?" for _ in to_delete)
+        cursor.execute(
+            f"UPDATE articles SET is_published = 0 WHERE id IN ({placeholders})",
+            to_delete,
+        )
         conn.commit()
-        print(f"🗑️ Removed {len(to_delete)} fuzzy duplicates.")
+        print(f"🗃️ Retired {len(to_delete)} fuzzy duplicates.")
+        try:
+            from embedding_service import delete_article_vectors
+
+            delete_article_vectors(to_delete)
+            print(f"🧹 Removed {len(to_delete)} retired duplicate vectors from Qdrant.")
+        except Exception as exc:
+            print(f"⚠️ Qdrant duplicate cleanup failed (non-blocking): {exc}")
     else:
         print("✅ No fuzzy duplicates found.")
     
     conn.close()
     
-    # AI Check with safety wrap
-    try:
-        ai_deduplicate(recent_only=recent_only)
-    except Exception as e:
-        print(f"❌ Critical Error in AI Deduplication: {e}")
+    if _post_publication_ai_dedup_enabled():
+        try:
+            ai_deduplicate(recent_only=recent_only)
+        except Exception as e:
+            print(f"❌ Critical Error in AI Deduplication: {e}")
+    else:
+        print("⏭️ Post-publication AI dedup disabled; pre-publication guards remain active.")
 
 if __name__ == "__main__":
     remove_duplicates()

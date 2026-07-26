@@ -99,6 +99,27 @@ class ArticleAnalysis(BaseModel):
         return self
 
 
+class ArticleTriageDecision(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    batch_id: int
+    decision: Literal["KEEP", "BLOCK"]
+    reason: str = ""
+
+    @field_validator('decision', mode='before')
+    @classmethod
+    def _normalize_decision(cls, value: Any) -> str:
+        decision = str(value or "").strip().upper()
+        if decision not in {"KEEP", "BLOCK"}:
+            raise ValueError("decision must be KEEP or BLOCK")
+        return decision
+
+    @field_validator('reason', mode='before')
+    @classmethod
+    def _normalize_reason(cls, value: Any) -> str:
+        return str(value or "").strip()
+
+
 class LeadExtractionResult(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
@@ -155,3 +176,57 @@ class DuplicateReviewPayload(BaseModel):
     model_config = ConfigDict(extra='ignore')
 
     duplicate_pairs: list[DuplicatePair] = Field(default_factory=list)
+
+
+class WeeklyNewsletterDraft(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    subject: str = ""
+    intro_text: str = ""
+    article_blurbs: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator('subject', 'intro_text', mode='before')
+    @classmethod
+    def _normalize_text(cls, value: Any) -> str:
+        return str(value or "").strip()
+
+    @field_validator('article_blurbs', mode='before')
+    @classmethod
+    def _normalize_article_blurbs(cls, value: Any) -> dict[str, str]:
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise ValueError("expected dictionary of article blurbs")
+        return {
+            str(key).strip(): str(item).strip()
+            for key, item in value.items()
+            if str(key).strip() and str(item).strip()
+        }
+
+
+class OpinionPieceDraft(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    title: str = ""
+    subtitle: str = ""
+    gist: str = ""
+    impact: str = ""
+    optimistic_outlook: str = ""
+    pessimistic_warning: str = ""
+    content: str = ""
+    meta_description: str = ""
+
+    @field_validator(
+        'title',
+        'subtitle',
+        'gist',
+        'impact',
+        'optimistic_outlook',
+        'pessimistic_warning',
+        'content',
+        'meta_description',
+        mode='before',
+    )
+    @classmethod
+    def _normalize_text(cls, value: Any) -> str:
+        return str(value or "").strip()

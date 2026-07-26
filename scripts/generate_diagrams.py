@@ -14,15 +14,17 @@ import argparse
 import time
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 import sqlite3
 from dotenv import load_dotenv
-import google.generativeai as genai
 
-load_dotenv()
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
+import ai_config
 from db import DB_PATH
+from services.ai_gateway import AIGateway
 
 DIAGRAM_PROMPT = """You are a technical diagram expert. Given an article's headline and deep analysis, generate a Mermaid.js diagram that visually represents the key flow, process, or relationship described.
 
@@ -81,15 +83,15 @@ def backfill_diagrams(limit=10, min_score=75, dry_run=False):
         conn.close()
         return
 
-    # Initialize Gemini
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        print("❌ GEMINI_API_KEY not set")
+    try:
+        gateway = AIGateway(
+            model_name=ai_config.ROUTINE_MODEL,
+            logger_name="diagram_backfill",
+        )
+    except RuntimeError as exc:
+        print(f"❌ {exc}")
         conn.close()
         return
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
 
     generated = 0
     skipped = 0
@@ -101,8 +103,11 @@ def backfill_diagrams(limit=10, min_score=75, dry_run=False):
         )
 
         try:
-            response = model.generate_content(prompt)
-            diagram = response.text.strip()
+            diagram, _response = gateway.generate_text(
+                prompt,
+                prompt_type="diagram_backfill",
+            )
+            diagram = diagram.strip()
 
             # Clean up: remove markdown fences if AI added them
             if diagram.startswith("```mermaid"):

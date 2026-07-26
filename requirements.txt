@@ -109,3 +109,4 @@ scrapling
 curl_cffi
 playwright
 browserforge
+svix==1.98.0

@@ -26,6 +26,7 @@ AD_COLLECTION_NAME = "ad_reference_vectors"
 QDRANT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qdrant_data")
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "news.db")
 EMBEDDING_DIM = 1024
+DUPLICATE_RECENCY_HOURS = 36
 
 
 def get_model():
@@ -40,28 +41,36 @@ def get_model():
 
 
 def get_qdrant():
-    """Get or create Qdrant client with local disk persistence."""
+    """Get or create the configured Qdrant client."""
     global _qdrant_client
     if _qdrant_client is None:
         from qdrant_client import QdrantClient
         from qdrant_client.models import Distance, VectorParams
 
-        os.makedirs(QDRANT_PATH, exist_ok=True)
-        try:
-            _qdrant_client = QdrantClient(path=QDRANT_PATH)
-        except Exception as exc:
-            backup_path = None
-            if os.path.isdir(QDRANT_PATH):
-                stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-                backup_path = f"{QDRANT_PATH}_incompatible_{stamp}"
-                os.replace(QDRANT_PATH, backup_path)
-                os.makedirs(QDRANT_PATH, exist_ok=True)
-            logger.warning(
-                "Qdrant local store was incompatible and has been reset. Backup: %s. Error: %s",
-                backup_path,
-                exc,
-            )
-            _qdrant_client = QdrantClient(path=QDRANT_PATH)
+        remote_url = os.getenv("QDRANT_URL", "").strip()
+        api_key = os.getenv("QDRANT_API_KEY", "").strip()
+        if remote_url:
+            client_options = {"url": remote_url}
+            if api_key:
+                client_options["api_key"] = api_key
+            _qdrant_client = QdrantClient(**client_options)
+        else:
+            os.makedirs(QDRANT_PATH, exist_ok=True)
+            try:
+                _qdrant_client = QdrantClient(path=QDRANT_PATH)
+            except Exception as exc:
+                backup_path = None
+                if os.path.isdir(QDRANT_PATH):
+                    stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+                    backup_path = f"{QDRANT_PATH}_incompatible_{stamp}"
+                    os.replace(QDRANT_PATH, backup_path)
+                    os.makedirs(QDRANT_PATH, exist_ok=True)
+                logger.warning(
+                    "Qdrant local store was incompatible and has been reset. Backup: %s. Error: %s",
+                    backup_path,
+                    exc,
+                )
+                _qdrant_client = QdrantClient(path=QDRANT_PATH)
 
         # Create collections if they don't exist
         collections = [c.name for c in _qdrant_client.get_collections().collections]
@@ -189,6 +198,21 @@ def index_batch(articles: List[Dict]) -> int:
     return len(points)
 
 
+def delete_article_vectors(article_ids: List[int]) -> None:
+    """Delete article points from the editorial Qdrant collection."""
+    normalized_ids = sorted({int(article_id) for article_id in article_ids})
+    if not normalized_ids:
+        return
+
+    from qdrant_client.models import PointIdsList
+
+    get_qdrant().delete(
+        collection_name=COLLECTION_NAME,
+        points_selector=PointIdsList(points=normalized_ids),
+        wait=True,
+    )
+
+
 def score_article(title: str, gist: str, why_it_matters: str = "") -> Tuple[float, List[Dict]]:
     """
     Score an incoming article against the Editorial Compass.
@@ -229,19 +253,56 @@ def score_article(title: str, gist: str, why_it_matters: str = "") -> Tuple[floa
     return round(avg_score, 3), similar
 
 
-def find_duplicates(title: str, gist: str, threshold: float = 0.92) -> Optional[Dict]:
+def _recent_published_article_ids(hours: int = DUPLICATE_RECENCY_HOURS) -> List[int]:
+    """Return published article IDs eligible for recent-story deduplication."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.execute(
+            """
+            SELECT id
+            FROM articles
+            WHERE is_published = 1
+              AND published_at IS NOT NULL
+              AND datetime(replace(published_at, 'T', ' ')) >= datetime('now', ?)
+            """,
+            (f"-{max(1, int(hours))} hours",),
+        ).fetchall()
+        return [int(row[0]) for row in rows]
+    except sqlite3.Error as exc:
+        logger.warning("Recent article lookup failed for semantic dedup: %s", exc)
+        return []
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+
+def find_duplicates(
+    title: str,
+    gist: str,
+    threshold: float = 0.92,
+    why_it_matters: str = "",
+) -> Optional[Dict]:
     """
     Check if an article is a semantic duplicate of an existing one.
     
     Returns the duplicate article info if similarity > threshold, else None.
     """
+    recent_article_ids = _recent_published_article_ids()
+    if not recent_article_ids:
+        return None
+
+    from qdrant_client.models import Filter, HasIdCondition
+
     client = get_qdrant()
-    text = build_article_text(title, gist)
+    text = build_article_text(title, gist, why_it_matters)
     embedding = embed_texts([text])[0]
 
     results = client.search(
         collection_name=COLLECTION_NAME,
         query_vector=embedding.tolist(),
+        query_filter=Filter(
+            must=[HasIdCondition(has_id=recent_article_ids)]
+        ),
         limit=1,
         score_threshold=threshold
     )

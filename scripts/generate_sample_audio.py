@@ -1,15 +1,21 @@
 import sqlite3
 import json
 import os
-import google.generativeai as genai
-from audio_generator import AudioGenerator
+import sys
 from dotenv import load_dotenv
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
+
+import ai_config
+from audio_generator import AudioGenerator
+from db import DB_PATH
+from services.ai_gateway import AIGateway
 
 def generate_sample():
-    conn = sqlite3.connect('news.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # Get the latest article
@@ -23,11 +29,17 @@ def generate_sample():
     print(f"Generating sample for: {title}")
     
     # 1. Generate Narrative Script
-    model = genai.GenerativeModel('gemini-2.5-flash')
     prompt = f"Create a 1-minute professional news narrative script (approx 150 words). MUST START with: 'Intelligence from DailyAIWire dot news.' based on this analysis: {analysis[:3000]}. Use smooth transitions, look authoritative, and conclude with a forward-looking statement."
-    
-    response = model.generate_content(prompt)
-    script = response.text.strip()
+
+    gateway = AIGateway(
+        model_name=ai_config.ROUTINE_MODEL,
+        logger_name="sample_audio_script",
+    )
+    script, _response = gateway.generate_text(
+        prompt,
+        prompt_type="sample_audio_script",
+    )
+    script = script.strip()
     print(f"\n--- SCRIPT ---\n{script}\n--------------\n")
     
     # 2. Update DB

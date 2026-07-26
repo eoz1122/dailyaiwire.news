@@ -37,26 +37,31 @@ def run_post_publication_audit(url: str):
             return False
         print(f"✅ Headline Detected: {h1.text.strip()[:30]}...")
 
-        # 2. VERIFY "GIST" BLOCK
-        # Looking for the specific "The Gist" header text
-        gist_header = soup.find(string=lambda text: "the gist" in text.lower() if text else False)
-        if not gist_header:
-             print("❌ QA FAILED: 'The Gist' block missing.")
-             return False
-        print("✅ Gist Block Verified.")
-
-        # 3. VERIFY CTA BUTTON
-        # Looking for link that contains "Read Full Story"
-        cta = soup.find('a', string=lambda text: "read full story" in text.lower() if text else False)
-        # Note: Text might be inside a span, so we check stricter if needed.
-        # Fallback check on href
-        if not cta:
-            cta = soup.find(lambda tag: tag.name == "a" and "Read Full Story" in tag.text)
-            
-        if not cta:
-            print("❌ QA FAILED: 'Read Full Story' CTA missing.")
+        # 2. VERIFY SUMMARY BLOCK
+        summary = soup.select_one(
+            '[data-article-summary-tone] .genui-reading-kicker'
+        )
+        if not summary or not summary.get_text(strip=True):
+            summary = soup.find(
+                string=lambda text: "the gist" in text.lower() if text else False
+            )
+        if not summary:
+            print("❌ QA FAILED: Article summary block missing or empty.")
             return False
-        print("✅ CTA Verified.")
+        print("✅ Summary Block Verified.")
+
+        # 3. VERIFY SOURCE CTA
+        cta = soup.select_one('[data-article-source-link] a[href]')
+        if not cta:
+            cta = soup.find(
+                lambda tag: tag.name == "a"
+                and "read full story" in tag.get_text(" ", strip=True).lower()
+            )
+
+        if not cta or not cta.get('href'):
+            print("❌ QA FAILED: Source CTA missing.")
+            return False
+        print("✅ Source CTA Verified.")
         
         print("🎉 STATUS: SUCCESS. Article is live and healthy.")
         return True
