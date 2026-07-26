@@ -362,6 +362,41 @@ def _fetch_editorials():
     return editorials
 
 
+def _fetch_latest_sent_newsletter(conn):
+    """Return display data for the newest public newsletter edition."""
+    try:
+        row = conn.execute(
+            '''
+            SELECT id, subject, intro_text, scheduled_date, article_ids
+            FROM newsletters
+            WHERE status = 'SENT'
+            ORDER BY scheduled_date DESC, id DESC
+            LIMIT 1
+            '''
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        logger.warning("Latest homepage newsletter unavailable: %s", exc)
+        return None
+
+    if not row:
+        return None
+
+    newsletter = dict(row)
+    intro = (newsletter.get('intro_text') or '').strip()
+    newsletter['intro_preview'] = (
+        f"{intro[:237].rstrip()}..."
+        if len(intro) > 240
+        else intro
+    )
+    try:
+        newsletter['article_count'] = len(
+            json.loads(newsletter.get('article_ids') or '[]')
+        )
+    except (TypeError, ValueError, json.JSONDecodeError):
+        newsletter['article_count'] = 0
+    return newsletter
+
+
 @public_bp.route('/')
 def index():
     conn = get_db_connection()
@@ -575,6 +610,10 @@ def index():
         except Exception as reader_pick_err:
             logger.warning("Reader Picks unavailable: %s", reader_pick_err)
 
+    latest_weekly_brief = None
+    if page == 1 and not q and not cat_arg:
+        latest_weekly_brief = _fetch_latest_sent_newsletter(conn)
+
     conn.close()
 
     if not q and not cat_arg:
@@ -630,6 +669,7 @@ def index():
             search_mode=search_mode,
             trends=trends,
             reader_picks=reader_picks,
+            latest_weekly_brief=latest_weekly_brief,
         )
     )
 
