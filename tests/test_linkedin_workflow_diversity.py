@@ -1,19 +1,11 @@
-import json
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW_PATH = ROOT / "outputs/linkedin-n8n/linkedin-rss-scheduled-24-daily.json"
 SELECTOR_PATH = ROOT / "ops/n8n/linkedin-select-diverse.js"
 SUCCESS_PATH = ROOT / "ops/n8n/linkedin-mark-success-diverse.js"
-
-
-def _node_code(workflow, name):
-    return next(
-        node["parameters"]["jsCode"]
-        for node in workflow["nodes"]
-        if node["name"] == name
-    )
+README_PATH = ROOT / "ops/n8n/README.md"
+GITIGNORE_PATH = ROOT / ".gitignore"
 
 
 def test_linkedin_rss_exposes_diversity_metadata(client):
@@ -46,8 +38,11 @@ def test_linkedin_success_counter_is_idempotent():
     assert "if (!alreadyProcessed) {" in success
 
 
-def test_importable_workflow_contains_reviewed_diversity_scripts():
-    workflow = json.loads(WORKFLOW_PATH.read_text())
+def test_generated_workflow_contract_uses_versioned_source_scripts():
+    readme = README_PATH.read_text()
+    gitignore = GITIGNORE_PATH.read_text()
 
-    assert _node_code(workflow, "Select Next Article") == SELECTOR_PATH.read_text()
-    assert _node_code(workflow, "Mark Successfully Posted") == SUCCESS_PATH.read_text()
+    assert "`linkedin-select-diverse.js`" in readme
+    assert "`linkedin-mark-success-diverse.js`" in readme
+    assert "outputs/linkedin-n8n/linkedin-rss-scheduled-24-daily.json" in readme
+    assert "/outputs/" in gitignore

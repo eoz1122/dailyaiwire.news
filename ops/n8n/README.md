@@ -9,7 +9,10 @@ This directory stores DailyAIWire n8n workflow exports that are still operationa
 - The workflow schedules up to 24 successful posts per New York day after 06:00.
 - Daily diversity caps are 6 research posts, 4 posts from one source, and 6 posts from one category.
 - Counts increase only after LinkedIn confirms a successful post.
-- The selector and success-state source files live beside this README and are injected into the import JSON.
+- The versioned selector source is `linkedin-select-diverse.js`.
+- The versioned success-state source is `linkedin-mark-success-diverse.js`.
+- Both source files are injected into `outputs/linkedin-n8n/linkedin-rss-scheduled-24-daily.json`.
+- The generated import output is intentionally excluded from Git.
 - Disable the previous LinkedIn workflow only after this workflow is imported, activated, and test-executed successfully.
 
 ## Archive
