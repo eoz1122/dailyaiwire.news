@@ -5,6 +5,421 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 ---
 
+## 2026-07-21T23:27:56+02:00 - Audit Article Semantics Instead of Display Labels
+
+**Context**: The article layout now labels its summary as `Signal Summary` and its source CTA as `Read Article at Source`, while `qa_monitor.py` still searched for the old literal labels `The Gist` and `Read Full Story`. Every current article therefore produced a false QA failure despite rendering correctly.
+
+**Decision**:
+- Validate the summary through the existing `data-article-summary-tone` container and non-empty summary content.
+- Validate the source CTA through the existing `data-article-source-link` container and a non-empty link target.
+- Retain the old display-label checks as fallbacks for archived layouts.
+- Do not change the article template or visible copy for this monitoring fix.
+
+**Verification**:
+- RED: representative current article markup failed with `'The Gist' block missing`.
+- GREEN: four monitor tests, five persistence tests, and 23 site-health tests passed.
+- Both the local and production auditors passed the live RynnBrain article with headline, summary, and source CTA checks.
+- `dailyaiwire_fetcher` is running after deployment.
+
+**Rollback**: Restore `qa_monitor.py` from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/qa-monitor-selectors-20260721T213000Z/` and restart `dailyaiwire_fetcher`.
+
+## 2026-07-21T23:21:38+02:00 - Soft-Retire Fuzzy Duplicates and Clean Their Vectors
+
+**Context**: Legacy post-publication fuzzy deduplication hard-deleted article rows without removing their Qdrant points. Production contained one missing-row vector for an earlier RynnBrain article, and retaining retired rows is safer for audit history and database references.
+
+**Decision**:
+- Scan only published articles during post-publication fuzzy deduplication.
+- Set `is_published = 0` for fuzzy duplicates instead of deleting their database rows.
+- Delete retired article points from Qdrant through an explicit point-ID helper.
+- Restrict missing-audio generation to published articles so retired duplicates cannot consume TTS.
+- Treat Qdrant deletion as non-blocking because semantic deduplication already filters candidates through published database IDs.
+
+**Verification**:
+- RED: duplicate rows were deleted, the vector deletion API was absent, unpublished rows influenced fuzzy matching, and unpublished rows reached audio generation.
+- GREEN: 51 relevant tests passed in isolated test-file runs, including fuzzy retirement, Qdrant cleanup, ingestion, audio, governance, RSS, and indexing coverage.
+- Production Qdrant and the database both contain 10,368 published article IDs, with zero missing-row vectors, zero unpublished-row vectors, and zero published articles lacking vectors.
+
+**Rollback**: Restore `remove_duplicates.py`, `embedding_service.py`, and `generate_missing_audio.py` from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/fuzzy-soft-retire-20260721T212000Z/`, then restart `dailyaiwire_fetcher`. A consistent pre-deployment `news.db` snapshot is stored in the same directory.
+
+## 2026-07-21T23:15:03+02:00 - Disable Redundant Post-Publication AI Dedup by Default
+
+**Context**: Post-publication Gemini deduplication ran 223 times over 14 days, consumed approximately 144,441 logged tokens, created 179 review rows that all remained pending, and missed the observed Hugging Face duplicate. Deterministic and Qdrant semantic checks now run before publication.
+
+**Decision**:
+- Keep deterministic and 36-hour Qdrant pre-publication deduplication as the active guards.
+- Disable post-publication Gemini deduplication by default.
+- Retain the explicit emergency opt-in `ENABLE_POST_PUBLICATION_AI_DEDUP=true`.
+- Leave legacy fuzzy deduplication unchanged for this decision; audit its database deletion and Qdrant cleanup separately.
+
+**Verification**:
+- RED: the default path called `ai_deduplicate()` after every productive cycle.
+- GREEN: the default path skips the Gemini call, while the explicit environment opt-in preserves the legacy behavior.
+- `python3 -m pytest tests/test_post_publication_dedup.py tests/test_embedding_service_config.py tests/test_persistence_images.py tests/test_ai_governance.py -q` -> 29 passed.
+- Production reports the feature flag as false and `dailyaiwire_fetcher` is running after deployment.
+
+**Rollback**: Restore `/home/dailyai/dailyaiwire.news/ops/deploy-backups/post-publication-ai-dedup-20260721T211346Z/remove_duplicates.py` and restart `dailyaiwire_fetcher`, or set `ENABLE_POST_PUBLICATION_AI_DEDUP=true` to restore the legacy Gemini call without reverting code.
+
+## 2026-07-21T21:45:51+02:00 - Exclude Unpublished Articles from Public RSS
+
+**Context**: The public RSS query filtered future timestamps but omitted `is_published = 1`. A newly unpublished duplicate could therefore remain in RSS until enough newer records pushed it beyond the 20-item limit, even after disappearing from the homepage.
+
+**Decision**: Apply the same publication-state requirement to public RSS that is already used by the homepage and LinkedIn feed.
+
+**Verification**:
+- RED: a newly inserted unpublished article appeared in `/rss.xml`.
+- GREEN: the same article is absent after adding the publication filter.
+- `python3 -m pytest tests/test_indexability.py tests/test_indexing_promotions.py tests/test_rss_visibility.py -q` -> 16 passed.
+
+**Rollback**: Restore `routes/seo.py` from the production deployment backup and restart `dailyaiwire-web.service`.
+
+## 2026-07-21T21:44:07+02:00 - Recognize Verified Single-Document Root Domains
+
+**Context**: The July 19 Reader Pick cites `freefable.org/`, a one-page primary-source open letter that The Atlantic also links directly. The indexability scorer treated every root URL as a generic publisher homepage, incorrectly making this otherwise strong article ineligible under the tightened source rule.
+
+**Decision**:
+- Keep rejecting ordinary root publisher URLs.
+- Allow only explicitly verified domains whose root page is the primary document itself.
+- Begin the narrow allowlist with `freefable.org`; additions require equivalent source verification.
+
+**Verification**:
+- RED: the verified single-document regression scored 91 but remained blocked by `generic_source_url`.
+- GREEN: the observed root domain passes while `https://example.com/` remains blocked.
+- `python3 -m pytest tests/test_indexability.py tests/test_indexing_promotions.py -q` -> 15 passed.
+
+**Rollback**: Restore `services/indexability.py` from the production deployment backup and restart `dailyaiwire_fetcher`.
+
+## 2026-07-21T21:23:56+02:00 - Isolate Qdrant as a Localhost Service
+
+**Context**: Gunicorn semantic search and the fetcher opened the same embedded Qdrant directory. A search request left one web worker holding the exclusive store lock, causing every later fetcher vector write to fail. The VPS already had a shared Qdrant service for legal projects, but its single master key could access all collections and was not an acceptable cross-project boundary.
+
+**Decision**:
+- Run a dedicated DailyAIWire Qdrant container on localhost-only ports `6433/6434` with a separate volume and API key.
+- Configure `embedding_service.py` through `QDRANT_URL` and `QDRANT_API_KEY`, while retaining embedded mode as the local-development and rollback fallback.
+- Keep article generation and deterministic story dedup independent of Qdrant availability.
+
+**Verification**:
+- RED: the remote-client configuration test observed the existing embedded `path` argument instead of the configured URL and API key.
+- GREEN: `python3 -m pytest tests/test_embedding_service_config.py tests/test_ad_filter_logic.py -q` -> 4 passed.
+- Relevant regression suite -> 129 passed.
+- Production Qdrant is healthy on localhost-only ports, the old embedded directory has no open handles, and public search returns ten semantic results.
+- The production article backfill runs detached at low priority with restricted CPU affinity. Its dedicated key was rotated after an initial wrapper exposed it in process arguments; the replacement wrapper keeps the key out of the process command line.
+
+**Rollback**: Restore `embedding_service.py`, remove the two Qdrant variables from the application environment, restart `dailyaiwire-web.service` and `dailyaiwire_fetcher`, then stop `dailyaiwire-qdrant`. The dedicated volume is retained unless explicitly removed.
+
+## 2026-07-21T21:10:10+02:00 - Add Deterministic Cross-Source Story Deduplication
+
+**Context**: Two homepage lead articles covered the same Hugging Face autonomous-agent breach from different publishers, four hours apart. The later cycle's Gemini headline filter returned HTTP 503 and fell back to ranked candidates. The one-hour post-publication dedup window could not compare the pair, and the fetcher's Qdrant index write was blocked because a Gunicorn worker held the embedded store lock.
+
+**Decision**:
+- Reject strong same-event headline matches against the last 36 hours before any LLM analysis.
+- Repeat the deterministic title-and-gist comparison against SQLite immediately before publication so LLM and vector-store failures cannot bypass it.
+- Require strong token containment with at least five shared event tokens, and preserve distinct numbered versions such as GPT-5 versus GPT-6.
+- Keep the existing semantic and AI dedup layers as additional non-blocking signals.
+
+**Verification**:
+- RED: the observed Hugging Face pair passed both existing gates and all three new regression checks failed.
+- `python3 -m pytest tests/test_source_quality.py tests/test_persistence_images.py tests/test_indexing_promotions.py tests/test_indexability.py tests/test_smoke.py tests/test_fetcher_daily_cap.py tests/test_fetcher_env_loading.py tests/test_indexing_audit.py -q` -> 125 passed.
+- `python3 -m py_compile services/story_dedup.py fetcher/sources.py fetcher/persistence.py` -> passed.
+
+**Rollback**: Restore the three runtime files from the timestamped production deployment backup and restart `dailyaiwire_fetcher`. Re-publish any manually corrected article row by setting `is_published = 1`.
+
+---
+
+## 2026-07-21T20:58:40+02:00 - Use Systemd as the Sole DailyAIWire Web Process Owner
+
+**Context**: Production had both `dailyaiwire-web.service` and Supervisor configured to start the same Gunicorn command on port 8000. Systemd kept the public site healthy, while Supervisor repeatedly started a duplicate process that failed on the occupied port and restarted every six seconds.
+
+**Decision**:
+- Keep the enabled `dailyaiwire-web.service` unit as the sole owner of the DailyAIWire Gunicorn web process.
+- Set Supervisor's duplicate `dailyaiwire` program to `autostart=false` and `autorestart=false`.
+- Keep `dailyaiwire_fetcher` under Supervisor without changing its restart policy.
+
+**Verification**:
+- Systemd remained active with one Gunicorn master and four workers on `127.0.0.1:8000`.
+- Supervisor reports the duplicate web program as `STOPPED Not started` and the fetcher as `RUNNING`.
+- Local and public health endpoints return HTTP 200.
+
+**Rollback**: Restore `dailyaiwire.supervisor.conf` from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/reader-picks-20260721T184852Z`, stop and disable `dailyaiwire-web.service`, run `supervisorctl reread && supervisorctl update`, then start Supervisor's `dailyaiwire` program.
+
+---
+
+## 2026-07-21T20:30:22+02:00 - Give Index-Selected Articles Crawlable Reader Picks Links
+
+**Context**: Production had seven articles selected for Google indexing, but none was linked from the homepage and none of their related-article modules linked to another selected page. Some selected articles were buried behind thousands of newer URLs. Selection also favored old all-time view leaders and accepted generic source homepages.
+
+**Decision**:
+- Present the three most recently selected pages on the homepage as `Reader Picks`; do not expose internal promotion terminology.
+- Prioritize selected pages in same-category and cross-category related links while retaining six total recommendations.
+- Prefer quality-eligible articles published within the last 30 days, then fall back to older eligible content when no recent candidate qualifies.
+- Require a specific HTTP or HTTPS source article URL for future indexing selection; reject missing, malformed, and homepage-only source URLs.
+- Keep the one-new-article-per-UTC-day limit, 24-hour observation window, publishing volume, and existing selections unchanged.
+
+**Verification**:
+- RED: four new regression expectations failed before implementation.
+- `python3 -m pytest tests/test_indexing_promotions.py tests/test_indexability.py -q` -> 14 passed.
+- `python3 -m pytest tests/test_indexing_promotions.py tests/test_indexability.py tests/test_smoke.py tests/test_fetcher_daily_cap.py tests/test_fetcher_env_loading.py tests/test_indexing_audit.py -q` -> 105 passed.
+- `python3 -m py_compile routes/public.py services/indexability.py services/indexing_promotions.py` -> passed.
+- The full suite retains a pre-existing order-dependent admin fixture error in `test_admin_indexing_page_and_csv`; that test passes independently.
+
+**Rollback**: Remove the Reader Picks query and template section, restore chronological related-article ordering, remove the freshness ordering clause and source URL hard blockers, then restart the web and fetcher services. Existing `google_index_promotions` rows require no database rollback.
+
+---
+
+## 2026-07-15T16:48:28+02:00 - Keep Permanent Pages Outside the Daily Article Limit
+
+**Context**: The one-article-per-day recovery policy applies only to generated article pages. The live core sitemap already contained seven permanent pages, but three useful public pages were indexable without being listed, while the transactional thank-you page was accidentally indexable.
+
+**Decision**:
+- Keep permanent site pages independently indexable; they do not consume the daily article promotion allowance.
+- Add `/how-it-works`, `/impressum`, and `/subscribe` to `sitemap-core.xml`.
+- Give `/how-it-works` unique search and social metadata before sitemap inclusion.
+- Mark `/thank-you` as `noindex, follow` in both HTML and the response header, and keep it out of the sitemap.
+
+**Verification**:
+- RED tests confirmed the three permanent pages were missing and the thank-you page was indexable.
+- `python3 -m pytest tests/test_indexing_promotions.py tests/test_indexability.py tests/test_smoke.py tests/test_fetcher_daily_cap.py tests/test_fetcher_env_loading.py tests/test_indexing_audit.py -q` -> 102 passed.
+- `python3 -m py_compile routes/public.py routes/seo.py` -> passed.
+
+**Rollback**: Restore the previous `routes/public.py`, `routes/seo.py`, and `templates/how_it_works.html`; restart the web service. No database rollback is required.
+
+---
+
+## 2026-07-15T16:40:00+02:00 - Observe Articles for 24 Hours Before Google Promotion
+
+**Context**: Daily promotion should use reader demand signals only after an article has had a full day to collect meaningful views. A calendar-day check could promote an article less than 24 hours after publication.
+
+**Decision**:
+- Exclude articles published less than 24 hours before the UTC promotion check.
+- Apply the cutoff before view-based ranking and quality scoring.
+- Keep the existing limit of one new promotion per UTC calendar day.
+- Continue evaluating from the two-hour fetch cycle, so actual promotion occurs between 24 and roughly 26 hours after publication.
+
+**Verification**:
+- The boundary test failed before implementation because the promotion function did not accept an evaluation time.
+- The test now confirms that an article exactly 24 hours old is eligible while one published one second later is excluded, even with much higher views.
+- `python3 -m pytest tests/test_indexing_promotions.py tests/test_indexability.py tests/test_smoke.py tests/test_fetcher_daily_cap.py tests/test_fetcher_env_loading.py tests/test_indexing_audit.py -q` -> 100 passed.
+- `python3 -m py_compile services/indexing_promotions.py` -> passed.
+
+**Rollback**: Restore the previous `services/indexing_promotions.py`. Existing promotion records remain valid and require no database rollback.
+
+---
+
+## 2026-07-15T16:29:28+02:00 - Promote One Reader-Validated Article Per Day for Google Recovery
+
+**Context**: The 2026-07-15 Search Console export showed zero indexed pages and 1,693 URLs in `Crawled - currently not indexed`. Production published 1,011 articles in the preceding 30 days, while only 225 passed the existing indexability gate. The earlier 500-core plus 400-archive sitemap recovery strategy did not reverse the decline.
+
+**Decision**:
+- Keep all published articles available to readers, social channels, newsletters, RSS, and internal navigation.
+- Promote at most one new article per UTC calendar day into Google's indexable set.
+- Rank unpromoted candidates by `verified_views`, then raw `views`, quality score, publication time, and ID.
+- Require the existing indexability threshold before promotion, so bot traffic or popularity alone cannot promote weak content.
+- Persist promotions in `google_index_promotions` with unique constraints on both article and day.
+- Mark unpromoted article pages `noindex, follow` and exclude them from article sitemaps.
+- Keep previously promoted articles indexable and accumulated in `sitemap-core.xml`.
+- Stop advertising the legacy archive sitemap; keep its endpoint empty so old Search Console references resolve successfully.
+- Run the idempotent promotion check from every two-hour fetch cycle so no separate cron or manual process is required.
+
+**Verification**:
+- RED tests failed before implementation because the promotion service and robots behavior did not exist.
+- `python3 -m pytest tests/test_indexing_promotions.py tests/test_indexability.py tests/test_smoke.py tests/test_fetcher_daily_cap.py tests/test_fetcher_env_loading.py tests/test_indexing_audit.py -q` -> 99 passed.
+- `python3 -m py_compile services/indexing_promotions.py app.py fetcher/__init__.py fetcher/db_init.py routes/public.py routes/seo.py` -> passed.
+- Read-only production dry run selected `amazon-jassy-challenges-nvidia-intel-starlink-custom-chips`, with 63 verified views and indexability score 91, as the first candidate.
+- The full repository suite retains an unrelated order-dependent admin fixture failure that passes when rerun independently; all indexing, fetcher, smoke, and indexing-audit tests pass together.
+
+**Rollback**: Restore the timestamped deployment backup for `app.py`, `fetcher/__init__.py`, `fetcher/db_init.py`, `routes/public.py`, `routes/seo.py`, and `templates/base.html`; remove `services/indexing_promotions.py`; restart `dailyaiwire` and `dailyaiwire_fetcher`. The `google_index_promotions` table can remain unused or be dropped manually after rollback.
+
+---
+
+## 2026-07-05T14:57:32+02:00 - Normalize HTML-Escaped UTM Query Keys
+
+**Context**: GA4 showed recent `(data not available)` rows for source/medium. Google documents this as an attribution-processing state for recent traffic when UTM or ad identifiers are present, but production logs also showed occasional malformed links with query keys such as `amp;utm_medium`, caused by HTML-escaped URLs being passed through a social/email layer.
+
+**Decision**:
+- Add request middleware that redirects GET/HEAD requests containing malformed `amp;utm_*` query keys to clean `utm_*` keys before the page and GA tag render.
+- Preserve normal UTM links and do not alter POST requests.
+- Keep existing noindex behavior for query-string article URLs.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_smoke.py::TestSEORoutes::test_malformed_html_escaped_utm_query_redirects_to_clean_url tests/test_smoke.py::TestSEORoutes::test_rss_feed tests/test_smoke.py::TestSEORoutes::test_linkedin_rss_feed tests/test_smoke.py::TestPublicRoutes::test_article_page tests/test_smoke.py::TestPublicRoutes::test_homepage_analytics_has_client_bot_guard tests/test_smoke.py::TestSEORobotsDirectives::test_article_with_query_params_is_noindex`
+
+**Rollback**: Restore `app.py` from the deployment backup and restart `dailyaiwire`. GA4 `(data not available)` may still appear for recent/intraday data because that is Google-side attribution processing rather than an application error.
+
+---
+
+## 2026-07-05T14:46:35+02:00 - Add Newsletter Unsubscribe and Delivery Audit
+
+**Context**: A Microsoft 365 recipient appeared delayed after the weekly newsletter send. Production logs showed Resend accepted the message, but the app only stored `DELIVERED` and did not expose a working unsubscribe endpoint. Mailbox scanners also requested `/unsubscribe` and received `404`, which is a deliverability and compliance risk.
+
+**Decision**:
+- Add tokenized `/unsubscribe/<newsletter_id>/<token>` handling for GET and one-click POST requests.
+- Mark unsubscribed subscribers as `UNSUBSCRIBED` and record a subscriber audit event.
+- Render per-recipient unsubscribe URLs in newsletter footers.
+- Add `List-Unsubscribe` and `List-Unsubscribe-Post` headers to Resend sends.
+- Store Resend message IDs and raw provider responses on delivery rows for future troubleshooting.
+
+**Verification**:
+- `python3 -m pytest -q tests/test_security_hardening.py -k "send_newsletter_adds_unsubscribe_headers or newsletter_unsubscribe_token or send_newsletter_uses_request_timeout"`
+- `python3 -m pytest -q tests/test_security_hardening.py tests/test_subscribe_abuse.py tests/test_admin_subscriber_reconfirmation.py tests/test_confirmation_email_template.py`
+
+**Rollback**: Restore `newsletter_sender.py`, `routes/public.py`, `routes/admin_content.py`, and `templates/email/briefing.html` from the deployment backup. Existing `UNSUBSCRIBED` rows can be reactivated manually with `UPDATE subscribers SET status='ACTIVE' WHERE email='<address>';` if an unsubscribe was accidental.
+
+---
+
+## 2026-06-14T21:10:38+02:00 - Raise Headline Filter Candidate Target to 8
+
+**Context**: The June billing export showed Gemini spend dropped to roughly €0.11/day after article prompts stopped hitting the expensive Flash long-input billing bucket. Article volume also fell, so we can cautiously raise the number of candidates considered per cycle while keeping the strict Flash-Lite triage gate.
+
+**Decision**:
+- Increase the headline filter baseline target from 6 to 8 candidates per cycle.
+- Keep the maximum target at 12.
+- Preserve the heuristic quality floor: do not pad the AI filter prompt with negative-score spam/PR/listicle headlines just to hit the higher target.
+
+**Verification**:
+- `python3 -m pytest tests/test_source_quality.py::test_filter_high_signal_headlines_caps_results_to_dynamic_target -q`
+- `python3 -m pytest tests/test_source_quality.py -q`
+- `python3 -m py_compile fetcher/sources.py`
+
+**Rollback**: Restore `fetcher/sources.py` from the deployment backup and restart `dailyaiwire_fetcher`. If article volume or cost rises too quickly, revert the baseline target from 8 back to 6.
+
+---
+
+## 2026-06-10T22:56:29+02:00 - Tighten Flash-Lite Article Triage
+
+**Context**: Production logs showed Flash-Lite triage was technically working, but it kept 86.8% of candidates on 2026-06-09 and 91.8% on 2026-06-10. That meant most candidates still reached the expensive full `article_analysis` path.
+
+**Decision**:
+- Make the triage prompt more selective without adding a hard publishing cap.
+- Instruct the model to usually keep 0-1 items per 3-article batch, keep 2 only for clearly major stories, and keep all only when every item is exceptional.
+- Default uncertain, vague, local/minor, generic AI adoption, routine integration, PR, listicle, affiliate, and repetitive items to `BLOCK`.
+- Log triage block reasons so production keep/block behavior can be audited after deployment.
+
+**Verification**:
+- `python3 -m pytest tests/test_ai_governance.py::test_article_triage_prompt_stays_compact_and_english_only -q`
+- `python3 -m pytest tests/test_ai_governance.py -q`
+- `python3 -m py_compile fetcher/ai_processor.py`
+
+**Rollback**: Restore `fetcher/ai_processor.py` from the deployment backup, or set `GEMINI_ARTICLE_TRIAGE_ENABLED=false` in `.env` and restart `dailyaiwire_fetcher` if the stricter gate suppresses too many articles.
+
+---
+
+## 2026-06-10T21:00:00+02:00 - Route Manual Gemini Scripts Through Gateway
+
+**Context**: Google project-level attribution is not available from the billing report, so future root-cause work depends on making every local DailyAIWire Gemini caller visible. Four manual scripts still used direct `google.generativeai` calls and would bypass `ai_logs` if run.
+
+**Decision**:
+- Migrate `scripts/generate_diagrams.py` to `AIGateway.generate_text` with prompt type `diagram_backfill`.
+- Migrate `scripts/ingest_manual_urls.py` to `AIGateway.generate_text` with prompt type `manual_url_ingest`.
+- Migrate `scripts/generate_lab_metadata.py` to `AIGateway.generate_text` with prompt type `lab_metadata`.
+- Migrate `scripts/generate_sample_audio.py` to `AIGateway.generate_text` with prompt type `sample_audio_script`.
+- Add a regression test that fails if live `fetcher`, `services`, or `scripts` reintroduce direct Gemini SDK calls outside `services/ai_gateway.py`.
+
+**Verification**:
+- `python3 -m pytest tests/test_no_unlogged_gemini.py tests/test_ai_governance.py -q`
+- `python3 -m py_compile services/ai_gateway.py scripts/generate_diagrams.py scripts/ingest_manual_urls.py scripts/generate_lab_metadata.py scripts/generate_sample_audio.py`
+- VPS compile check for the same deployed scripts.
+- VPS grep now finds direct Gemini `generate_content` only inside `services/ai_gateway.py`.
+
+**Rollback**: Restore script files from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/20260610T195748Z-manual-gemini-gateway`, then run the desired manual script again. No Supervisor restart is required for these manual helpers.
+
+---
+
+## 2026-06-10T19:02:00+02:00 - Add AI Log Fallback for SQLite Lock Gaps
+
+**Context**: Billing investigation showed successful Gemini calls were logging token metadata after the recent instrumentation rollout, but historical server logs also showed `database is locked` failures in the AI logging path. A successful model call followed by a failed SQLite write creates a billing blind spot.
+
+**Decision**:
+- Keep `ai_logs` as the primary audit table.
+- Switch gateway logging to the shared timeout-aware DB helper so SQLite waits longer before failing.
+- Add `logs/ai_logs_fallback.jsonl` for failed DB writes, storing model, prompt type, status, token counts, cached tokens, character counts, timestamp, and DB error.
+- Do not store full prompt or response text in the fallback file to avoid creating a second sensitive prompt archive.
+
+**Verification**:
+- `python3 -m pytest tests/test_ai_governance.py -q`
+- `python3 -m py_compile services/ai_gateway.py`
+- VPS compile check with `/home/dailyai/dailyaiwire.news/venv/bin/python -m py_compile services/ai_gateway.py`
+- Restarted `dailyaiwire_fetcher`, `dailyaiwire`, and `tweet_scheduler` under Supervisor.
+
+**Rollback**: Restore `/home/dailyai/dailyaiwire.news/ops/deploy-backups/20260610T165950Z-ai-log-fallback/services/ai_gateway.py` to `/home/dailyai/dailyaiwire.news/services/ai_gateway.py`, then restart `dailyaiwire_fetcher`, `dailyaiwire`, and `tweet_scheduler`.
+
+---
+
+## 2026-06-09T13:58:38+0200 - Add Flash-Lite Article Triage Before Full Analysis
+
+**Context**: Billing analysis showed `article_analysis` on `gemini-2.5-flash` remained the dominant cost driver. Even after prompt trimming and stricter headline filtering, every prepared article still went straight into the expensive full-analysis path.
+
+**Decision**:
+- Added a cheap Flash-Lite triage stage in `fetcher/ai_processor.py` before full article analysis.
+- Triage uses a shorter source excerpt (`ARTICLE_TRIAGE_CHAR_LIMIT`, default `500`) and returns `KEEP` or `BLOCK` decisions via a structured `ArticleTriageDecision` schema.
+- Full article analysis now runs only on triage-approved records.
+- If triage fails, the fetcher falls back to the old behavior and analyzes the full prepared batch to avoid a publishing outage.
+- Triage is enabled by default through `GEMINI_ARTICLE_TRIAGE_ENABLED=true`.
+
+**Rationale**: This adds a low-cost gate in front of the expensive Flash synthesis step, which is the only path large enough to move daily spend materially. The fallback keeps operational risk low while we watch the keep/block rate in production.
+
+**Verification**:
+- `python3 -m pytest tests/test_ai_governance.py -q`
+- `python3 -m py_compile fetcher/ai_processor.py services/ai_schemas.py ai_config.py`
+
+**Rollback**: Restore `fetcher/ai_processor.py`, `services/ai_schemas.py`, and `ai_config.py` from the pre-deploy backup, then restart `dailyaiwire_fetcher`. If needed, set `GEMINI_ARTICLE_TRIAGE_ENABLED=false` in `.env` and restart the fetcher to disable the gate without code changes.
+
+## 2026-06-09T13:01:30+0200 - Shrink Headline Filter Prompt
+
+**Context**: Live instrumentation showed `headline_filter` prompts at roughly 8.7k characters. Most of that payload came from injecting every title published in the last 36 hours, duplicating the candidate headline block, and carrying long examples that did not affect the actual output format.
+
+**Decision**:
+- Added a dedicated `_build_headline_filter_prompt(...)` helper in `fetcher/sources.py`.
+- Capped recent-title context with `HEADLINE_FILTER_RECENT_TITLES_LIMIT` defaulting to `24`.
+- Removed the duplicated `HEADLINES:` block and stripped the long example section.
+- Kept the same filter purpose and output contract: comma-separated candidate indices only.
+- Updated `get_recent_published_titles()` to return titles ordered by newest first so the prompt cap keeps the most recent duplicate context.
+
+**Rationale**: This cuts routine Flash-Lite prompt size without changing article-analysis logic or the number of published articles. The filter still catches duplicate stories and low-signal launches, but with a much smaller fixed prompt overhead per cycle.
+
+**Verification**:
+- `python3 -m pytest tests/test_source_quality.py -q`
+- `python3 -m py_compile fetcher/sources.py fetcher/db_init.py`
+
+**Rollback**: Restore `fetcher/sources.py` and `fetcher/db_init.py` from the pre-deploy backup, then restart `dailyaiwire_fetcher`.
+
+## 2026-06-09T12:28:44+0200 - Detailed AI Token Instrumentation
+
+**Context**: Billing still showed Gemini 2.5 Flash long-input as the dominant cost driver, but `ai_logs` only stored a coarse total token value in `cost_estimate`. That was not enough to prove whether the remaining spend came from prompt size, output size, thinking tokens, or another request path.
+
+**Decision**:
+- Extended the shared `ai_logs` schema used by `services/ai_gateway.py` and `fetcher/db_init.py`.
+- Added nullable per-call audit fields: `prompt_tokens`, `output_tokens`, `thoughts_tokens`, `total_tokens`, `cached_input_tokens`, `prompt_char_count`, `response_char_count`, and `request_status`.
+- Kept `cost_estimate` unchanged for backward compatibility with existing queries.
+
+**Rationale**: This adds direct per-call observability for `article_analysis` and every other gateway-backed prompt without changing model behavior, prompt content, or article generation flow. The added character counts make it possible to distinguish token spikes caused by oversized source text from spikes caused by another request path.
+
+**Verification**:
+- `python3 -m pytest tests/test_ai_governance.py -q`
+- `python3 -m pytest tests/test_fetcher_daily_cap.py -q`
+- `python3 -m py_compile services/ai_gateway.py fetcher/db_init.py`
+
+**Rollback**: Restore `services/ai_gateway.py`, `fetcher/db_init.py`, and the matching test schema to the previous version, then restart the fetcher. Existing `ai_logs` rows remain valid because this change only adds nullable columns.
+
+## 2026-05-30T12:20:00+02:00 - Disable General Article Use of Google Indexing API by Default
+
+**Context**: DailyAIWire article publication and X posting were automatically calling `google_indexer.notify_google_index()` for normal article URLs. Google documents the Indexing API for `JobPosting` and `BroadcastEvent` pages, not general news/article URLs. Leaving the calls active created false confidence, noisy audit rows, and unnecessary external requests without solving the real Search Console coverage issue.
+
+**Changes**:
+- `google_indexer.py`:
+  - Added a default guard that records article URL notifications as `skipped` instead of sending them to Google's Indexing API.
+  - Added `ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API` as an explicit escape hatch for legacy or emergency manual use.
+- `tests/test_indexing_audit.py`:
+  - Added regression coverage proving unsupported article URLs are skipped by default.
+  - Preserved success, quota, and missing-credentials coverage behind the explicit env override.
+
+**Verification**:
+- `python3 -m pytest tests/test_indexing_audit.py -q` -> passed.
+- `python3 -m pytest tests/test_x_posting.py -q` -> passed.
+- `python3 -m pytest tests/test_persistence_images.py -q` -> passed.
+
+**Rollback**:
+- Revert `google_indexer.py`, `tests/test_indexing_audit.py`, and this `DECISIONS.md` entry.
+- If legacy behavior is temporarily needed before a code rollback, set `ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API=1` in the runtime environment, then remove it after the test.
+
 ## 2026-05-13T21:47:00+02:00 - Newsletter Subscribe Cooldown for Repeated Blocked Sources
 
 **Context**: The newsletter signup form already used a honeypot field and minimum render-time guard, but production telemetry showed a bot repeatedly tripping the honeypot from the same source. The defense was blocking inserts correctly, yet every repeated hit still generated new DB events and log noise.
@@ -1444,6 +1859,25 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 
 **Trigger**: User approved the remaining `google.generativeai` migration work after the broader security and runtime hardening batch.
 
+## 2026-05-30T17:42:00+02:00 - Low-Risk Runtime Hardening for AI Governance and Path Safety
+
+**Context**: The repo review found three live operational leaks that could be fixed without changing page layout or the heavier analytics architecture: some scheduled AI scripts still bypassed `services/ai_gateway.py`, several live modules still depended on relative `news.db` paths, and newsletter tracking would silently fall back to a built-in secret when `SECRET_KEY` was missing.
+
+**Decision**:
+1. Migrate `weekly_curator.py` and `opinion_generator.py` to `AIGateway` with structured schemas so their Gemini calls inherit `ai_logs` auditing and the shared runtime controls.
+2. Replace the remaining live relative `news.db` paths in `weekly_curator.py`, `opinion_generator.py`, `tweet_scheduler.py`, and `newsletter_sender.py` with `db.DB_PATH`.
+3. Load `.env` from an explicit project-root path in those same live entrypoints instead of relying on the process working directory.
+4. Require `SECRET_KEY` for newsletter tracking token generation instead of falling back to a predictable default.
+5. Harden the article analytics branch so non-GET requests do not rely on uninitialized analytics variables.
+
+**Trigger**: User approved the low-risk remediation stage first and explicitly wanted the fixes applied without destabilizing the site.
+
+**Rollback**:
+- Restore `/home/dailyai/dailyaiwire.news/ops/deploy-backups/20260530T153803Z` on production and restart `dailyaiwire` plus `tweet_scheduler`.
+- Full code rollback: revert `weekly_curator.py`, `opinion_generator.py`, `tweet_scheduler.py`, `newsletter_sender.py`, `routes/public.py`, `services/ai_schemas.py`, the related tests, and this `DECISIONS.md` entry.
+
+---
+
 **Rollback**:
 - Revert `services/proposal_agent.py`, `services/ai_schemas.py`, `tests/test_ai_governance.py`, and this `DECISIONS.md` entry.
 
@@ -1484,3 +1918,1000 @@ Architectural decision log for the Daily AI Wire News project. Every entry inclu
 **Rollback**:
 - Set `AUDIO_GENERATE_FEMALE=true` to resume dual-voice generation without further code changes.
 - Full code rollback: revert `audio_generator.py`, `generate_missing_audio.py`, `routes/admin_content.py`, `templates/article.html`, `tests/test_audio_rollout.py`, `tests/test_site_health.py`, and this `DECISIONS.md` entry.
+
+---
+
+## 2026-07-10T23:08:52+02:00 - LinkedIn Distribution Limited to 24 Eastern-Time Slots
+
+**Context**: LinkedIn exported 993 DailyAIWire posts over 30 days, with a median same-day interval of roughly 15 minutes. The active n8n workflow allowed eight RSS items per trigger execution and looped through them with a 15-minute wait, but it had no daily ceiling or overnight pause. It also recorded an article as processed before LinkedIn confirmed successful publication.
+
+**Decision**:
+1. Keep LinkedIn scheduling in n8n and leave website article publication unchanged.
+2. Replace feed-driven batch execution with 24 schedule slots, spaced 45 minutes apart from 06:00 through 23:15 in the `America/New_York` timezone.
+3. Process at most one quality-filtered RSS article per scheduled execution and enforce a second 24-success daily guard in workflow static data.
+4. Seed current RSS URLs on the replacement workflow's first execution so historical feed items are not reposted.
+5. Record an article as processed and increment the daily counter only after the LinkedIn API call succeeds.
+6. Preserve the existing post formatting, image upload, fallback payload, LinkedIn credential references, and LinkedIn API nodes.
+7. Deliver the replacement as an inactive import-ready workflow so the current production workflow remains available for rollback.
+
+**Trigger**: User approved starting with a maximum of 24 LinkedIn posts per day and pausing automated posting between midnight and 06:00 US Eastern time.
+
+**Verification**:
+- Structural validation confirmed 24 unique schedule slots, the Eastern timezone, an inactive import state, valid graph connections, and preserved LinkedIn credential references.
+- Deterministic Code-node tests confirmed first-run seeding, newest-unseen selection, post-success marking, duplicate prevention, the daily cap, and the overnight guard.
+
+**Rollback**:
+- Deactivate the replacement workflow and reactivate the original `LinkedIn RSS Trigger Production` workflow.
+- The original workflow export remains unchanged; delete the replacement workflow if it is no longer required.
+
+---
+
+## 2026-07-21T23:46:00+02:00 - Meta Blog Extraction and Terminal AI Attempt Accounting
+
+**Context**: Meta's former FAIR RSS endpoint now returns a Facebook error page, while the previous replacement endpoint redirects to an HTML 404. A direct official-blog candidate was also repeatedly eligible because terminal AI rejection outcomes were not written to `processing_attempts`. This could produce repeated token spend without a published article.
+
+**Decision**:
+1. Replace both deprecated Meta feed URLs with the official `https://ai.meta.com/blog/` page.
+2. Extract current Meta blog posts deterministically from server-rendered HTML and admit only posts published within seven days.
+3. Condense Meta article text around model names, measured outcomes, and deployment facts while preserving the existing global 1,400-character source limit.
+4. Record `TRIAGE_BLOCKED` and `INSUFFICIENT_DATA` as terminal processing attempts so rejected candidates respect the existing 24-hour cooldown.
+5. Do not mark successful analyses or transient API failures at this stage, preserving retries when persistence or an external service fails.
+
+**Verification**:
+- Relevant source, environment, daily-cap, and AI governance suites passed with 44 tests.
+- Live official Meta extraction returned five posts, with one eligible in the seven-day window.
+- The selected Meta context retained named models and measured outcomes without increasing the global prompt limit.
+
+**Rollback**:
+- Restore the production files and database from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/meta-blog-extractor-20260721T213500Z/` and restart the fetcher.
+- Full code rollback: revert `fetcher/sources.py`, `fetcher/ai_processor.py`, `scripts/repair_source_urls.py`, `scripts/migrate_sources.py`, the related tests, and this entry.
+
+---
+
+## 2026-07-21T23:55:50+02:00 - Restore the Official Microsoft Research Feed
+
+**Context**: Microsoft Research had timed out repeatedly for several days because the repair map replaced its responsive official Research RSS feed with the slow Azure blog feed. Live checks returned the official feed in under one second while the Azure endpoint timed out after 20 seconds.
+
+**Decision**:
+1. Map the failing Azure endpoint to `https://www.microsoft.com/en-us/research/feed/`.
+2. Use the official Research feed in future source seeds and repair migrations.
+3. Leave Hacker News unchanged because its failures are intermittent and its endpoint continues to return valid RSS between upstream 502 responses.
+
+**Verification**:
+- Source-quality, environment-loading, and daily-cap suites passed with 25 tests.
+- Python compilation and diff checks passed.
+
+**Rollback**:
+- Restore the production files and database from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/microsoft-feed-20260721T215550Z/` and restart the fetcher.
+- Full code rollback: revert the Microsoft entries in `fetcher/sources.py`, `scripts/repair_source_urls.py`, `scripts/migrate_sources.py`, the related test, and this entry.
+
+---
+
+## 2026-07-22T00:08:33+02:00 - Reduce Aggregator and Research-Paper Dominance
+
+**Context**: The previous 30 days contained 1,029 published articles. Google News produced 195 articles from headline-level wire context, while Hugging Face and ArXiv supplied 394 articles. These three paths represented 57 percent of output and made the site overly dependent on snippets and research-paper coverage.
+
+**Decision**:
+1. Disable Google News in production while retaining its database row for immediate rollback.
+2. Reduce the default `HF_PAPERS_LIMIT` from 12 to 4 candidates per fetch cycle.
+3. Keep direct editorial feeds, ArXiv, Hacker News, and Twitter sources active so important coverage can replace removed aggregator volume.
+4. Preserve `HF_PAPERS_LIMIT` as an environment override and avoid introducing a hard daily publishing cap.
+
+**Verification**:
+- AI governance, source-quality, environment-loading, daily-cap, and X posting suites passed with 54 tests.
+- The Hugging Face default-limit regression test confirmed no more than four extracted candidates.
+
+**Rollback**:
+- Set Google News `is_active` back to `1` and set `HF_PAPERS_LIMIT=12` in production, then restart the fetcher.
+- Restore production files and database from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/quality-source-policy-20260721T220833Z/`.
+
+---
+
+## 2026-07-22T00:08:33+02:00 - Guarantee Tweet Scheduler Transaction Cleanup
+
+**Context**: Queue maintenance encountered a SQLite commit failure and left its connection open while the scheduler slept. The process retained a write lock, causing article requests to fail and Gunicorn workers to time out.
+
+**Decision**:
+1. Roll back queue-maintenance transactions whenever an update or commit fails.
+2. Close the SQLite connection in a `finally` block before propagating the error to the scheduler loop.
+3. Keep the existing scheduler retry interval and posting behavior unchanged.
+
+**Verification**:
+- A regression test reproduces a locked commit and proves both rollback and close occur.
+- Restarting only `tweet_scheduler` released the production write lock and restored article reads.
+
+**Rollback**:
+- Restore `tweet_scheduler.py` from `/home/dailyai/dailyaiwire.news/ops/deploy-backups/quality-source-policy-20260721T220833Z/` and restart `tweet_scheduler`.
+
+---
+
+## 2026-07-22T01:05:49+02:00 - Enforce Subscriber Recipient Isolation at the Network Boundary
+
+**Context**: A February 2026 newsletter exposed subscriber addresses because the full subscriber list was passed to Resend's `to` field. Individual delivery replaced that implementation, but welcome, confirmation, and two obsolete incident scripts could still call the provider without passing through the same fail-closed guard.
+
+**Decision**:
+1. Route every subscriber-facing Resend request through one private gateway.
+2. Reject any payload unless `to` contains exactly the expected recipient and neither `cc` nor `bcc` is present.
+3. Run the guard immediately before the network request so invalid payloads cannot reach Resend.
+4. Remove the obsolete apology senders and deployment patcher to eliminate accidental bypass routes. Git retains their audit history.
+5. Keep partnership proposal delivery separate because it does not use the subscriber list or newsletter sender.
+
+**Verification**:
+- Regression tests prove unsafe payloads fail before any network call and that the subscriber email module contains only one direct `requests.post` gateway.
+- Welcome, confirmation, newsletter delivery, unsubscribe headers, and subscriber reconfirmation tests pass.
+
+**Rollback**:
+- Restore `newsletter_sender.py` and the retired scripts from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+
+---
+
+## 2026-07-22T01:23:48+02:00 - Make Newsletter Broadcasts Atomic and Idempotent
+
+**Context**: The admin send action started an unreserved background thread. Two clicks could therefore run overlapping workers, and a provider success followed by a local crash could resend an email before its delivery record was committed.
+
+**Decision**:
+1. Atomically change eligible newsletters to `SENDING` before starting a worker; a second reservation fails closed.
+2. Recover reservations older than two hours while rejecting active overlapping sends.
+3. Add a case-insensitive unique index on `(newsletter_id, recipient_email)`.
+4. Add a deterministic Resend `Idempotency-Key` for every newsletter-recipient request. Resend retains provider idempotency keys for 24 hours.
+5. Require an admin confirmation page showing active, delivered, and remaining recipient counts.
+6. Revalidate the confirmed remaining count inside the reserved worker before sending the first email.
+7. Add a private test-send action that creates no delivery record and does not change newsletter status.
+8. Mark incomplete or crashed broadcasts `PARTIAL` with a bounded error message so they can be inspected and safely resumed.
+
+**Verification**:
+- Atomic reservation, duplicate delivery, audience race, provider idempotency, test-send isolation, confirmation UI, and worker startup tests pass.
+- Existing newsletter rendering, confirmation, reconfirmation, unsubscribe, timeout, and recipient-isolation tests pass.
+
+**Rollback**:
+- Restore the changed application files from the timestamped production deployment backup and restart `dailyaiwire-web.service`.
+- The added nullable audit columns and unique index may remain safely; drop `idx_newsletter_delivery_recipient` only if a full schema rollback is required.
+
+---
+
+## 2026-07-22T20:27:10+02:00 - Track Newsletter Delivery from Signed Provider Events
+
+**Context**: A successful Resend API response was stored as `DELIVERED`, although it only confirmed that Resend accepted the request. The tracking pixel then replaced that status with `OPENED`, so delivery, engagement, bounce, complaint, and failure states could not be distinguished reliably.
+
+**Decision**:
+1. Record successful send API responses as `ACCEPTED` and update delivery state only from signed Resend webhooks.
+2. Verify the raw request body with Resend's Svix signature protocol and reject missing, invalid, stale, or oversized requests.
+3. Store each Svix event ID once so provider retries and manual replays are idempotent.
+4. Match events only through the Resend message ID already stored for a private one-recipient send. Never trust the webhook recipient field for subscriber updates.
+5. Suppress active subscribers after a complaint, provider suppression, or permanent bounce. Keep temporary bounces retryable.
+6. Preserve opens, clicks, and unsubscribes as separate timestamps instead of overwriting delivery status.
+7. Show accepted, delivered, failed, opened, and unsubscribed counts separately in the admin dashboard and log abnormal provider failure rates.
+8. Store event metadata only, not complete webhook payloads, to minimize retained subscriber data.
+
+**Verification**:
+- Signature rejection, valid delivery, replay safety, bounce classification, complaint suppression, provider failure, provider suppression, open-state preservation, acceptance state, admin metrics, and unsubscribe timestamp tests pass.
+- Python compilation passes for all changed runtime modules.
+
+**Rollback**:
+- Restore the changed application files and database from the timestamped production deployment backup, reinstall the prior requirements, and restart `dailyaiwire-web.service`.
+- The added nullable delivery columns and `newsletter_provider_events` table may remain safely if only application code is rolled back.
+
+---
+
+## 2026-07-22T22:43:34+02:00 - Add a Privacy-Safe Subscriber Conversion Funnel
+
+**Context**: Newsletter delivery events were available per broadcast, while signup acquisition and confirmation performance remained split across subscriber records and audit events. The application also had no measurement of whether a signup form was actually seen.
+
+**Decision**:
+1. Keep delivery, open, bounce, complaint, and unsubscribe details in `/admin/newsletters`.
+2. Add 7, 30, and 90-day acquisition funnel views to `/admin/subscribers`, grouped by the existing signup placement taxonomy.
+3. Measure signup and confirmation using signup cohorts so later confirmations do not distort the selected acquisition period.
+4. Record anonymous form visibility only after a form remains at least 50 percent visible for one second.
+5. Exclude likely bots, reject unknown placements, and deduplicate the same hashed IP and placement for 30 minutes so user-agent rotation cannot create extra writes.
+6. Never attach an email address to a form-view event, and retain the existing subscriber event schema.
+7. Track the hidden site modal only after it has opened and remained open for one second.
+8. Calculate view-to-confirm only from subscribers acquired after form-view tracking began, preventing historical confirmations from producing rates above 100 percent.
+
+**Verification**:
+- Funnel aggregation, placement breakdown, invalid placement, bot exclusion, request deduplication, cache controls, and admin rendering tests pass.
+- The broader subscriber, newsletter, webhook, security, and smoke suite passes with 138 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore the changed application files and database from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+- Existing anonymous `form_view` rows can remain safely because older application versions ignore them.
+
+---
+
+## 2026-07-23T01:35:23+02:00 - Separate Cumulative Acceptance from Delivery Outcomes
+
+**Context**: The newsletter dashboard counted `ACCEPTED` as a mutually exclusive current status. Messages later marked delivered, opened, bounced, or failed disappeared from the accepted count, making a 52-recipient broadcast appear to have only 32 accepted messages. Historical delivery was also inferred from opens because provider delivery events were unavailable before July 22, 2026.
+
+**Decision**:
+1. Treat every persisted successful send row as cumulatively accepted, regardless of its later provider state.
+2. Mark broadcasts sent before signed webhook tracking began as `Legacy/inferred`.
+3. Do not present inferred historical delivery as a complete delivery count; state that delivery was not tracked historically.
+4. Show historical opened/read counts and rates against total accepted sends.
+5. For webhook-era broadcasts, show accepted, provider-confirmed delivered, failed, opened/read, clicked, and unsubscribed metrics separately.
+6. Mark webhook-era cards as `Provider-confirmed` only after at least one signed provider event arrives.
+7. Show `Awaiting provider events` before the first signed event and warn after 15 minutes without one, so webhook failure is visible during a broadcast.
+
+**Verification**:
+- Regression tests cover both historical and provider-era dashboard calculations and labels.
+- Newsletter, webhook, confirmation, security, and smoke suites pass with 123 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore the changed files and database from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+- No data migration is required because this change only corrects aggregation and presentation.
+
+---
+
+## 2026-07-23T11:39:03+02:00 - Move the Homepage Signup CTA Below the Carousel
+
+**Context**: The subscriber funnel showed complete confirmation for recent signups but very few measured signup-form views. The homepage form was embedded as the second tile in the article grid, below the large carousel and other discovery sections, which limited its visibility while duplicating no functionality not already provided by the desktop exit-intent popup.
+
+**Decision**:
+1. Keep the existing desktop exit-intent popup unchanged.
+2. Move the single homepage inline signup form directly below the carousel on the unfiltered first page.
+3. Preserve the existing `/subscribe` action, CSRF token, abuse guard fields, and `homepage_inline` attribution.
+4. Render the CTA as a compact responsive strip rather than an article-grid tile.
+5. Keep eight article cards in the first grid so no editorial content is removed.
+6. Continue measuring the form only after it remains at least 50 percent visible for one second.
+
+**Verification**:
+- A regression test verifies that exactly one homepage inline form appears after the carousel and before the article grid.
+- Homepage grid and subscriber funnel tests verify eight article cards plus the separate CTA and unchanged tracking behavior.
+
+**Rollback**:
+- Restore `templates/index.html`, remove `templates/partials/homepage_newsletter_cta.html`, restore the prior homepage layout test, and restart `dailyaiwire-web.service`.
+
+---
+
+## 2026-07-24T01:23:01+02:00 - Add Evidence-Based Subscriber Attribution
+
+**Context**: The subscriber funnel measured form visibility, signup, and confirmation, but did not show which acquisition channels or landing pages produced those subscribers. The existing POST flow also stored the internal form-submission referrer instead of the original page-load referrer.
+
+**Decision**:
+1. Add aggregate channel, landing-page, and weekly acquisition views to `/admin/subscribers`.
+2. Give explicit UTM parameters precedence over referrer evidence.
+3. Capture the page-load referrer in the existing signup form payload without adding a cookie or a database column.
+4. Keep channel classification fixed and deterministic: LinkedIn, Google Search, Newsletter / Email, X / Twitter, internal navigation, other referral, other campaign, and direct or unattributed.
+5. Keep historical unknown acquisition unattributed rather than guessing a source.
+6. Strip query parameters from landing-page reporting and show aggregate counts only.
+7. Treat Gmail and Outlook webmail referrers as email traffic before applying broad search-engine hostname rules.
+
+**Verification**:
+- Regression tests cover UTM precedence, referrer classification, page-load referrer persistence, channel aggregation, landing pages, weekly cohorts, and admin rendering.
+- The subscriber, abuse, security, site-health, and smoke suite passes with 143 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore the changed application files from the timestamped production deployment backup and restart `dailyaiwire-web.service`.
+- No schema rollback is required because the implementation reuses existing subscriber metadata columns.
+
+---
+
+## 2026-07-24T01:37:00+02:00 - Separate Explicit Confirmation from Legacy Activation
+
+**Context**: The subscriber dashboard described every activated subscriber as confirmed. Nine recent records have explicit confirmation timestamps, while three older active records have no confirmation timestamp and therefore cannot be presented as explicitly confirmed.
+
+**Decision**:
+1. Keep the combined activated total for historical continuity.
+2. Split that total into explicit confirmations and legacy activated records.
+3. Label the combined total and channel share as activated rather than confirmed.
+4. Calculate view-to-confirm using explicit confirmations only.
+5. Keep signup-to-activated as the historical cohort metric.
+6. Do not modify subscriber statuses, delivery behavior, or stored subscriber data.
+
+**Verification**:
+- Regression tests cover explicit confirmation, legacy activation, combined totals, placement metrics, acquisition summaries, and admin labels.
+- The subscriber, abuse, security, site-health, and smoke suite passes with 143 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore the changed application files from the timestamped production deployment backup and restart `dailyaiwire-web.service`.
+- No database rollback is required because this is an aggregation and presentation correction only.
+
+---
+
+## 2026-07-24T02:06:14+02:00 - Clarify the Article Sidebar Newsletter Value
+
+**Context**: Form-view tracking recorded 128 deduplicated views over three partial days, including 114 article-sidebar views and no new signups. The sidebar described generic reporting features but did not state the concrete reader outcome.
+
+**Decision**:
+1. Change only the article-sidebar newsletter copy and button label.
+2. State the weekly value as what changed, why it matters, and original sources.
+3. Preserve the existing form action, CSRF token, abuse controls, source attribution, cadence, and layout.
+4. Avoid adding A/B infrastructure before sufficient traffic exists.
+5. Review conversion after more measured sidebar traffic accumulates.
+
+**Verification**:
+- A regression test verifies the new value proposition and unchanged `article_sidebar` attribution.
+- The subscriber, abuse, security, site-health, and smoke suite passes with 144 tests.
+- Scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `templates/article.html`, the subscriber funnel test, and `DECISIONS.md` from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+
+---
+
+## 2026-07-24T02:11:57+02:00 - Add a Qualified Submission Funnel Stage
+
+**Context**: The subscriber dashboard measured visible forms and completed signup records but could not distinguish no interaction from a valid form submission that encountered an existing address or later confirmation friction.
+
+**Decision**:
+1. Define a qualified submission as a valid email submission that passed cooldown, honeypot, timing, and format checks.
+2. Record the event server-side before the existing-subscriber check.
+3. Store no email or email hash on the qualified-submission event.
+4. Deduplicate by hashed IP and signup placement for 30 minutes.
+5. Report qualified submissions, view-to-submit conversion, and submit-to-new-signup conversion by placement and in the aggregate funnel.
+6. Preserve existing signup, confirmation, email-delivery, rate-limit, and abuse-control behavior.
+
+**Verification**:
+- Tests cover qualified-submission recording, deduplication, absent email hashes, placement attribution, funnel aggregation, conversion rates, and admin labels.
+- The subscriber, abuse, security, site-health, and smoke suite passes with 145 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore the changed application files from the timestamped production deployment backup and restart `dailyaiwire-web.service`.
+- No schema rollback is required because the event uses the existing `subscriber_events` table.
+
+---
+
+## 2026-07-24T11:43:25+02:00 - Track Confirmation Provider Acceptance and Retry Pending Signups
+
+**Context**: Confirmation-email failures were logged by the sender but ignored by the signup route. Visitors were always told to check their inbox, and a second submission for the same pending address was treated as an active subscription. This left failed requests pending without a recovery path or measurable delivery event.
+
+**Decision**:
+1. Treat `confirmation_sent` as provider acceptance, not proof of inbox delivery.
+2. Record `confirmation_sent` or `confirmation_failed` in the existing subscriber event table after each provider request.
+3. Show an honest delivery-issue page when the provider does not accept the request.
+4. Allow only pending subscribers to request a fresh token and retry the confirmation email.
+5. Preserve the existing behavior for active and other non-pending subscribers.
+6. Store no provider response body or new sensitive data.
+7. Commit the fresh token before the network request so an accepted link is always valid.
+
+**Verification**:
+- Tests cover provider acceptance, provider failure, pending-subscriber retry, token replacement, event recording, and delivery-issue messaging.
+- The broader subscriber, security, site-health, and smoke regression suite is required before deployment.
+
+**Rollback**:
+- Restore `routes/public.py`, `templates/thank_you.html`, the affected test, and `DECISIONS.md` from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+- No schema rollback is required because the change reuses the existing `subscriber_events` table.
+
+---
+
+## 2026-07-24T11:51:57+02:00 - Expose Confirmation Provider Health in the Subscriber Funnel
+
+**Context**: Confirmation provider acceptance and failure events were recorded but not visible in the admin dashboard. The funnel therefore could not distinguish a signup-quality problem from a confirmation-email provider problem without a direct database query.
+
+**Decision**:
+1. Show provider-accepted attempts, provider-failed attempts, provider acceptance rate, and current pending subscribers in the existing acquisition funnel.
+2. Calculate provider acceptance as accepted attempts divided by accepted plus failed attempts.
+3. Label the values as provider attempts, not delivery or inbox-open results.
+4. Show the same metrics by signup placement to identify placement-specific failures.
+5. Define current pending as subscribers created during the selected period whose present status is `PENDING`.
+6. Reuse the existing subscriber and event tables without a schema change.
+
+**Verification**:
+- Tests cover aggregate and placement-level attempt counts, acceptance rates, pending counts, and admin labels.
+- The subscriber, abuse, security, site-health, and smoke suite passes with 149 tests.
+- Python compilation and scoped whitespace checks are required before deployment.
+
+**Rollback**:
+- Restore `services/subscribers.py`, `templates/admin/subscribers.html`, the affected test, and `DECISIONS.md` from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+- No database rollback is required.
+
+---
+
+## 2026-07-24T12:08:20+02:00 - Match Confirmation Emails to Verified Resend Webhooks
+
+**Context**: Newsletter broadcasts stored their Resend message IDs and could process delivery, bounce, complaint, failure, and suppression webhooks. Confirmation emails retained only a boolean API-acceptance result, so every later provider event was recorded as unmatched. Permanent confirmation bounces therefore left invalid addresses pending and invisible.
+
+**Decision**:
+1. Preserve the existing boolean confirmation-sender API by default and return a structured acceptance result only when explicitly requested.
+2. Store the Resend message ID, subscriber ID, placement, status, and event timestamps in a dedicated `confirmation_deliveries` table.
+3. Do not store copied recipient addresses or complete provider payloads in the new table.
+4. Match verified Resend events against newsletter deliveries first, then confirmation deliveries.
+5. Keep a delivered confirmation subscriber pending until the recipient clicks the double-opt-in link.
+6. Suppress pending or active subscribers only after a permanent bounce, complaint, or provider suppression.
+7. Keep temporary delays and ordinary failures retryable.
+8. Treat delivery-audit persistence as non-blocking after the provider has accepted the email.
+
+**Verification**:
+- RED tests reproduced missing structured results, missing delivery persistence, unmatched delivery webhooks, unmatched permanent bounces, and visitor-facing failures when audit persistence failed.
+- GREEN tests cover provider message-ID extraction, signup persistence, verified delivery matching, permanent-bounce suppression, replay safety, and non-blocking audit failures.
+- The email, subscriber, privacy, security, site-health, and smoke suite passes with 175 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `newsletter_sender.py`, `routes/public.py`, `services/resend_webhooks.py`, the affected tests, and `DECISIONS.md` from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+- The additive `confirmation_deliveries` table and provider-event column can remain unused after code rollback. Dropping them is optional and should only be done after a database backup.
+
+---
+
+## 2026-07-24T12:38:04+02:00 - Show Actual Confirmation Delivery Separately from Acceptance
+
+**Context**: The subscriber dashboard showed confirmation API acceptance and failure but not the verified delivery states now captured from Resend. This could still make a healthy API request look equivalent to an email reaching the recipient.
+
+**Decision**:
+1. Add a separate confirmation-delivery panel to the existing subscriber funnel.
+2. Show tracked messages, actual deliveries, webhook-pending messages, delays, delivery issues, and tracked delivery rate.
+3. Define actual delivery through a verified `delivered_at` timestamp.
+4. Define webhook pending as accepted or sent messages without a later terminal state.
+5. Define delivery issues as failed, bounced, complained, or suppressed messages.
+6. State explicitly that delivered does not mean confirmed; double opt-in still requires a recipient click.
+7. Return zero metrics when the additive delivery table is absent so code rollback remains safe.
+
+**Verification**:
+- RED tests confirmed that delivery aggregates and admin labels were absent.
+- GREEN tests cover delivery, pending webhook, failure, suppression, rate aggregation, and admin rendering.
+- The email, subscriber, privacy, security, site-health, and smoke suite passes with 175 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `services/subscribers.py`, `templates/admin/subscribers.html`, the affected test, and `DECISIONS.md` from the timestamped production deployment backup, then restart `dailyaiwire-web.service`.
+- No database rollback is required because this change only reads the existing additive table.
+
+---
+
+## 2026-07-24T12:54:04+02:00 - Enforce Daily LinkedIn Content Diversity
+
+**Context**: The LinkedIn RSS feed limited the number of research items visible at one time, but n8n always selected the newest unprocessed article. New research articles could therefore replace older feed items and dominate the daily LinkedIn schedule even though the rolling feed appeared capped.
+
+**Decision**:
+1. Keep onsite article publication independent from LinkedIn distribution.
+2. Keep the LinkedIn ceiling at 24 successful posts per New York day.
+3. Pause LinkedIn selection before 06:00 in `America/New_York`.
+4. Limit successful daily LinkedIn posts to 6 research items, 4 items from one source, and 6 items from one category.
+5. Count an article and its diversity dimensions only after LinkedIn confirms a successful post.
+6. Make success accounting idempotent so an execution replay cannot count one article twice.
+7. Expose source and research metadata only in the dedicated LinkedIn RSS feed through additional category elements.
+8. Maintain reviewed n8n Code-node sources as standalone files and inject their exact contents into the importable workflow JSON.
+
+**Verification**:
+- RED tests confirmed that feed metadata, diversity limits, standalone-script synchronization, and idempotent success accounting were absent.
+- GREEN tests cover all four behaviors.
+- Both n8n scripts parse successfully when wrapped as Code-node functions.
+- The focused LinkedIn workflow test suite passes with 4 tests.
+- The broader RSS, indexability, indexing-promotion, smoke, and site-health run passes 121 tests and exposes one unrelated existing author-name assertion failure.
+
+**Activation**:
+- Deploy the feed metadata first.
+- Import and activate `outputs/linkedin-n8n/linkedin-rss-scheduled-24-daily.json` in n8n.
+- Test-execute the imported workflow before disabling the previous workflow.
+
+**Rollback**:
+- Restore `routes/seo.py`, `templates/rss.xml`, the n8n source files, workflow JSON, tests, documentation, and `DECISIONS.md` from the timestamped deployment backup.
+- Restart `dailyaiwire-web.service`.
+- If the n8n workflow was activated, reactivate the prior workflow and disable the diverse workflow.
+
+---
+
+## 2026-07-24T14:31:41+02:00 - Exclude Known Automation from Verified Engagement
+
+**Context**: A 14-day content audit showed implausibly uniform verified engagement across sources and categories. Event-level analysis found that `DailyAIWire-Monitor/1.0` and `Scrapy/2.16.0` were classified as human traffic. The internal monitor alone had generated a verified view across hundreds of distinct articles.
+
+**Decision**:
+1. Centralize bot classification for article views, audio plays, and subscriber-form analytics.
+2. Explicitly classify DailyAIWire monitoring and Scrapy requests as automated.
+3. Preserve raw article request counts while excluding these requests from verified views.
+4. Add an idempotent repair that marks existing matching events as bots and subtracts only their previously counted verified views.
+5. Keep the repair dry-run by default and require `--apply` to persist changes.
+6. Do not classify ordinary browser user agents as bots based only on high article coverage.
+
+**Measured Repair Scope**:
+- 2,452 matching historical events across 1,980 articles.
+- 2,444 verified views to remove.
+- No article would receive a negative verified-view count.
+
+**Verification**:
+- RED tests confirmed that the shared traffic-quality module and repair behavior were absent.
+- GREEN tests cover the internal monitor, Scrapy, Googlebot, normal browsers, prefetch traffic, and idempotent historical repair.
+- The analytics, subscriber-funnel, and smoke suite passes with 97 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `routes/public.py`, `routes/api.py`, the traffic-quality service, repair command, tests, and `DECISIONS.md` from the timestamped deployment backup.
+- Restore `news.db` from the same backup if the historical repair must be reversed.
+- Restart `dailyaiwire-web.service`.
+
+---
+
+## 2026-07-24T14:58:12+02:00 - Observe Browser-Like Traffic Anomalies Before Enforcement
+
+**Context**: After known automation was removed from verified views, one browser-like visitor hash still opened 339 articles within approximately 13 minutes. The user agent alone was not sufficient evidence for permanent bot classification.
+
+**Decision**:
+1. Add an observation-only Traffic Quality Monitor to the existing admin dashboard.
+2. Flag a visitor-day when it exceeds 20 distinct articles.
+3. Flag a fast burst when it reaches at least 10 distinct articles within 15 minutes.
+4. Show flagged sessions, high-volume sessions, fast bursts, and views above the proposed daily limit.
+5. Display only the first 10 characters of the visitor hash and never display IP hashes.
+6. Keep all existing verified-view counts unchanged during the observation period.
+7. Do not enforce a behavioral cap until enough production evidence exists to evaluate false-positive risk.
+
+**Verification**:
+- RED tests confirmed that anomaly aggregation and dashboard monitoring were absent.
+- GREEN tests cover high-volume sessions, fast bursts, normal sessions, truncated identifiers, and admin rendering.
+- The analytics, subscriber-funnel, and smoke suite passes with 101 tests.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `services/traffic_quality.py`, `app.py`, `templates/admin/index.html`, the affected tests, and `DECISIONS.md` from the timestamped deployment backup.
+- Restart `dailyaiwire-web.service`.
+- No database rollback is required.
+
+---
+
+## 2026-07-24T15:27:49+02:00 - Deduplicate Research Papers by Canonical Identifier
+
+**Context**: The same DeepSearch-World paper was published from ArXiv and Hugging Face ten days apart. Exact source-URL deduplication could not connect the two URLs, and the second copy was outside the 36-hour deterministic story window.
+
+**Decision**:
+1. Normalize modern ArXiv identifiers from ArXiv abstract URLs, ArXiv PDF URLs, and Hugging Face paper URLs.
+2. Exclude a known paper during source aggregation before it consumes headline-filter or full-analysis tokens.
+3. Track paper identifiers within the current fetch batch so two source representations cannot enter the same analysis run.
+4. Repeat the canonical check before database insertion as a second defense.
+5. Preserve the existing 36-hour general-story window and all editorial thresholds.
+6. Keep historical duplicate URLs published because they were already shared externally; consolidation requires permanent redirects and is separate work.
+
+**Verification**:
+- RED tests confirmed that canonical paper identification and cross-source blocking were absent.
+- GREEN tests cover ArXiv versions, ArXiv PDF URLs, Hugging Face URLs, existing-database matches, current-batch matches, and a ten-day persistence bypass.
+- The focused source and persistence suite passes 29 tests.
+- The broader ingestion and AI-governance suite passes 59 tests.
+- Python compilation and scoped whitespace checks pass.
+- A combined site run exposed an existing test-isolation issue after temporary database mutation; 131 tests passed, while unrelated seeded-article and admin assertions failed.
+
+**Rollback**:
+- Restore `services/story_dedup.py`, `fetcher/sources.py`, and `fetcher/persistence.py` from the timestamped deployment backup.
+- Restart `dailyaiwire_fetcher`.
+- No database rollback is required because the prevention change does not modify existing records.
+
+---
+
+## 2026-07-24T15:42:09+02:00 - Preserve Shared Test Database Fixtures
+
+**Context**: Two AI-governance tests deleted every article from the session-scoped temporary database. Later public-route and admin tests then failed with missing seeded articles, which produced false 410 and template errors in combined runs.
+
+**Decision**:
+1. Never clear the shared `articles` table in governance tests.
+2. Give every governance article a stable test-only slug.
+3. Reset and clean only the rows owned by those tests.
+4. Assert that the seeded public-route article survives weekly-curator and opinion-generator tests.
+5. Keep the change test-only because production behavior and data were not involved.
+
+**Verification**:
+- RED tests confirmed that both governance tests removed `test-article-slug`.
+- The minimal governance-to-public-route failure was reproduced before the fix.
+- GREEN verification passes the minimal sequence and the exact 163-test sequence that previously failed.
+- The complete repository suite passes 378 tests with 1 skipped.
+
+**Rollback**:
+- Revert the targeted cleanup fixture and preservation assertions in `tests/test_ai_governance.py`.
+- No service restart or database rollback is required.
+
+---
+
+## 2026-07-24T16:30:05+02:00 - Consolidate Proven Duplicates with Permanent Redirects
+
+**Context**: Three proven duplicate article pairs were already shared externally. Unpublishing the copies without redirects would return 410 for existing links, while leaving both records published weakens content quality and duplicate-page signals.
+
+**Decision**:
+1. Store article redirects as a source slug mapped to a published canonical article ID.
+2. Resolve a valid redirect before article lookup and return HTTP 301 to the internal canonical URL.
+3. Serve article pages only when `is_published = 1`; unpublished records without redirects return 410.
+4. Consolidate atomically by creating the redirect and unpublishing the duplicate in one transaction.
+5. Preserve duplicate records, analytics, and source history rather than deleting them.
+6. Remove consolidated copies from carousel slots and mark matching pending duplicate-review entries as consolidated.
+7. Apply the operation only to the three manually verified pairs.
+
+**Canonical Selections**:
+- Keep Reuters article `11989`; redirect AP article `12024`.
+- Keep New York Times article `11823`; redirect TechCrunch article `11826`.
+- Keep ArXiv article `11810`; redirect Hugging Face article `12170`.
+
+**Verification**:
+- RED tests confirmed that the redirect service was absent and unpublished articles rendered with HTTP 200.
+- GREEN tests cover permanent redirects, publication state, and rejection of an unpublished canonical target.
+- The redirect, RSS, sitemap, and smoke suite passes 92 tests.
+- The complete repository suite passes 381 tests with 1 skipped.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `app.py`, `fetcher/db_init.py`, `routes/public.py`, the redirect service, tests, and `DECISIONS.md` from the timestamped deployment backup.
+- Restore `news.db` from that backup to republish duplicate records and remove redirect mappings.
+- Restart `dailyaiwire-web.service` and `dailyaiwire_fetcher`.
+
+---
+
+## 2026-07-24T16:50:20+02:00 - Reject Ambiguous Article Analysis Mappings
+
+**Context**: A live audit found published articles whose headlines did not match their source URLs. Gemini had returned duplicate `batch_id` values for multiple analysis outputs. The fetcher trusted those IDs, and `INSERT OR REPLACE` allowed a later result to replace the article already stored for that source URL.
+
+**Decision**:
+1. Assign contiguous analysis IDs after triage while preserving each source's original batch ID.
+2. Require exactly one analysis object for every submitted analysis ID.
+3. Retry once with an explicit correction when Gemini returns missing, duplicate, or unexpected IDs.
+4. Reject the entire batch after a second invalid mapping rather than risk false attribution.
+5. Restore original batch IDs and source hashes only after one-to-one mapping validation succeeds.
+6. Skip an article when its source URL already exists and use plain `INSERT`, never `INSERT OR REPLACE`, for new articles.
+
+**Verification**:
+- RED tests reproduced duplicate Gemini IDs and source URL replacement.
+- GREEN tests verify retry and ID restoration, rejection safety, and collision preservation.
+- The complete repository suite passes 383 tests with 1 skipped.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `fetcher/ai_processor.py`, `fetcher/persistence.py`, and `DECISIONS.md` from the timestamped deployment backup.
+- Restore `news.db` only if production quarantine changes also need to be reversed.
+- Restart `dailyaiwire_fetcher`.
+
+---
+
+## 2026-07-24T16:58:08+02:00 - Quarantine Articles with Invalid Source Attribution
+
+**Context**: The source mapping audit covered all `article_analysis` logs from July 10 through July 24, 2026. It found 79 published records whose analysis output was stored against a source position that did not correspond to the article Gemini analyzed. Sixty-eight outputs used an impossible ID. Eleven additional outputs were verified by response order, submitted source title, stored headline, and stored source URL. Reuters article `11989` came from a valid subset of a partially malformed response and was explicitly excluded.
+
+**Decision**:
+1. Unpublish the 79 demonstrably misattributed records without deleting their rows, analytics, or AI audit logs.
+2. Record `SOURCE_MAPPING_QUARANTINED` in `processing_attempts` for every affected source URL.
+3. Close pending duplicate reviews involving quarantined records with the same status.
+4. Remove affected records from carousel and pending social queues if present.
+5. Preserve valid articles from partially malformed batches when their returned ID and source mapping are verified.
+
+**Verification**:
+- Exactly 79 records changed from published to unpublished in one transaction.
+- No affected record was a redirect target, carousel item, pending social post, or Google recovery promotion.
+- Sample quarantined URLs return HTTP 410, while verified Reuters article `11989` returns HTTP 200.
+- None of the 79 affected slugs appears on the homepage, RSS, sitemap index, or core sitemap.
+- SQLite `PRAGMA integrity_check` returns `ok`.
+- The first post-deployment analysis log returned the exact submitted ID set.
+
+**Rollback**:
+- Restore `news.db` from `ops/deploy-backups/source-provenance-20260724T145138Z/news.db`.
+- Restore the two fetcher files and `DECISIONS.md` from the same backup if the mapping safeguard must also be reverted.
+- Restart `dailyaiwire-web.service` and `dailyaiwire_fetcher`.
+
+---
+
+## 2026-07-24T17:30:50+02:00 - Fail Closed on Invalid Persistence Source IDs
+
+**Context**: The Gemini mapping safeguard validates the primary analysis path, but persistence retained a legacy fallback that mapped an invalid or missing `batch_id` to a slug match or the first source in the batch. A malformed caller could therefore recreate false source attribution even after analysis validation.
+
+**Decision**:
+1. Accept only a non-boolean integer `batch_id` within the bounds of `original_batch`.
+2. Skip and log malformed records before image, embedding, indexing, social, or database side effects.
+3. Remove slug and first-source fallback attribution entirely.
+
+**Verification**:
+- RED testing proved that `batch_id=99` published and indexed an article against the first source.
+- GREEN testing rejects missing, negative, out-of-range, list, and boolean IDs.
+- The persistence suite passes 12 tests.
+- The complete repository suite passes 388 tests with 1 skipped.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `fetcher/persistence.py` and `DECISIONS.md` from the timestamped deployment backup.
+- Restart `dailyaiwire_fetcher`.
+- No database restoration is required because the guard does not modify existing rows.
+
+---
+
+## 2026-07-24T17:59:44+02:00 - Report Committed Articles Instead of Analyzed Outputs
+
+**Context**: Fetcher monitoring incremented `articles_saved` by the number of AI outputs, even when persistence rejected every output for blockers, duplicates, quality, or invalid attribution. This produced false “Saved” log entries and could trigger an unnecessary audio scan.
+
+**Decision**:
+1. Return both social post count and committed article count from persistence.
+2. Increment the committed count immediately after the article transaction commits.
+3. Use the committed count for per-batch logs, cycle totals, and audio-generation limits.
+4. Do not change any filtering, ranking, publication, or social-post behavior.
+
+**Verification**:
+- RED tests showed successful and rejected persistence calls returned the same integer-only result.
+- GREEN tests distinguish one committed article from zero committed articles.
+- Persistence and fetcher governance suites pass 15 tests.
+- The complete repository suite passes 388 tests with 1 skipped.
+- Python compilation and scoped whitespace checks pass.
+
+**Rollback**:
+- Restore `fetcher/__init__.py`, `fetcher/persistence.py`, and `DECISIONS.md` from the timestamped deployment backup.
+- Restart `dailyaiwire_fetcher`.
+- No database restoration is required.
+
+---
+
+## 2026-07-24T18:06:49+02:00 - Reject Incomplete Article Triage Decisions
+
+**Context**: A live Flash-Lite triage response returned one decision for a three-candidate batch. The fetcher treated the two omitted candidates as blocked, which could silently suppress valid articles and reduce publishing volume.
+
+**Decision**:
+1. Require exactly one triage decision for every submitted candidate ID.
+2. Reject missing, duplicate, or unexpected IDs and retry once with an explicit correction.
+3. If the corrected response is still malformed, send all candidates to full analysis instead of recording false triage blocks.
+4. Record `TRIAGE_BLOCKED` only after a complete and valid decision set.
+
+**Verification**:
+- RED tests reproduced the omitted-decision suppression and false block recording.
+- GREEN tests verify successful correction on retry and fail-open full-analysis fallback after two invalid responses.
+- Five focused triage and analysis-mapping tests pass.
+- The complete repository suite passes 390 tests with 1 skipped.
+- Python compilation passes.
+
+**Rollback**:
+- Restore `fetcher/ai_processor.py` and `DECISIONS.md` from the timestamped deployment backup.
+- Restart `dailyaiwire_fetcher`.
+- No database restoration is required.
+
+---
+
+## 2026-07-24T21:54:51+02:00 - Replace Paid X API Posting with Browser Heartbeat
+
+**Context**: Automated X posting was functioning, but posting article links through the X API incurred material recurring charges. The in-app browser has an authenticated `@DailyAIWireNews` session that can publish through the web interface without X API write charges.
+
+**Decision**:
+1. Run browser-based X posting in a dedicated Codex task three times per day.
+2. Require account verification, duplicate checking, visible publication confirmation, and database marking after each successful post.
+3. Never call the X API from the browser task.
+4. Keep `tweet_scheduler` running for weekly-newsletter duties, but disable its X credentials in production so it cannot make paid API calls or duplicate browser posts.
+
+**Verification**:
+- The dedicated heartbeat `post-dailyaiwire-to-x` is active against task `019f95b0-6596-73e2-a5d1-4744d7bd5e1d`.
+- The in-app browser is authenticated as `@DailyAIWireNews`.
+- The previous API scheduler had three accepted posts on July 24, confirming the issue was cost rather than credentials or uptime.
+
+**Rollback**:
+- Restore `.env` and `DECISIONS.md` from the timestamped deployment backup.
+- Restart `tweet_scheduler`.
+- Pause or delete the `post-dailyaiwire-to-x` heartbeat before restoring API posting to prevent duplicates.
+
+---
+
+## 2026-07-25T00:44:23+02:00 - Remove Obsolete Instagram Re-Enable Cron
+
+**Context**: A root cron entry changed `IG_ENABLED=false` to `true` and restarted `tweet_scheduler` every night at 22:30 UTC. Meta posting is intentionally disabled, and this stale job caused unexplained scheduler restarts and configuration drift after browser-based X posting replaced API posting.
+
+**Decision**:
+1. Remove `/etc/cron.d/ig_reenable`.
+2. Restore `IG_ENABLED=false`.
+3. Keep `tweet_scheduler` running for weekly-newsletter generation with all X API credentials disabled.
+
+**Verification**:
+- Supervisor logs identified the restart at exactly the cron schedule on consecutive days.
+- No X API post succeeded after the browser-posting cutover.
+- The browser heartbeat remains active and its manual end-to-end post was confirmed publicly and recorded in the database.
+
+**Rollback**:
+- Restore `.env` and `ig_reenable` from the timestamped deployment backup.
+- Restart `tweet_scheduler`.
+
+---
+
+## 2026-07-25T01:03:57+02:00 - Retire Social Scheduler and Isolate Weekly Newsletter Generation
+
+**Context**: Browser-based X posting replaced paid X API posting, but `tweet_scheduler`
+remained active solely because its ten-minute loop also generated the weekly newsletter.
+That left an obsolete social process, paid-API code ownership in deployment, and no
+structured audit trail for browser posts.
+
+**Decision**:
+1. Retire `tweet_scheduler` from Supervisor, the deployment script, GitHub Actions,
+   and production documentation.
+2. Generate the weekly draft through a dedicated persistent systemd timer on Sunday
+   at 18:05 Europe/Berlin.
+3. Skip weekly generation when a newsletter was created in the previous 24 hours,
+   and propagate generation failures so systemd records a failed run.
+4. Select browser X candidates through a tested CLI using the last 48 hours,
+   importance ranking, and recent-category diversity.
+5. Record confirmed and failed browser attempts in `x_browser_post_audit`; update
+   `articles.shared_on_x` only in the same transaction as a confirmed X status URL.
+
+**Verification**:
+- The new tests failed before implementation and pass after implementation.
+- The complete repository suite passes 395 tests with 1 skipped.
+- Bash syntax and Python compilation checks pass.
+
+**Rollback**:
+- Restore the production files and database from the timestamped deployment backup.
+- Restore `/etc/supervisor/conf.d/tweet_scheduler.conf` and run `supervisorctl update`.
+- Disable and remove `dailyaiwire-weekly-newsletter.timer` before restarting the old
+  scheduler to prevent duplicate weekly generation.
+
+---
+
+## 2026-07-25T01:11:06+02:00 - Disable DailyOrbitalWire
+
+**Context**: DailyOrbitalWire had returned after an earlier manual stop because its
+Supervisor program still used `autostart=true` and `autorestart=true`.
+
+**Decision**:
+1. Stop `dailyorbitalwire`.
+2. Remove its active Supervisor definition so it cannot restart after a process
+   failure, Supervisor reload, or server reboot.
+3. Preserve the original definition under `/etc/supervisor/disabled`.
+
+**Verification**:
+- Supervisor reports no such process for `dailyorbitalwire`.
+- No process under `/home/dailyorbital/dailyorbitalwire.news` remains.
+- DailyAIWire's public health endpoint still returns HTTP 200.
+
+**Rollback**:
+- Restore `/etc/supervisor/disabled/dailyorbitalwire.conf.disabled-20260724T231053Z`
+  to `/etc/supervisor/conf.d/dailyorbitalwire.conf`.
+- Run `supervisorctl reread`, `supervisorctl update`, and
+  `supervisorctl start dailyorbitalwire`.
+
+---
+
+## 2026-07-25T01:25:48+02:00 - Establish Single Process Owners for Web, Fetcher, and Newsletter
+
+**Context**: DailyAIWire's live Gunicorn process was healthy under
+`dailyaiwire-web.service`, but an obsolete disabled Supervisor web definition made
+Supervisor report the app as stopped. Root cron also retained an hourly
+DailyOrbital fetcher and an older weekly-newsletter generator.
+
+**Decision**:
+1. Use systemd `dailyaiwire-web.service` as the sole DailyAIWire web owner.
+2. Use Supervisor `dailyaiwire_fetcher` as the sole DailyAIWire fetcher owner.
+3. Use systemd `dailyaiwire-weekly-newsletter.timer` as the sole weekly draft owner.
+4. Remove the obsolete Supervisor web definition and both superseded root cron jobs.
+5. Make `deploy_to_vps.sh` restart the web through systemd and restart only the
+   fetcher through Supervisor when explicitly requested.
+
+**Verification**:
+- The systemd web unit is enabled and active with the same Gunicorn master PID that
+  serves port 8000.
+- DailyAIWire health returns HTTP 200 after cleanup.
+- The fetcher remains running under Supervisor.
+- No DailyOrbital process or cron entry remains.
+- The weekly systemd timer remains active and the old weekly cron is absent.
+- The complete repository suite passes 396 tests with 1 skipped.
+
+**Rollback**:
+- Restore the Supervisor and root crontab files from
+  `/home/dailyai/dailyaiwire.news/ops/deploy-backups/process-owner-cleanup-20260724T232318Z`.
+- Run `supervisorctl reread` and `supervisorctl update`.
+- Do not enable both the restored weekly cron and weekly systemd timer together.
+
+---
+
+## 2026-07-25T01:35:00+02:00 - Consolidate Historical Cura 1T Duplicate
+
+**Context**: A seven-day content audit found two published articles for the same
+research paper, `arxiv:2607.15314`, sourced separately from ArXiv and Hugging Face.
+The pair predates the deployed cross-source research-paper guardrail.
+
+**Decision**:
+1. Keep article `12116`, which was published first and had more verified views.
+2. Unpublish article `12129`.
+3. Permanently redirect the retired slug to article `12116` so existing links retain
+   continuity and SEO value.
+
+**Verification**:
+- The canonical article returns HTTP 200.
+- The retired URL returns HTTP 301 to the canonical slug.
+- Database state shows article `12116` published and article `12129` unpublished.
+- The redirect is recorded in `article_redirects`.
+- No other seven-day research-ID duplicate group or deterministic story match exists.
+
+**Rollback**:
+- Restore `news.db` from
+  `/home/dailyai/dailyaiwire.news/ops/deploy-backups/cura-duplicate-consolidation-20260724T233451Z/news.db`.
+
+---
+
+## 2026-07-25T01:39:01+02:00 - Balance Research Aggregators in Headline Candidate Pools
+
+**Context**: ArXiv and Hugging Face supplied 16 of 33 articles in the latest 24-hour
+window. Research remained useful, but seven-day verified engagement was stronger
+for Business and Policy content, and strict score ordering gave generic research
+terms a structural advantage before full analysis.
+
+**Decision**:
+1. Limit ArXiv, Hugging Face Papers, and Papers with Code to 40% of the
+   pre-analysis candidate pool when enough qualified non-research candidates exist.
+2. Preserve ranking order within research and non-research groups.
+3. Backfill all unused pool slots with research candidates so the rule cannot reduce
+   analysis or publishing volume.
+4. Ask the headline ranker to maintain category and format balance when qualified
+   options exist.
+
+**Verification**:
+- RED tests confirmed no diversity control existed.
+- GREEN tests verify both the 40% preference and full-volume research backfill.
+- All 25 source-quality tests pass.
+- The complete repository suite passes 398 tests with 1 skipped.
+
+**Rollback**:
+- Restore `fetcher/sources.py` from the timestamped production deployment backup.
+- Restart only `dailyaiwire_fetcher`.
+- No database restoration is required.
+
+---
+
+## 2026-07-25T01:51:29+02:00 - Cool Down Rejected X Candidates
+
+**Context**: Rejecting a browser-posting candidate recorded a `FAILED` audit row,
+but the selector did not read those rows. The same stale or unsuitable article could
+therefore be returned immediately on the next selection attempt.
+
+**Decision**:
+1. Exclude articles with a `FAILED` browser-posting attempt in the previous 24 hours.
+2. Allow older failures to become eligible again so temporary browser errors do not
+   permanently suppress otherwise suitable articles.
+3. Keep `shared_on_x` unchanged for failed attempts.
+
+**Verification**:
+- A RED test reproduced immediate reselection of a recently failed article.
+- The GREEN test verifies recent failures are skipped and failures older than 24
+  hours can be retried.
+- All X browser queue tests pass.
+
+**Rollback**:
+- Restore `services/x_browser_queue.py` from the timestamped production deployment
+  backup.
+- No service restart or database restoration is required.
+
+---
+
+## 2026-07-26T14:52:14+02:00 - Move Weekly Newsletter Draft to Sunday 14:00
+
+**Context**: The weekly newsletter draft was generated on Sunday at 18:05
+Europe/Berlin, leaving too little time for review before the scheduled evening
+delivery.
+
+**Decision**:
+1. Run the dedicated weekly newsletter timer on Sunday at 14:00 Europe/Berlin.
+2. Keep `Persistent=true` so a missed run is recovered after downtime.
+3. Keep the existing five-minute randomized delay to avoid synchronized load.
+
+**Verification**:
+- Both the repository timer and installed systemd timer use
+  `OnCalendar=Sun *-*-* 14:00:00 Europe/Berlin`.
+- The timer is enabled and active.
+- The next regular trigger is Sunday, August 2, at approximately 14:00
+  Europe/Berlin.
+- Restarting the persistent timer after today's window triggered the missed run.
+- The service exited successfully and created newsletter draft `37`.
+
+**Rollback**:
+- Restore the timer files and `DECISIONS.md` from
+  `ops/deploy-backups/newsletter-schedule-20260726T122500Z`.
+- Run `systemctl daemon-reload` and restart
+  `dailyaiwire-weekly-newsletter.timer`.
+
+---
+
+## 2026-07-26T15:38:27+02:00 - Enforce Weekly Newsletter Freshness, Diversity, and Editorial Validation
+
+**Context**: The weekly generator selected the seven highest importance scores
+before the AI writing step. This allowed category clustering, old source stories,
+overlong copy, unsupported certainty, and sensational wording to reach a draft.
+The prompt did not receive category, source, source URL, or source-date context.
+
+**Decision**:
+1. Rank a pool of up to 35 recent live articles, exclude dated source URLs older
+   than 14 days, give each available category one slot, and cap categories at two.
+2. Supply category, source, source URL, inferred source date, site publication
+   date, and existing article context to the weekly writing prompt.
+3. Enforce a 60-character subject, an 80-120 word editor's note, 20-40 word
+   blurbs, exact article-ID coverage, attribution for risky claims, explicit
+   projection wording for future financial figures, and a neutral-language gate.
+4. Allow one AI repair attempt. If the repair still fails validation, create no
+   newsletter draft and report the validation error.
+5. Provide `scripts/run_weekly_newsletter.py --dry-run` to generate and validate
+   a preview without creating a newsletter row.
+
+**Verification**:
+- Eleven focused newsletter tests pass, including real SQLite row handling.
+- The live selector returned seven articles from seven distinct categories.
+- A real dry run required one repair and then passed all editorial gates.
+- The newsletter row count remained 29 before and after the dry run.
+- The canonical test directory completed with 320 passing tests and nine
+  unrelated pre-existing failures.
+
+**Rollback**:
+- Restore `weekly_curator.py` and `scripts/run_weekly_newsletter.py` from
+  `ops/deploy-backups/weekly-curator-quality-20260726T131500Z`.
+- Remove `tests/test_weekly_curator.py` if rolling back the feature entirely.
+- No service restart or database restoration is required because the weekly
+  systemd service starts a fresh Python process for each run.

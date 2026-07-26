@@ -10,7 +10,7 @@ import sqlite3
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict
+from typing import Dict, List, NamedTuple
 
 from slugify import slugify
 
@@ -19,6 +19,7 @@ from social_distributor import SocialDistributor
 from google_indexer import notify_google_index
 from qa_monitor import run_post_publication_audit
 from services.image_fallbacks import select_category_fallback
+from services.story_dedup import canonical_research_paper_id, likely_same_story
 
 logger = logging.getLogger('fetcher.persistence')
 
@@ -35,6 +36,11 @@ _EMBEDDING_TIMEOUT = 30  # R2-04: Max seconds for embedding service calls
 _SOURCE_SPREAD_MINUTES = 150
 
 _GENERIC_IMAGE_MARKERS = ("google", "placeholder", "logo", "icon", "pixel")
+
+
+class SaveResult(NamedTuple):
+    posts_count: int
+    articles_saved: int
 
 
 def _is_generic_image_url(image_url) -> bool:
@@ -79,10 +85,57 @@ def _generate_branded_article_image(headline, slug, gist):
     return None
 
 
+def _find_recent_story_duplicate(cursor, title, gist, hours=36):
+    rows = cursor.execute(
+        """
+        SELECT id, title, gist
+        FROM articles
+        WHERE is_published = 1
+          AND datetime(replace(published_at, 'T', ' ')) >= datetime('now', ?)
+        ORDER BY published_at DESC, id DESC
+        LIMIT 200
+        """,
+        (f"-{int(hours)} hours",),
+    ).fetchall()
+    for article_id, published_title, published_gist in rows:
+        if likely_same_story(title, published_title, gist, published_gist or ""):
+            return {
+                "id": article_id,
+                "title": published_title,
+            }
+    return None
+
+
+def _find_research_paper_duplicate(cursor, source_url):
+    paper_id = canonical_research_paper_id(source_url)
+    if not paper_id:
+        return None
+
+    rows = cursor.execute(
+        """
+        SELECT id, title, source_url
+        FROM articles
+        WHERE is_published = 1
+          AND (source_url LIKE ? OR source_url LIKE ?)
+        ORDER BY id DESC
+        """,
+        ("%arxiv.org/%", "%huggingface.co/papers/%"),
+    ).fetchall()
+    for article_id, title, published_url in rows:
+        if canonical_research_paper_id(published_url) == paper_id:
+            return {
+                "id": article_id,
+                "title": title,
+                "paper_id": paper_id,
+            }
+    return None
+
+
 def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distributor=None, social_limit=2, posts_count=0, audio_gen=None):
     """Persist processed articles to the database with all post-save hooks."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    articles_saved = 0
 
     # DRIP-FEED: Track how many articles from each source we have saved in this batch.
     # Offset 0 = publish now (or original time), offset 1 = +150 min, etc.
@@ -126,6 +179,71 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             logger.info("Skipping '%s' due to content blocker signal (JS/Access Denied).", art.get('headline'))
             continue
 
+        batch_id = art.get('batch_id')
+        if (
+            isinstance(batch_id, bool)
+            or not isinstance(batch_id, int)
+            or not 0 <= batch_id < len(original_batch)
+        ):
+            logger.error(
+                "Skipping '%s' due to invalid source mapping: batch_id=%r, batch_size=%d",
+                art.get('headline'),
+                batch_id,
+                len(original_batch),
+            )
+            continue
+        original = original_batch[batch_id]
+
+        source_url = (original.get('link') or '').strip()
+        if source_url:
+            source_duplicate = cursor.execute(
+                """
+                SELECT id, title
+                FROM articles
+                WHERE source_url = ?
+                LIMIT 1
+                """,
+                (source_url,),
+            ).fetchone()
+            if source_duplicate:
+                logger.info(
+                    "Exact source URL duplicate blocked before publication: '%s' "
+                    "already belongs to '%s' (article %s)",
+                    art.get('headline'),
+                    source_duplicate[1],
+                    source_duplicate[0],
+                )
+                continue
+
+        paper_duplicate = _find_research_paper_duplicate(
+            cursor,
+            source_url,
+        )
+        if paper_duplicate:
+            logger.info(
+                "Research paper duplicate blocked before publication: '%s' matches '%s' "
+                "(article %s, paper %s)",
+                art.get('headline'),
+                paper_duplicate['title'],
+                paper_duplicate['id'],
+                paper_duplicate['paper_id'],
+            )
+            continue
+
+        recent_duplicate = _find_recent_story_duplicate(
+            cursor,
+            art.get('headline', ''),
+            art.get('gist', ''),
+        )
+        if recent_duplicate:
+            logger.info(
+                "Recent story duplicate blocked before publication: '%s' matches '%s' (article %s)",
+                art.get('headline'),
+                recent_duplicate['title'],
+                recent_duplicate['id'],
+            )
+            continue
+
         # 2.5 EDITORIAL COMPASS — Semantic Scoring, Dedup & Ad Detection
         compass_score = 0.7  # Default for articles where compass unavailable
         try:
@@ -156,7 +274,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                     find_duplicates,
                     art.get('headline', ''),
                     art.get('gist', ''),
-                    0.92
+                    0.92,
+                    art.get('why_it_matters', '')
                 )
                 try:
                     dup = dup_future.result(timeout=_EMBEDDING_TIMEOUT)
@@ -200,20 +319,6 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             logger.debug("Embedding service not installed — skipping compass scoring")
         except Exception as compass_err:
             logger.warning("⚠️ Editorial Compass error (non-blocking): %s", compass_err)
-
-        # Determine the article identifier
-        lookup_slug = art.get('seo_slug') or slugify(art.get('headline', ''))
-
-        # Find original source info
-        batch_id = art.get('batch_id')
-        if isinstance(batch_id, list) and batch_id:
-            batch_id = batch_id[0]
-
-        if batch_id is not None and isinstance(batch_id, int) and 0 <= batch_id < len(original_batch):
-            original = original_batch[batch_id]
-        else:
-            source_map = {slugify(it['title']): it for it in original_batch}
-            original = source_map.get(lookup_slug, original_batch[0])
 
         # 3. Robust Slug Generation
         final_slug = art.get('seo_slug')
@@ -311,7 +416,7 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 am, af = audio_gen.generate_audio_reads(final_slug, text_to_read)
 
             cursor.execute('''
-                INSERT OR REPLACE INTO articles 
+                INSERT INTO articles
                 (slug, title, image, social_image, category, gist, why_it_matters, bull_case, bear_case, key_details, eli5, deep_analysis, source, source_url, full_json, published_at, audio_male, audio_female, hashtags, original_author, narration_script, thought_provoking_question, importance_score, design_tokens, compass_score, source_content_hash, ai_model_used)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
@@ -343,6 +448,10 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
                 art.get('source_content_hash'),
                 art.get('ai_model_used'),
             ))
+
+            # Release the write lock before post-publish hooks open their own DB connections.
+            conn.commit()
+            articles_saved += 1
 
             # TRIGGER GOOGLE INDEXING (Instant Crawl)
             local_url = f"https://dailyaiwire.news/article/{final_slug}"
@@ -377,9 +486,8 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
         except Exception as e:
             logger.error("Error saving article %s: %s", art.get('headline'), e)
 
-    conn.commit()
     conn.close()
-    return posts_count
+    return SaveResult(posts_count=posts_count, articles_saved=articles_saved)
 
 
 def process_social_queue():

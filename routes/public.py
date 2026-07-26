@@ -15,13 +15,19 @@ from flask_login import current_user
 
 from extensions import limiter
 from db import get_db_connection
+from services.article_redirects import find_article_redirect
 from services.editorials import get_db_blog_posts
+from services.indexing_promotions import fetch_promoted_articles, is_article_promoted
+from services.resend_webhooks import ensure_resend_webhook_schema
+from services.traffic_quality import is_likely_bot
 from services.subscribers import (
     confirmation_token_hash,
     create_confirmation_token,
+    ensure_subscriber_events_schema,
     ensure_subscribers_schema,
     hash_value as subscriber_hash_value,
     normalize_email,
+    normalize_subscribe_placement,
     record_subscriber_event,
 )
 import logging
@@ -31,13 +37,13 @@ logger = logging.getLogger('public')
 public_bp = Blueprint('public', __name__)
 
 VIEW_DEDUPE_MINUTES = 30
+ANALYTICS_DB_TIMEOUT_SECONDS = 0.25
 SUBSCRIBE_MIN_SECONDS = 4
 MAX_EMAIL_LENGTH = 254
-BOT_UA_PATTERN = re.compile(
-    r"(bot|spider|crawl|slurp|headless|facebookexternalhit|whatsapp|telegrambot|"
-    r"linkedinbot|python-requests|curl|wget|uptimerobot|datadog|pingdom)",
-    re.IGNORECASE,
-)
+SUBSCRIBE_REPEAT_BLOCK_SECONDS = 3600
+SUBSCRIBE_IP_BURST_WINDOW_SECONDS = 3600
+SUBSCRIBE_IP_BURST_THRESHOLD = 12
+SUBSCRIBE_QUALIFIED_DEDUPE_MINUTES = 30
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -73,12 +79,11 @@ def _extract_client_ip() -> str:
 
 
 def _is_likely_bot(user_agent: str) -> bool:
-    if not user_agent:
-        return True
-    if BOT_UA_PATTERN.search(user_agent):
-        return True
-    purpose = (request.headers.get('Purpose') or request.headers.get('Sec-Purpose') or '').lower()
-    return 'prefetch' in purpose
+    return is_likely_bot(
+        user_agent,
+        purpose=request.headers.get("Purpose", ""),
+        sec_purpose=request.headers.get("Sec-Purpose", ""),
+    )
 
 
 def _visitor_hash() -> str:
@@ -86,6 +91,61 @@ def _visitor_hash() -> str:
     user_agent = (request.headers.get('User-Agent') or '').strip().lower()
     accept_lang = (request.headers.get('Accept-Language') or '').strip().lower()
     return _hash_value(f"{client_ip}|{user_agent}|{accept_lang}")
+
+
+def _record_article_view(article_id: int) -> None:
+    if request.method != 'GET':
+        return
+
+    conn = None
+    try:
+        conn = get_db_connection(timeout=ANALYTICS_DB_TIMEOUT_SECONDS)
+        conn.execute('UPDATE articles SET views = COALESCE(views, 0) + 1 WHERE id = ?', (article_id,))
+
+        user_agent = (request.headers.get('User-Agent') or '')[:512]
+        is_bot = 1 if _is_likely_bot(user_agent) else 0
+        if is_bot:
+            conn.commit()
+            return
+
+        visitor_hash = _visitor_hash()
+        ip_hash = _hash_value(_extract_client_ip())
+        counted_verified = 0
+        window_expr = f'-{VIEW_DEDUPE_MINUTES} minutes'
+        recent = conn.execute(
+            '''
+            SELECT 1
+            FROM article_view_events
+            WHERE article_id = ?
+              AND visitor_hash = ?
+              AND viewed_at >= datetime('now', ?)
+            LIMIT 1
+            ''',
+            (article_id, visitor_hash, window_expr)
+        ).fetchone()
+        if not recent:
+            conn.execute(
+                'UPDATE articles SET verified_views = COALESCE(verified_views, 0) + 1 WHERE id = ?',
+                (article_id,)
+            )
+            counted_verified = 1
+
+        conn.execute(
+            '''
+            INSERT INTO article_view_events (
+                article_id, visitor_hash, ip_hash, user_agent, path, is_bot, counted_verified
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (article_id, visitor_hash, ip_hash, user_agent, request.path, is_bot, counted_verified)
+        )
+        conn.commit()
+    except sqlite3.OperationalError as exc:
+        logger.warning("Analytics skipped for article %s: %s", article_id, exc)
+    except Exception as exc:
+        logger.error("Analytics Error: %s", exc)
+    finally:
+        if conn:
+            conn.close()
 
 
 def _is_valid_email(email: str) -> bool:
@@ -96,10 +156,21 @@ def _sanitize_form_text(value: str, max_len: int = 500) -> str:
     return (value or "").strip()[:max_len]
 
 
-def _record_subscriber_event(conn, *, email: str, event_type: str, reason: str):
+def _normalize_subscribe_placement(value: str) -> str:
+    return normalize_subscribe_placement(_sanitize_form_text(value, 50))
+
+
+def _record_subscriber_event(
+    conn,
+    *,
+    email: str,
+    event_type: str,
+    reason: str,
+    placement: str | None = None,
+):
     user_agent = _sanitize_form_text(request.headers.get("User-Agent", ""), 500)
     referrer = _sanitize_form_text(request.referrer or request.headers.get("Referer", ""), 500)
-    source_path = _sanitize_form_text(request.form.get("subscribe_source_path", ""), 500)
+    source_path = _sanitize_form_text(request.form.get("subscribe_source_path", "") or request.path, 500)
     record_subscriber_event(
         conn,
         email=email,
@@ -109,7 +180,138 @@ def _record_subscriber_event(conn, *, email: str, event_type: str, reason: str):
         user_agent=user_agent,
         referrer=referrer,
         source_path=source_path,
+        placement=_normalize_subscribe_placement(
+            request.form.get("subscribe_placement", "") if placement is None else placement
+        ),
     )
+
+
+def _record_qualified_submission(conn, placement: str) -> bool:
+    ensure_subscriber_events_schema(conn)
+    ip_hash = subscriber_hash_value(_extract_client_ip())
+    recent = conn.execute(
+        '''
+        SELECT 1
+        FROM subscriber_events
+        WHERE event_type = 'qualified_submit'
+          AND placement = ?
+          AND ip_hash = ?
+          AND datetime(created_at) >= datetime('now', ?)
+        LIMIT 1
+        ''',
+        (
+            placement,
+            ip_hash,
+            f'-{SUBSCRIBE_QUALIFIED_DEDUPE_MINUTES} minutes',
+        ),
+    ).fetchone()
+    if recent:
+        return False
+
+    _record_subscriber_event(
+        conn,
+        email="",
+        event_type="qualified_submit",
+        reason="passed_abuse_checks",
+        placement=placement,
+    )
+    return True
+
+
+def _send_subscription_confirmation(
+    conn,
+    *,
+    subscriber_id: int,
+    email: str,
+    confirmation_token: str,
+    placement: str,
+) -> bool:
+    from newsletter_sender import send_confirmation_email
+
+    try:
+        confirmation_url = url_for(
+            "public.confirm_subscription",
+            token=confirmation_token,
+            _external=True,
+            _scheme="https",
+        )
+        send_result = send_confirmation_email(
+            email,
+            confirmation_url,
+            include_result=True,
+        )
+        if isinstance(send_result, dict):
+            accepted = bool(send_result.get("accepted"))
+            message_id = str(send_result.get("message_id") or "")[:255] or None
+        else:
+            accepted = bool(send_result)
+            message_id = None
+    except Exception as exc:
+        logger.error("Confirmation email provider request failed: %s", exc)
+        accepted = False
+        message_id = None
+
+    if accepted:
+        from services.resend_webhooks import record_confirmation_delivery
+
+        try:
+            record_confirmation_delivery(
+                conn,
+                subscriber_id=subscriber_id,
+                resend_message_id=message_id,
+                placement=placement,
+            )
+        except Exception:
+            conn.rollback()
+            logger.exception(
+                "Confirmation email accepted but delivery tracking could not be persisted"
+            )
+
+    _record_subscriber_event(
+        conn,
+        email=email,
+        event_type="confirmation_sent" if accepted else "confirmation_failed",
+        reason="provider_accepted" if accepted else "provider_request_failed",
+        placement=placement,
+    )
+    conn.commit()
+    return accepted
+
+
+def _is_subscribe_source_cooled_down(conn) -> tuple[bool, str]:
+    ensure_subscriber_events_schema(conn)
+    user_agent = _sanitize_form_text(request.headers.get("User-Agent", ""), 500)
+    ip_hash = subscriber_hash_value(_extract_client_ip())
+
+    repeated_source = conn.execute(
+        '''
+        SELECT 1
+        FROM subscriber_events
+        WHERE event_type = 'blocked'
+          AND ip_hash = ?
+          AND user_agent = ?
+          AND datetime(created_at) >= datetime('now', ?)
+        LIMIT 1
+        ''',
+        (ip_hash, user_agent, f'-{SUBSCRIBE_REPEAT_BLOCK_SECONDS} seconds'),
+    ).fetchone()
+    if repeated_source:
+        return True, "cooldown_repeat_blocked_source"
+
+    burst_count = conn.execute(
+        '''
+        SELECT COUNT(*) AS cnt
+        FROM subscriber_events
+        WHERE event_type = 'blocked'
+          AND ip_hash = ?
+          AND datetime(created_at) >= datetime('now', ?)
+        ''',
+        (ip_hash, f'-{SUBSCRIBE_IP_BURST_WINDOW_SECONDS} seconds'),
+    ).fetchone()
+    if burst_count and burst_count["cnt"] >= SUBSCRIBE_IP_BURST_THRESHOLD:
+        return True, "cooldown_ip_burst"
+
+    return False, ""
 
 
 def _is_subscribe_submission_suspicious():
@@ -358,6 +560,21 @@ def index():
         except Exception as trend_err:
             logger.warning("Trend engine error (non-blocking): %s", trend_err)
 
+    reader_picks = []
+    if page == 1 and not q and not cat_arg:
+        try:
+            for article_row in fetch_promoted_articles(conn=conn, limit=3):
+                reader_pick = dict(article_row)
+                try:
+                    reader_pick['design_tokens'] = json.loads(
+                        reader_pick.get('design_tokens') or '{}'
+                    )
+                except (ValueError, json.JSONDecodeError, TypeError):
+                    reader_pick['design_tokens'] = {}
+                reader_picks.append(reader_pick)
+        except Exception as reader_pick_err:
+            logger.warning("Reader Picks unavailable: %s", reader_pick_err)
+
     conn.close()
 
     if not q and not cat_arg:
@@ -412,6 +629,7 @@ def index():
             now_utc=datetime.utcnow(),
             search_mode=search_mode,
             trends=trends,
+            reader_picks=reader_picks,
         )
     )
 
@@ -432,7 +650,19 @@ def how_it_works():
 @public_bp.route('/article/<slug>')
 def article(slug):
     conn = get_db_connection()
-    art = conn.execute('SELECT * FROM articles WHERE slug = ?', (slug,)).fetchone()
+    redirect_row = find_article_redirect(conn, slug)
+    if redirect_row:
+        target_slug = redirect_row['target_slug']
+        conn.close()
+        return redirect(
+            url_for('public.article', slug=target_slug),
+            code=301,
+        )
+
+    art = conn.execute(
+        'SELECT * FROM articles WHERE slug = ? AND is_published = 1',
+        (slug,),
+    ).fetchone()
     conn.close()
     if not art:
         # 410 Gone — tells Google to permanently drop this URL from index
@@ -453,23 +683,26 @@ def article(slug):
     except (ValueError, json.JSONDecodeError, TypeError, KeyError):
         d['mermaid_diagram'] = None
 
-    # SEO Internal Linking: 6 Related Articles (3 same-category + 3 cross-category)
+    # Prefer index-selected pages while preserving category and cross-category variety.
     conn = get_db_connection()
     same_cat = conn.execute('''
-        SELECT title, slug, image, category, published_at, gist
-        FROM articles
-        WHERE category = ? AND id != ? AND is_published = 1
-        ORDER BY published_at DESC LIMIT 3
+        SELECT a.title, a.slug, a.image, a.category, a.published_at, a.gist,
+               CASE WHEN p.article_id IS NULL THEN 0 ELSE 1 END AS is_reader_pick
+        FROM articles a
+        LEFT JOIN google_index_promotions p ON p.article_id = a.id
+        WHERE a.category = ? AND a.id != ? AND a.is_published = 1
+          AND replace(a.published_at, 'T', ' ') <= datetime('now')
+        ORDER BY is_reader_pick DESC, a.published_at DESC LIMIT 3
     ''', (d['category'], d['id'])).fetchall()
 
-    same_cat_slugs = [dict(r)['slug'] for r in same_cat]
-    exclude_ids = [d['id']]
-
     cross_cat = conn.execute('''
-        SELECT title, slug, image, category, published_at, gist
-        FROM articles
-        WHERE category != ? AND id != ? AND is_published = 1
-        ORDER BY published_at DESC LIMIT 3
+        SELECT a.title, a.slug, a.image, a.category, a.published_at, a.gist,
+               CASE WHEN p.article_id IS NULL THEN 0 ELSE 1 END AS is_reader_pick
+        FROM articles a
+        LEFT JOIN google_index_promotions p ON p.article_id = a.id
+        WHERE a.category != ? AND a.id != ? AND a.is_published = 1
+          AND replace(a.published_at, 'T', ' ') <= datetime('now')
+        ORDER BY is_reader_pick DESC, a.published_at DESC LIMIT 3
     ''', (d['category'], d['id'])).fetchall()
     conn.close()
 
@@ -480,57 +713,20 @@ def article(slug):
             rd['image'] = '/' + rd['image']
         related_articles.append(rd)
 
-    # Analytics: track both raw hits and GA-comparable verified views.
-    conn = None
-    try:
-        conn = get_db_connection()
-        conn.execute('UPDATE articles SET views = COALESCE(views, 0) + 1 WHERE id = ?', (d['id'],))
+    _record_article_view(d['id'])
 
-        # Skip verified counting for non-GET fallbacks.
-        if request.method == 'GET':
-            user_agent = (request.headers.get('User-Agent') or '')[:512]
-            is_bot = 1 if _is_likely_bot(user_agent) else 0
-            visitor_hash = _visitor_hash()
-            ip_hash = _hash_value(_extract_client_ip())
-            counted_verified = 0
-
-            if not is_bot:
-                window_expr = f'-{VIEW_DEDUPE_MINUTES} minutes'
-                recent = conn.execute(
-                    '''
-                    SELECT 1
-                    FROM article_view_events
-                    WHERE article_id = ?
-                      AND visitor_hash = ?
-                      AND viewed_at >= datetime('now', ?)
-                    LIMIT 1
-                    ''',
-                    (d['id'], visitor_hash, window_expr)
-                ).fetchone()
-                if not recent:
-                    conn.execute(
-                        'UPDATE articles SET verified_views = COALESCE(verified_views, 0) + 1 WHERE id = ?',
-                        (d['id'],)
-                    )
-                    counted_verified = 1
-
-            conn.execute(
-                '''
-                INSERT INTO article_view_events (
-                    article_id, visitor_hash, ip_hash, user_agent, path, is_bot, counted_verified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (d['id'], visitor_hash, ip_hash, user_agent, request.path, is_bot, counted_verified)
-            )
-
-        conn.commit()
-    except Exception as e:
-        logger.error("Analytics Error: %s", e)
-    finally:
-        if conn:
-            conn.close()
-
-    return render_template('article.html', article=d, related_articles=related_articles)
+    promoted_for_indexing = is_article_promoted(d['id'])
+    response = make_response(
+        render_template(
+            'article.html',
+            article=d,
+            related_articles=related_articles,
+            force_noindex=not promoted_for_indexing,
+        )
+    )
+    if not promoted_for_indexing:
+        response.headers['X-Robots-Tag'] = 'noindex, follow'
+    return response
 
 
 @public_bp.route('/about')
@@ -555,20 +751,26 @@ def impressum():
 
 @public_bp.route('/thank-you')
 def thank_you_page():
-    return render_template('thank_you.html')
+    response = make_response(render_template('thank_you.html', force_noindex=True))
+    response.headers['X-Robots-Tag'] = 'noindex, follow'
+    return response
 
 
 @public_bp.route('/subscribe', methods=['GET', 'POST'])
 @limiter.limit("5 per minute", methods=["POST"])
 def subscribe():
     import sqlite3
-    from newsletter_sender import send_confirmation_email
 
     if request.method == 'POST':
         email = normalize_email(request.form.get('email'))
         conn = get_db_connection()
         try:
             ensure_subscribers_schema(conn)
+
+            cooled_down, cooldown_reason = _is_subscribe_source_cooled_down(conn)
+            if cooled_down:
+                logger.warning("Suppressed cooled-down subscribe source: %s", cooldown_reason)
+                return redirect(url_for('public.thank_you_page', status='review'))
 
             suspicious, reason = _is_subscribe_submission_suspicious()
             if suspicious:
@@ -582,16 +784,53 @@ def subscribe():
                 conn.commit()
                 return redirect(url_for('public.thank_you_page', status='review'))
 
+            placement = _normalize_subscribe_placement(
+                request.form.get("subscribe_placement", "")
+            )
+            _record_qualified_submission(conn, placement)
+
             existing = conn.execute(
-                'SELECT id FROM subscribers WHERE lower(email) = lower(?) LIMIT 1',
+                '''
+                SELECT id, status
+                FROM subscribers
+                WHERE lower(email) = lower(?)
+                LIMIT 1
+                ''',
                 (email,),
             ).fetchone()
             if existing:
+                if existing["status"] == "PENDING":
+                    confirmation_token, confirmation_hash = create_confirmation_token()
+                    conn.execute(
+                        '''
+                        UPDATE subscribers
+                        SET confirmation_token_hash = ?
+                        WHERE id = ?
+                        ''',
+                        (confirmation_hash, existing["id"]),
+                    )
+                    conn.commit()
+                    accepted = _send_subscription_confirmation(
+                        conn,
+                        subscriber_id=existing["id"],
+                        email=email,
+                        confirmation_token=confirmation_token,
+                        placement=placement,
+                    )
+                    status = "pending" if accepted else "delivery_issue"
+                    return redirect(url_for('public.thank_you_page', status=status))
+
+                conn.commit()
                 flash('You are already subscribed. Welcome back!')
                 return redirect(url_for('public.thank_you_page', status='existing'))
 
             user_agent = _sanitize_form_text(request.headers.get("User-Agent", ""), 500)
-            referrer = _sanitize_form_text(request.referrer or request.headers.get("Referer", ""), 500)
+            referrer = _sanitize_form_text(
+                request.form.get("subscribe_referrer", "")
+                or request.referrer
+                or request.headers.get("Referer", ""),
+                500,
+            )
             source_path = _sanitize_form_text(request.form.get("subscribe_source_path", ""), 500)
             accept_language = _sanitize_form_text(request.headers.get("Accept-Language", ""), 200)
             ip_hash = _hash_value(_extract_client_ip())
@@ -600,13 +839,13 @@ def subscribe():
             )
             confirmation_token, confirmation_hash = create_confirmation_token()
 
-            conn.execute(
+            subscriber_insert = conn.execute(
                 '''
                 INSERT INTO subscribers (
                     email, status, signup_ip_hash, signup_user_agent, signup_referrer,
-                    signup_source_path, signup_accept_language, signup_fingerprint_hash,
+                    signup_source_path, signup_placement, signup_accept_language, signup_fingerprint_hash,
                     confirmation_token_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
                     email,
@@ -615,32 +854,52 @@ def subscribe():
                     user_agent,
                     referrer,
                     source_path,
+                    placement,
                     accept_language,
                     fingerprint_hash,
                     confirmation_hash,
                 ),
             )
-            _record_subscriber_event(conn, email=email, event_type="created", reason="pending_confirmation")
+            _record_subscriber_event(
+                conn,
+                email=email,
+                event_type="created",
+                reason="pending_confirmation",
+                placement=placement,
+            )
             conn.commit()
 
-            try:
-                confirmation_url = url_for(
-                    "public.confirm_subscription",
-                    token=confirmation_token,
-                    _external=True,
-                    _scheme="https",
-                )
-                send_confirmation_email(email, confirmation_url)
-            except Exception as e:
-                logger.error("Failed to send confirmation email: %s", e)
-
-            return redirect(url_for('public.thank_you_page', status='pending'))
+            accepted = _send_subscription_confirmation(
+                conn,
+                subscriber_id=subscriber_insert.lastrowid,
+                email=email,
+                confirmation_token=confirmation_token,
+                placement=placement,
+            )
+            status = "pending" if accepted else "delivery_issue"
+            return redirect(url_for('public.thank_you_page', status=status))
         except sqlite3.IntegrityError:
             flash('You are already subscribed. Welcome back!')
             return redirect(url_for('public.thank_you_page', status='existing'))
         finally:
             conn.close()
-    return render_template('subscribe.html')
+    latest_issue = None
+    conn = get_db_connection()
+    try:
+        latest_issue = conn.execute(
+            '''
+            SELECT id, subject, scheduled_date
+            FROM newsletters
+            WHERE status = 'SENT'
+            ORDER BY id DESC
+            LIMIT 1
+            '''
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        logger.warning("Latest newsletter preview unavailable: %s", exc)
+    finally:
+        conn.close()
+    return render_template('subscribe.html', latest_issue=latest_issue)
 
 
 @public_bp.route('/confirm-subscription/<token>')
@@ -655,7 +914,7 @@ def confirm_subscription(token):
         token_hash = confirmation_token_hash(token)
         subscriber = conn.execute(
             '''
-            SELECT id, email
+            SELECT id, email, signup_placement
             FROM subscribers
             WHERE confirmation_token_hash = ?
               AND status = 'PENDING'
@@ -681,8 +940,80 @@ def confirm_subscription(token):
             email=subscriber["email"],
             event_type="confirmed",
             reason="double_opt_in",
+            placement=subscriber["signup_placement"],
         )
         conn.commit()
         return redirect(url_for('public.thank_you_page', status='confirmed'))
     finally:
         conn.close()
+
+
+@public_bp.route('/unsubscribe')
+def unsubscribe_instructions():
+    response = make_response(
+        "Use the unsubscribe link in your latest DailyAIWire email, or contact briefing@dailyaiwire.news."
+    )
+    response.headers["Content-Type"] = "text/plain; charset=utf-8"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@public_bp.route('/unsubscribe/<int:newsletter_id>/<string:token>', methods=['GET', 'POST'])
+def unsubscribe_newsletter(newsletter_id, token):
+    token = (token or "").strip().lower()
+    if not re.fullmatch(r"[a-f0-9]{16}", token):
+        abort(404)
+
+    conn = get_db_connection()
+    try:
+        ensure_subscribers_schema(conn)
+        ensure_resend_webhook_schema(conn)
+        delivery = conn.execute(
+            '''
+            SELECT d.recipient_email, s.id AS subscriber_id, s.status AS subscriber_status
+            FROM newsletter_deliveries d
+            JOIN subscribers s ON lower(s.email) = lower(d.recipient_email)
+            WHERE d.newsletter_id = ?
+              AND d.tracking_token = ?
+            LIMIT 1
+            ''',
+            (newsletter_id, token),
+        ).fetchone()
+        if not delivery:
+            abort(404)
+
+        conn.execute(
+            '''
+            UPDATE subscribers
+            SET status = 'UNSUBSCRIBED',
+                confirmation_token_hash = NULL
+            WHERE id = ?
+            ''',
+            (delivery["subscriber_id"],),
+        )
+        conn.execute(
+            '''
+            UPDATE newsletter_deliveries
+            SET unsubscribed_at = COALESCE(unsubscribed_at, CURRENT_TIMESTAMP)
+            WHERE newsletter_id = ? AND tracking_token = ?
+            ''',
+            (newsletter_id, token),
+        )
+        _record_subscriber_event(
+            conn,
+            email=delivery["recipient_email"],
+            event_type="unsubscribed",
+            reason="newsletter_unsubscribe",
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    response = make_response("You have been unsubscribed from DailyAIWire.")
+    response.headers["Content-Type"] = "text/plain; charset=utf-8"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response

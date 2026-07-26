@@ -13,6 +13,37 @@
 {% block twitter_description %}{{ post.subtitle }}{% endblock %}
 {% block twitter_image %}https://dailyaiwire.news{{ post.image }}{% endblock %}
 
+{% block head_extra %}
+<script nonce="{{ csp_nonce() }}" type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": {{ post.title | tojson | safe }},
+  "description": {{ post.subtitle | tojson | safe }},
+  "image": [{% if post.image.startswith('http') %}{{ post.image | tojson | safe }}{% elif post.image.startswith('/') %}{{ ("https://dailyaiwire.news" + post.image) | tojson | safe }}{% else %}{{ ("https://dailyaiwire.news/" + post.image) | tojson | safe }}{% endif %}],
+  "datePublished": {{ post.published_at | tojson | safe }},
+  "dateModified": {{ post.published_at | tojson | safe }},
+  "author": {
+    "@type": "Person",
+    "name": {{ (post.author_name or emre.name) | tojson | safe }}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "DailyAIWire.news",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://dailyaiwire.news/static/img/brand/logo_nodes.png"
+    }
+  },
+  "url": {{ ("https://dailyaiwire.news/lab/" + post.slug) | tojson | safe }},
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": {{ ("https://dailyaiwire.news/lab/" + post.slug) | tojson | safe }}
+  }
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <article class="container mx-auto px-4 py-16 max-w-4xl">
     <header class="mb-12">

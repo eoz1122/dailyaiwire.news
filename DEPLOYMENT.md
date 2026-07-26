@@ -5,8 +5,10 @@
 Verified on 2026-04-28:
 
 - Production app path: `/home/dailyai/dailyaiwire.news`
-- Process manager: Supervisor
-- Active Supervisor programs: `dailyaiwire`, `dailyaiwire_fetcher`, `tweet_scheduler`
+- Web process manager: systemd unit `dailyaiwire-web.service`
+- Fetcher process manager: Supervisor program `dailyaiwire_fetcher`
+- Active systemd timer: `dailyaiwire-weekly-newsletter.timer`
+- X posting: signed-in Codex browser automation, not the paid X API
 - Active Google credential path: `/home/dailyai/.secrets/google-cloud.json`
 - Default deploy model: push committed code to GitHub, pull on VPS, restart Supervisor services
 - Avoid direct local-to-VPS sync of uncommitted files. That was the main source of drift during cleanup.
@@ -100,30 +102,32 @@ Create logs directory:
 mkdir -p /home/dailyai/dailyaiwire.news/logs
 ```
 
-### 5. Configure Supervisor (Process Manager)
+### 5. Configure Web systemd Service
 
-Create `/etc/supervisor/conf.d/dailyaiwire.conf`:
+Create `/etc/systemd/system/dailyaiwire-web.service`:
 
 ```ini
-[program:dailyaiwire]
-directory=/home/dailyai/dailyaiwire.news
-command=/home/dailyai/dailyaiwire.news/venv/bin/gunicorn -c gunicorn_config.py app:app
-user=dailyai
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-stderr_logfile=/home/dailyai/dailyaiwire.news/logs/supervisor-error.log
-stdout_logfile=/home/dailyai/dailyaiwire.news/logs/supervisor-access.log
+[Unit]
+Description=DailyAIWire Web Service
+After=network.target
+
+[Service]
+User=dailyai
+Group=dailyai
+WorkingDirectory=/home/dailyai/dailyaiwire.news
+ExecStart=/home/dailyai/dailyaiwire.news/venv/bin/gunicorn -c gunicorn_config.py app:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-Start supervisor:
+Start the web service:
 
 ```bash
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl start dailyaiwire
-sudo supervisorctl status
+sudo systemctl daemon-reload
+sudo systemctl enable --now dailyaiwire-web.service
+sudo systemctl status dailyaiwire-web.service
 ```
 
 ### 5b. Configure Fetcher Supervisor Service
@@ -145,38 +149,31 @@ stderr_logfile=/home/dailyai/dailyaiwire.news/logs/fetcher-error.log
 stdout_logfile=/home/dailyai/dailyaiwire.news/logs/fetcher.log
 ```
 
-Start services:
+Start the fetcher:
 
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start dailyaiwire dailyaiwire_fetcher
-sudo supervisorctl status dailyaiwire dailyaiwire_fetcher
+sudo supervisorctl start dailyaiwire_fetcher
+sudo supervisorctl status dailyaiwire_fetcher
 ```
 
-### 5c. Configure Twitter Scheduler (Optional)
+### 5c. Configure Weekly Newsletter Timer
 
-This is not part of the current production baseline. Only enable it if you intentionally decouple social posting from the fetcher loop.
-
-Create `/etc/supervisor/conf.d/tweet_scheduler.conf`:
-
-```ini
-[program:tweet_scheduler]
-directory=/home/dailyai/dailyaiwire.news
-command=/home/dailyai/dailyaiwire.news/venv/bin/python tweet_scheduler.py
-user=dailyai
-autostart=true
-autorestart=true
-stderr_logfile=/home/dailyai/dailyaiwire.news/logs/twitter-error.log
-stdout_logfile=/home/dailyai/dailyaiwire.news/logs/twitter-access.log
-```
-
-Start service:
+Install the dedicated systemd units. This replaces the retired social scheduler's
+weekly polling loop.
 
 ```bash
-sudo supervisorctl update
-sudo supervisorctl start tweet_scheduler
+sudo install -m 0644 ops/systemd/dailyaiwire-weekly-newsletter.service /etc/systemd/system/
+sudo install -m 0644 ops/systemd/dailyaiwire-weekly-newsletter.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dailyaiwire-weekly-newsletter.timer
+sudo systemctl status dailyaiwire-weekly-newsletter.timer
 ```
+
+The timer runs on Sunday at 18:05 Europe/Berlin with a short randomized delay.
+The runner skips generation when any newsletter was created in the previous 24
+hours, so manual and scheduled runs cannot create duplicate drafts.
 
 ### 6. Configure Nginx
 
@@ -257,21 +254,15 @@ sudo ufw enable
 VPS prerequisite for non-root deploys:
 
 ```sudoers
-Cmnd_Alias DAILYAIWIRE_SUPERVISOR = /usr/bin/supervisorctl restart dailyaiwire, /usr/bin/supervisorctl status dailyaiwire, /usr/bin/supervisorctl restart dailyaiwire_fetcher, /usr/bin/supervisorctl status dailyaiwire_fetcher
-dailyai ALL=(root) NOPASSWD: DAILYAIWIRE_SUPERVISOR
+Cmnd_Alias DAILYAIWIRE_WEB = /usr/bin/systemctl restart dailyaiwire-web.service, /usr/bin/systemctl status dailyaiwire-web.service
+Cmnd_Alias DAILYAIWIRE_FETCHER = /usr/bin/supervisorctl restart dailyaiwire_fetcher, /usr/bin/supervisorctl status dailyaiwire_fetcher
+dailyai ALL=(root) NOPASSWD: DAILYAIWIRE_WEB, DAILYAIWIRE_FETCHER
 ```
 
 Validate it once after installation:
 
 ```bash
 sudo visudo -cf /etc/sudoers.d/dailyaiwire-supervisor
-```
-
-If X posting is enabled through the decoupled scheduler, include the scheduler in the same limited alias:
-
-```sudoers
-Cmnd_Alias DAILYAIWIRE_SUPERVISOR = /usr/bin/supervisorctl restart dailyaiwire, /usr/bin/supervisorctl status dailyaiwire, /usr/bin/supervisorctl restart dailyaiwire_fetcher, /usr/bin/supervisorctl status dailyaiwire_fetcher, /usr/bin/supervisorctl restart tweet_scheduler, /usr/bin/supervisorctl status tweet_scheduler
-dailyai ALL=(root) NOPASSWD: DAILYAIWIRE_SUPERVISOR
 ```
 
 Do not grant `dailyai` general `supervisorctl` access or broad passwordless sudo. Keep the rule limited to the DailyAIWire programs above.
@@ -292,12 +283,6 @@ This defaults to a web-only deploy. If fetcher-related code changed and you inte
 
 ```bash
 ./deploy_to_vps.sh --ref origin/main --with-fetcher
-```
-
-Scheduler-related changes are auto-detected for `tweet_scheduler.py`, `social_distributor.py`, `url_shortener.py`, and `requirements.txt`. To force a scheduler restart even without detected file changes:
-
-```bash
-./deploy_to_vps.sh --ref origin/main --with-scheduler
 ```
 
 For an intentional rollback to a previous commit:
@@ -326,7 +311,6 @@ Recommended usage:
 4. Deploy the exact ref or SHA you want.
 5. Leave `restart_fetcher` off for normal web-only deploys.
 6. Turn `restart_fetcher` on only when fetcher code or runtime dependencies changed.
-7. Turn `restart_scheduler` on only when you need to force a scheduler restart without scheduler-related file changes.
 
 ---
 
@@ -345,9 +329,9 @@ cd /home/dailyai/dailyaiwire.news
 
 ```bash
 # Check app status
-sudo -n supervisorctl status dailyaiwire
+sudo -n systemctl status dailyaiwire-web.service
 sudo -n supervisorctl status dailyaiwire_fetcher
-sudo -n supervisorctl status tweet_scheduler
+systemctl status dailyaiwire-weekly-newsletter.timer
 
 # View logs
 tail -f /home/dailyai/dailyaiwire.news/logs/gunicorn-error.log
@@ -355,9 +339,8 @@ tail -f /home/dailyai/dailyaiwire.news/logs/fetcher.log
 tail -f /home/dailyai/dailyaiwire.news/logs/supervisor-error.log
 
 # Restart services
-sudo -n supervisorctl restart dailyaiwire
+sudo -n systemctl restart dailyaiwire-web.service
 sudo -n supervisorctl restart dailyaiwire_fetcher
-sudo -n supervisorctl restart tweet_scheduler
 sudo systemctl restart nginx
 
 # Check Nginx
@@ -410,21 +393,21 @@ crontab -e
 **App won't start:**
 
 ```bash
-sudo supervisorctl tail dailyaiwire stderr
+sudo journalctl -u dailyaiwire-web.service -n 100 --no-pager
 ```
 
 **502 Bad Gateway:**
 
-- Check if Gunicorn is running: `sudo supervisorctl status`
+- Check if Gunicorn is running: `sudo systemctl status dailyaiwire-web.service`
 - Check Nginx config: `sudo nginx -t`
 
 **Database locked:**
 
 ```bash
 # Stop app, backup DB, restart
-sudo supervisorctl stop dailyaiwire
+sudo systemctl stop dailyaiwire-web.service
 cp news.db news.db.backup
-sudo supervisorctl start dailyaiwire
+sudo systemctl start dailyaiwire-web.service
 ```
 
 ---

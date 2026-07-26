@@ -4,10 +4,16 @@ This directory stores DailyAIWire n8n workflow exports that are still operationa
 
 ## Active LinkedIn Workflow
 
-- Final workflow file: `ops/n8n/linkedin-rss-trigger-production.json`
-- This is the final production export for the LinkedIn posting automation.
-- This is the workflow that was imported into n8n and chosen as the active production baseline.
-- The older broken LinkedIn workflow was disabled in n8n.
+- Current import file: `outputs/linkedin-n8n/linkedin-rss-scheduled-24-daily.json`
+- Import name: `LinkedIn RSS Scheduled 24 Daily - Diverse`
+- The workflow schedules up to 24 successful posts per New York day after 06:00.
+- Daily diversity caps are 6 research posts, 4 posts from one source, and 6 posts from one category.
+- Counts increase only after LinkedIn confirms a successful post.
+- The versioned selector source is `linkedin-select-diverse.js`.
+- The versioned success-state source is `linkedin-mark-success-diverse.js`.
+- Both source files are injected into `outputs/linkedin-n8n/linkedin-rss-scheduled-24-daily.json`.
+- The generated import output is intentionally excluded from Git.
+- Disable the previous LinkedIn workflow only after this workflow is imported, activated, and test-executed successfully.
 
 ## Archive
 
@@ -20,5 +26,5 @@ Archived exports live under `ops/n8n/archive/`.
 
 ## Notes
 
-- The production workflow uses the RSS trigger model, limits runs to 8 articles, and spaces posts by 15 minutes.
+- The LinkedIn feed exposes source and research metadata through additional RSS category elements.
 - LinkedIn posting uses the newer REST flow rather than the old built-in LinkedIn node.

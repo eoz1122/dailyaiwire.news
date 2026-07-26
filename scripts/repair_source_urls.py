@@ -20,9 +20,11 @@ REPAIRS = {
     ("DeepMind", "https://deepmind.com/blog/feed/basic/"):
         "https://deepmind.google/blog/rss.xml",
     ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"):
-        "https://research.facebook.com/feed/",
-    ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"):
-        "https://azure.microsoft.com/en-us/blog/feed/",
+        "https://ai.meta.com/blog/",
+    ("Meta AI (FAIR)", "https://research.facebook.com/feed/"):
+        "https://ai.meta.com/blog/",
+    ("Microsoft Research", "https://azure.microsoft.com/en-us/blog/feed/"):
+        "https://www.microsoft.com/en-us/research/feed/",
 }
 
 

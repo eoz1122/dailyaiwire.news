@@ -11,6 +11,7 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any, Mapping
+from urllib.parse import urlparse
 
 
 SITEMAP_ELIGIBILITY_THRESHOLD = 88
@@ -42,6 +43,10 @@ LOW_CONTEXT_SOURCES = {
     "GitHub",
     "News",
     "Blog",
+}
+
+VERIFIED_SINGLE_DOCUMENT_DOMAINS = {
+    "freefable.org",
 }
 
 
@@ -88,11 +93,16 @@ def _list_count(value: Any) -> int:
     return 1 if _as_text(parsed) else 0
 
 
-def _image_points(image: Any) -> tuple[int, str | None]:
+def _image_points(image: Any, social_image: Any = None) -> tuple[int, str | None]:
     image_text = _as_text(image)
+    social_image_text = _as_text(social_image)
     if not image_text:
+        if social_image_text:
+            return 7, None
         return 0, "image"
     if "/fallbacks/" in image_text or "fallback" in image_text.lower():
+        if social_image_text and "/static/img/social/" in social_image_text:
+            return 7, None
         return 2, "fallback_image"
     return 7, None
 
@@ -108,6 +118,22 @@ def _source_points(source: Any) -> tuple[int, str | None]:
     if source_text in LOW_CONTEXT_SOURCES:
         return 2, "low_context_source"
     return 6, None
+
+
+def _source_url_points(source_url: Any) -> tuple[int, str | None]:
+    source_url_text = _as_text(source_url)
+    if not source_url_text:
+        return 0, "source_url"
+
+    parsed = urlparse(source_url_text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return 0, "source_url"
+    if parsed.path in {"", "/"} and not parsed.query:
+        domain = parsed.netloc.lower().removeprefix("www.")
+        if domain in VERIFIED_SINGLE_DOCUMENT_DOMAINS:
+            return 5, None
+        return 0, "generic_source_url"
+    return 5, None
 
 
 def _existing_quality_points(article: Mapping[str, Any]) -> int:
@@ -182,17 +208,20 @@ def score_article(article: Mapping[str, Any]) -> IndexabilityResult:
     else:
         blockers.append("tradeoffs")
 
-    if _as_text(article.get("source_url")):
-        score += 5
-    else:
-        blockers.append("source_url")
+    source_url_score, source_url_blocker = _source_url_points(article.get("source_url"))
+    score += source_url_score
+    if source_url_blocker:
+        blockers.append(source_url_blocker)
 
     source_score, source_blocker = _source_points(article.get("source"))
     score += source_score
     if source_blocker:
         blockers.append(source_blocker)
 
-    image_score, image_blocker = _image_points(article.get("image"))
+    image_score, image_blocker = _image_points(
+        article.get("image"),
+        article.get("social_image"),
+    )
     score += image_score
     if image_blocker:
         blockers.append(image_blocker)
@@ -200,9 +229,13 @@ def score_article(article: Mapping[str, Any]) -> IndexabilityResult:
     score += _existing_quality_points(article)
 
     final_score = max(0, min(100, score))
+    hard_blockers = {"source_url", "generic_source_url"}
     return IndexabilityResult(
         score=final_score,
-        sitemap_eligible=final_score >= SITEMAP_ELIGIBILITY_THRESHOLD,
+        sitemap_eligible=(
+            final_score >= SITEMAP_ELIGIBILITY_THRESHOLD
+            and not hard_blockers.intersection(blockers)
+        ),
         strengths=tuple(dict.fromkeys(strengths)),
         blockers=tuple(dict.fromkeys(blockers)),
     )

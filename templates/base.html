@@ -9,22 +9,35 @@
     {% set enable_analytics = config_ga_id and not request.path.startswith('/admin') and not request.path.startswith('/login') %}
     {% if enable_analytics %}
     <script nonce="{{ csp_nonce() }}">
+        const dailyaiwireBotPattern = /(bot|crawler|spider|crawl|headless|semrush|ahrefs|mj12|dotbot|gptbot|bytespider|petalbot|facebookexternalhit|linkedinbot|twitterbot|whatsapp|telegrambot|python-requests|curl|wget|uptimerobot|datadog|pingdom)/i;
+        window.__dailyaiwireDisableAnalytics = Boolean(
+            navigator.webdriver || dailyaiwireBotPattern.test(navigator.userAgent || '')
+        );
+        if (window.__dailyaiwireDisableAnalytics) {
+            window['ga-disable-{{ config_ga_id }}'] = true;
+        }
+
         // Define dataLayer and the gtag function.
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
 
-        // Set default consent state for analytics.
-        gtag('consent', 'default', {
-            'analytics_storage': 'granted',
-            'wait_for_update': 500
-        });
-    </script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config_ga_id }}"></script>
-    <script nonce="{{ csp_nonce() }}">
-        gtag('js', new Date());
-        gtag('config', '{{ config_ga_id }}', {
-            'cookie_flags': 'SameSite=None;Secure'
-        });
+        if (!window.__dailyaiwireDisableAnalytics) {
+            // Set default consent state for analytics.
+            gtag('consent', 'default', {
+                'analytics_storage': 'granted',
+                'wait_for_update': 500
+            });
+
+            const gaScript = document.createElement('script');
+            gaScript.async = true;
+            gaScript.src = 'https://www.googletagmanager.com/gtag/js?id={{ config_ga_id }}';
+            document.head.appendChild(gaScript);
+
+            gtag('js', new Date());
+            gtag('config', '{{ config_ga_id }}', {
+                'cookie_flags': 'SameSite=None;Secure'
+            });
+        }
     </script>
     {% endif %}
 
@@ -91,13 +104,14 @@
     </script>
 
     <!-- Additional SEO -->
-    {% if request.args %}
+    {% set page_noindex = request.args or force_noindex|default(false) %}
+    {% if page_noindex %}
     <meta name="robots" content="noindex, follow">
     {% else %}
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     {% endif %}
     <meta name="googlebot"
-        content="{% if request.args %}noindex, follow{% else %}index, follow{% endif %}">
+        content="{% if page_noindex %}noindex, follow{% else %}index, follow{% endif %}">
     <link rel="alternate" type="application/rss+xml" title="DailyAIWire.news RSS Feed"
         href="https://dailyaiwire.news/rss.xml">
 
@@ -751,6 +765,7 @@
                 <form action="/subscribe" method="POST" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     {% set guard_id = 'newsletter-modal-website' %}
+                    {% set subscribe_placement = 'site_modal' %}
                     {% include 'partials/subscribe_guard_fields.html' %}
                     <label for="newsletter-modal-email" class="sr-only">Email address</label>
                     <input type="email" name="email" placeholder="Enter your business email" required
@@ -768,6 +783,67 @@
             </div>
         </div>
     </div>
+
+    <script nonce="{{ csp_nonce() }}">
+        document.addEventListener('DOMContentLoaded', () => {
+            const trackedForms = new WeakSet();
+            const viewTimers = new WeakMap();
+
+            function trackFormView(form) {
+                if (!form || trackedForms.has(form)) {
+                    return;
+                }
+                const placementInput = form.querySelector('input[name="subscribe_placement"]');
+                const sourceInput = form.querySelector('input[name="subscribe_source_path"]');
+                if (!placementInput || !placementInput.value) {
+                    return;
+                }
+                trackedForms.add(form);
+                const body = new URLSearchParams({
+                    placement: placementInput.value,
+                    source_path: sourceInput ? sourceInput.value : window.location.pathname,
+                });
+                fetch('/api/track-subscribe-view', {
+                    method: 'POST',
+                    body: body,
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+                }).catch(() => {});
+            }
+
+            window.trackNewsletterFormView = trackFormView;
+            if (!('IntersectionObserver' in window)) {
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    const existingTimer = viewTimers.get(entry.target);
+                    if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                        if (!existingTimer && !trackedForms.has(entry.target)) {
+                            const timer = window.setTimeout(() => {
+                                viewTimers.delete(entry.target);
+                                trackFormView(entry.target);
+                                observer.unobserve(entry.target);
+                            }, 1000);
+                            viewTimers.set(entry.target, timer);
+                        }
+                    } else if (existingTimer) {
+                        window.clearTimeout(existingTimer);
+                        viewTimers.delete(entry.target);
+                    }
+                });
+            }, {threshold: [0.5]});
+
+            document.querySelectorAll('input[name="subscribe_placement"]').forEach((input) => {
+                const form = input.closest('form');
+                if (form && input.value !== 'site_modal') {
+                    observer.observe(form);
+                }
+            });
+        });
+    </script>
 
     <script nonce="{{ csp_nonce() }}">
         document.addEventListener('DOMContentLoaded', () => {
@@ -848,6 +924,11 @@
                 if (modalInput) {
                     modalInput.focus();
                 }
+                window.setTimeout(() => {
+                    if (modal.getAttribute('aria-hidden') === 'false' && window.trackNewsletterFormView) {
+                        window.trackNewsletterFormView(modal.querySelector('form'));
+                    }
+                }, 1000);
                 return true;
             };
 

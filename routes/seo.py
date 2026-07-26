@@ -10,16 +10,12 @@ from flask import Blueprint, render_template, Response, make_response, current_a
 
 from db import get_db_connection
 from services.editorials import get_combined_lab_posts
-from services.indexability import score_article
+from services.indexing_promotions import fetch_promoted_articles
 import logging
 
 logger = logging.getLogger('seo')
 
 seo_bp = Blueprint('seo', __name__)
-
-CORE_SITEMAP_LIMIT = 500
-ARCHIVE_SITEMAP_LIMIT = 400
-
 
 def _article_sitemap_lastmod(article, fallback):
     try:
@@ -29,53 +25,12 @@ def _article_sitemap_lastmod(article, fallback):
     except Exception:
         return fallback
 
-
-def _append_article_sitemap_pages(
-    pages,
-    articles_rows,
-    base_url,
-    priority,
-    changefreq,
-    fallback_lastmod,
-    limit,
-    skip_eligible=0,
-):
-    added = 0
-    eligible_seen = 0
-    for art in articles_rows:
-        article = dict(art)
-        result = score_article(article)
-        if not result.sitemap_eligible:
-            logger.debug(
-                "Sitemap skipped %s: indexability=%s blockers=%s",
-                article.get('slug'),
-                result.score,
-                ','.join(result.blockers),
-            )
-            continue
-
-        if eligible_seen < skip_eligible:
-            eligible_seen += 1
-            continue
-        eligible_seen += 1
-
-        pages.append([
-            f"{base_url}/article/{article['slug']}",
-            priority,
-            changefreq,
-            _article_sitemap_lastmod(article, fallback_lastmod),
-        ])
-        added += 1
-        if added >= limit:
-            break
-    return added
-
 @seo_bp.route('/rss.xml')
 @seo_bp.route('/feed')
 @seo_bp.route('/rss')
 def rss_feed():
     conn = get_db_connection()
-    articles_db = conn.execute("SELECT * FROM articles WHERE published_at IS NOT NULL AND replace(published_at, 'T', ' ') <= datetime('now') ORDER BY id DESC LIMIT 20").fetchall()
+    articles_db = conn.execute("SELECT * FROM articles WHERE is_published = 1 AND published_at IS NOT NULL AND replace(published_at, 'T', ' ') <= datetime('now') ORDER BY id DESC LIMIT 20").fetchall()
     conn.close()
 
     articles = []
@@ -197,29 +152,64 @@ def rss_feed():
 def linkedin_rss_feed():
     """Curated, quality-filtered RSS feed for the n8n → LinkedIn pipeline.
 
-    Filters (Relaxed):
-    - importance_score >= 60 (standard signals and above)
-    - Max 10 articles per category (diversity)
-    - Hard cap of 50 articles (prevents feed flooding)
+    Filters:
+    - importance_score >= 75 for stronger social relevance
+    - Max 12 articles per category and 8 per source
+    - Max 8 research-paper items
+    - Hard cap of 50 articles
     """
     conn = get_db_connection()
 
-    # Use a window function to rank within each category,
-    # then filter to top 10 per category for diversity.
+    # LinkedIn needs a tighter social feed than the public RSS feed. Research
+    # papers are valuable onsite, but they should not dominate social posting.
     query = '''
-        SELECT * FROM (
+        WITH eligible AS (
+            SELECT *,
+                CASE
+                    WHEN lower(COALESCE(source, '')) IN (
+                        'hugging face papers',
+                        'arxiv cs.ai',
+                        'arxiv research'
+                    )
+                    OR lower(COALESCE(source_url, '')) LIKE '%huggingface.co/papers%'
+                    OR lower(COALESCE(source_url, '')) LIKE '%arxiv.org/%'
+                    THEN 1
+                    ELSE 0
+                END AS is_research_item
+            FROM articles
+            WHERE is_published = 1
+              AND importance_score >= 75
+              AND published_at IS NOT NULL
+              AND replace(published_at, 'T', ' ') <= datetime('now')
+              AND lower(COALESCE(source, '')) NOT IN (
+                  'the motley fool',
+                  'morningstar',
+                  'seeking alpha',
+                  'investorplace',
+                  'tipranks'
+              )
+        ),
+        ranked AS (
             SELECT *,
                 ROW_NUMBER() OVER (
                     PARTITION BY category
                     ORDER BY published_at DESC
-                ) as cat_rank
-            FROM articles
-            WHERE is_published = 1
-              AND importance_score >= 60
-              AND published_at IS NOT NULL
-              AND replace(published_at, 'T', ' ') <= datetime('now')
+                ) AS category_rank,
+                ROW_NUMBER() OVER (
+                    PARTITION BY source
+                    ORDER BY published_at DESC
+                ) AS source_rank,
+                ROW_NUMBER() OVER (
+                    PARTITION BY is_research_item
+                    ORDER BY published_at DESC
+                ) AS research_rank
+            FROM eligible
         )
-        WHERE cat_rank <= 10
+        SELECT *
+        FROM ranked
+        WHERE category_rank <= 12
+          AND source_rank <= 8
+          AND (is_research_item = 0 OR research_rank <= 8)
         ORDER BY published_at DESC
         LIMIT 50
     '''
@@ -337,13 +327,20 @@ def linkedin_rss_feed():
         # Ensure required fields exist for rss.xml template compatibility
         e.setdefault('title', e.get('title', 'Editorial'))
         e.setdefault('category', 'Editorial')
+        e.setdefault('source', 'DailyAIWire Editorial')
+        e['is_research_item'] = 0
         articles.append(e)
 
     # Re-sort combined list and apply hard cap
     articles.sort(key=lambda x: x.get('pub_date_obj', datetime.min), reverse=True)
     articles = articles[:50]
 
-    xml = render_template('rss.xml', articles=articles, build_date=formatdate())
+    xml = render_template(
+        'rss.xml',
+        articles=articles,
+        build_date=formatdate(),
+        linkedin_feed=True,
+    )
     response = Response(xml, mimetype='application/rss+xml')
     response.headers["X-Robots-Tag"] = "noindex, follow"
     return response
@@ -351,16 +348,10 @@ def linkedin_rss_feed():
 
 @seo_bp.route('/sitemap.xml', methods=['GET'])
 def sitemap_index():
-    """Serves a sitemap index pointing to core and archive sub-sitemaps.
-    
-    SEO Strategy (2026-03-16): Tiered sitemap to concentrate crawl budget.
-    - sitemap-core.xml: Static pages + top 500 articles (highest quality)
-    - sitemap-archive.xml: tightly constrained recovery archive
-    """
+    """Serve the single promoted-content sitemap during indexing recovery."""
     now_str = datetime.now().strftime('%Y-%m-%d')
     sitemaps = [
         {'loc': 'https://dailyaiwire.news/sitemap-core.xml', 'lastmod': now_str},
-        {'loc': 'https://dailyaiwire.news/sitemap-archive.xml', 'lastmod': now_str},
     ]
     xml = render_template('sitemap_index.xml', sitemaps=sitemaps)
     response = make_response(xml)
@@ -371,11 +362,7 @@ def sitemap_index():
 
 @seo_bp.route('/sitemap-core.xml', methods=['GET'])
 def sitemap_core():
-    """Core sitemap: static pages + top 500 articles by quality score.
-    
-    This is the high-priority sitemap that Google should crawl first.
-    Contains only the best content to maximize indexing rate.
-    """
+    """Core sitemap: static pages, promoted articles, and human editorials."""
     base_url = "https://dailyaiwire.news"
     pages = []
     now_str = datetime.now().strftime('%Y-%m-%d')
@@ -385,40 +372,24 @@ def sitemap_core():
     pages.append([base_url + "/about", 0.5, "monthly", now_str])
     pages.append([base_url + "/contact", 0.5, "monthly", now_str])
     pages.append([base_url + "/privacy", 0.5, "yearly", now_str])
+    pages.append([base_url + "/impressum", 0.4, "yearly", now_str])
+    pages.append([base_url + "/how-it-works", 0.7, "monthly", now_str])
+    pages.append([base_url + "/subscribe", 0.6, "monthly", now_str])
     pages.append([base_url + "/lab", 0.8, "weekly", now_str])
     pages.append([base_url + "/signal", 0.7, "weekly", now_str])
     pages.append([base_url + "/podcast", 0.7, "weekly", now_str])
 
-    conn = get_db_connection()
-
-    # Top 500 sitemap-eligible articles ranked by quality.
+    # Recovery mode: the fetcher promotes at most one article per UTC day.
     try:
-        query = """
-            SELECT slug, published_at, title, image, category, gist,
-                   why_it_matters, bull_case, bear_case, key_details,
-                   deep_analysis, source, source_url, importance_score,
-                   compass_score
-            FROM articles
-            WHERE is_published = 1
-            AND replace(published_at, 'T', ' ') <= datetime('now')
-            ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
-                     published_at DESC
-            LIMIT ?
-        """
-        articles_rows = conn.execute(query, (CORE_SITEMAP_LIMIT * 4,)).fetchall()
-        _append_article_sitemap_pages(
-            pages,
-            articles_rows,
-            base_url,
-            0.8,
-            "daily",
-            now_str,
-            CORE_SITEMAP_LIMIT,
-        )
+        for article in fetch_promoted_articles():
+            pages.append([
+                f"{base_url}/article/{article['slug']}",
+                0.8,
+                "weekly",
+                _article_sitemap_lastmod(article, now_str),
+            ])
     except Exception as e:
-        logger.error("Sitemap Core Error (Articles): %s", e)
-
-    conn.close()
+        logger.error("Sitemap Core Error (Promoted Articles): %s", e)
 
     # Lab Posts (always in core — editorial content)
     try:
@@ -445,49 +416,8 @@ def sitemap_core():
 
 @seo_bp.route('/sitemap-archive.xml', methods=['GET'])
 def sitemap_archive():
-    """Archive sitemap in recovery mode: constrained set beyond the core tier.
-
-    Goal: reduce crawl-budget waste and raise index quality by exposing only
-    recent or high-quality URLs outside the core top set.
-    """
-    base_url = "https://dailyaiwire.news"
+    """Return an empty legacy archive so previously submitted URLs resolve cleanly."""
     pages = []
-    now_str = datetime.now().strftime('%Y-%m-%d')
-
-    conn = get_db_connection()
-
-    try:
-        # Recovery mode: next page of sitemap-eligible articles after core.
-        query = """
-            SELECT slug, published_at, title, image, category, gist,
-                   why_it_matters, bull_case, bear_case, key_details,
-                   deep_analysis, source, source_url, importance_score,
-                   compass_score
-            FROM articles
-            WHERE is_published = 1
-            AND replace(published_at, 'T', ' ') <= datetime('now')
-            ORDER BY (importance_score * COALESCE(compass_score, 0.7)) DESC,
-                     published_at DESC
-            LIMIT ?
-        """
-        articles_rows = conn.execute(
-            query,
-            ((CORE_SITEMAP_LIMIT + ARCHIVE_SITEMAP_LIMIT) * 8,),
-        ).fetchall()
-        _append_article_sitemap_pages(
-            pages,
-            articles_rows,
-            base_url,
-            0.4,
-            "monthly",
-            now_str,
-            ARCHIVE_SITEMAP_LIMIT,
-            skip_eligible=CORE_SITEMAP_LIMIT,
-        )
-    except Exception as e:
-        logger.error("Sitemap Archive Error: %s", e)
-
-    conn.close()
 
     sitemap_xml = render_template('sitemap_template.xml', pages=pages)
     response = make_response(sitemap_xml)

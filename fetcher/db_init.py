@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 from db import DB_PATH
+from services.ai_gateway import ensure_ai_logs_schema
 
 logger = logging.getLogger('fetcher.db')
 
@@ -155,17 +156,7 @@ def init_db():
     ''')
 
     # AI Logs Table (Audit Trail)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ai_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            model TEXT,
-            prompt_type TEXT,
-            prompt_text TEXT,
-            response_text TEXT,
-            cost_estimate REAL
-        )
-    ''')
+    ensure_ai_logs_schema(cursor)
 
     # Metadata Table for scan tracking
     cursor.execute('''
@@ -218,6 +209,15 @@ def init_db():
 
     from services.indexing_audit import ensure_indexing_notifications_table
     ensure_indexing_notifications_table(conn)
+
+    from services.indexing_promotions import ensure_google_index_promotions_table
+    ensure_google_index_promotions_table(conn)
+
+    from services.article_redirects import ensure_article_redirects_table
+    ensure_article_redirects_table(conn)
+
+    from services.x_browser_queue import ensure_schema as ensure_x_browser_post_audit
+    ensure_x_browser_post_audit(conn)
 
     # Lazy migration: Add compass_score column if missing
     try:
@@ -292,7 +292,10 @@ def get_recent_published_titles(hours=36) -> List[str]:
     target_time = datetime.utcnow() - timedelta(hours=hours)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT title FROM articles WHERE published_at > ?", (target_time.isoformat(),))
+    cursor.execute(
+        "SELECT title FROM articles WHERE published_at > ? ORDER BY published_at DESC",
+        (target_time.isoformat(),),
+    )
     titles = [row[0] for row in cursor.fetchall()]
     conn.close()
     return titles

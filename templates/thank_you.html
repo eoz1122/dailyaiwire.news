@@ -40,6 +40,18 @@
         <p class="text-xl text-gray-600 mb-10 leading-relaxed font-medium">
             Check your inbox and confirm your subscription. Your feed activates only after confirmation.
         </p>
+        {% elif status == 'delivery_issue' %}
+        <h1
+            class="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight leading-none font-['Outfit'] uppercase">
+            Confirmation<br>
+            <span class="text-amber-500">Delayed</span>
+        </h1>
+
+        <div class="w-16 h-1 bg-gradient-to-r from-amber-500 to-blue-400 mx-auto mb-8 rounded-full"></div>
+
+        <p class="text-xl text-gray-600 mb-10 leading-relaxed font-medium">
+            We could not send the confirmation email right now. Please try subscribing again in a few minutes.
+        </p>
         {% elif status == 'confirmed' %}
         <h1
             class="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight leading-none font-['Outfit'] uppercase">
@@ -88,6 +100,18 @@
                 Briefing Protocol
             </h3>
             <ul class="space-y-4 text-gray-600 text-sm font-medium">
+                {% if status == 'delivery_issue' %}
+                <li class="flex items-start gap-3">
+                    <span class="text-amber-500 mt-0.5 font-bold">!</span>
+                    <span><strong class="text-gray-900">Try again:</strong> Return to the signup form to request a
+                        fresh confirmation link.</span>
+                </li>
+                <li class="flex items-start gap-3">
+                    <span class="text-green-500 mt-0.5 font-bold">✓</span>
+                    <span><strong class="text-gray-900">No duplicate:</strong> Your pending request will be reused
+                        safely.</span>
+                </li>
+                {% else %}
                 <li class="flex items-start gap-3">
                     <span class="text-green-500 mt-0.5 font-bold">✓</span>
                     <span><strong class="text-gray-900">Check your inbox:</strong> A confirmation signal is
@@ -103,10 +127,17 @@
                     <span><strong class="text-gray-900">Frequency:</strong> Expect high-signal updates every
                         Sunday.</span>
                 </li>
+                {% endif %}
             </ul>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            {% if status == 'delivery_issue' %}
+            <a href="/subscribe"
+                class="px-8 py-4 bg-blue-600 text-white font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-700 transition-all">
+                Try Again
+            </a>
+            {% endif %}
             <a href="/"
                 class="text-gray-900 font-black uppercase tracking-widest text-xs hover:text-blue-600 transition-colors px-6 py-3">
                 Return to Wire

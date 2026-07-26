@@ -18,6 +18,10 @@
             <description><![CDATA[{{ article.clean_summary }}]]></description>
             <enclosure url="{{ article.enclosure_url }}" length="{{ article.enclosure_length }}" type="{{ article.enclosure_type }}" />
             <category>{{ article.category }}</category>
+            {% if linkedin_feed %}
+            <category>source:{{ article.source }}</category>
+            <category>research:{{ 1 if article.is_research_item else 0 }}</category>
+            {% endif %}
         </item>
     {% endfor %}
     </channel>

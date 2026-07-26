@@ -16,7 +16,8 @@ def generate_audio_for_recent_articles(limit=10):
         SELECT slug, title, gist, why_it_matters, 
                bull_case, bear_case, key_details, narration_script, audio_female
         FROM articles 
-        WHERE audio_male IS NULL
+        WHERE is_published = 1
+          AND audio_male IS NULL
         ORDER BY published_at DESC 
         LIMIT ?
     ''', (limit,)).fetchall()

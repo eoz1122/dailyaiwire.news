@@ -13,12 +13,13 @@ import re
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+import ai_config
+from db import DB_PATH
+from services.ai_gateway import AIGateway
+from services.ai_schemas import OpinionPieceDraft
 
-from google import genai
-from google.genai import types
-
-DB_PATH = "news.db"
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
 # --- Aaron Azadi's Voice ---
 AARON_AZADI_PERSONA = """
@@ -198,19 +199,19 @@ Return a JSON object:
 
     try:
         from budget_tracker import BudgetTracker
-        from ai_config import DEFAULT_MODEL
         budget = BudgetTracker()
+        gateway = AIGateway(
+            model_name=ai_config.DEFAULT_MODEL,
+            generation_config={"response_mime_type": "application/json"},
+            logger_name='opinion_generator',
+        )
 
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
-        print(f"🔮 Invoking Gemini ({DEFAULT_MODEL}) with Aaron Azadi's persona...")
-        response = client.models.generate_content(
-            model=DEFAULT_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.7,  # Higher temp for creative writing
-            )
+        print(f"🔮 Invoking Gemini ({ai_config.DEFAULT_MODEL}) with Aaron Azadi's persona...")
+        draft, response = gateway.generate_structured(
+            prompt,
+            OpinionPieceDraft,
+            prompt_type="opinion_piece",
+            generation_config={"temperature": 0.7},
         )
 
         # Log usage
@@ -221,16 +222,14 @@ Return a JSON object:
                 category="Opinion Piece"
             )
 
-        data = json.loads(response.text)
-
-        title = data['title']
-        subtitle = data.get('subtitle', '')
-        gist = data.get('gist', '')
-        impact = data.get('impact', '')
-        optimistic_outlook = data.get('optimistic_outlook', '')
-        pessimistic_warning = data.get('pessimistic_warning', '')
-        content = data['content']
-        meta_desc = data.get('meta_description', subtitle[:155])
+        title = draft.title
+        subtitle = draft.subtitle
+        gist = draft.gist
+        impact = draft.impact
+        optimistic_outlook = draft.optimistic_outlook
+        pessimistic_warning = draft.pessimistic_warning
+        content = draft.content
+        meta_desc = draft.meta_description or subtitle[:155]
         slug = slugify(title)
 
         # Save to blog_posts table as DRAFT (published_at = NULL)

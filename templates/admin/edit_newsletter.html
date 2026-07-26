@@ -88,14 +88,10 @@
                         Save Report
                     </button>
                     {% if newsletter.status != 'SENT' %}
-                    <form method="POST" action="/admin/newsletter/send/{{ newsletter.id }}"
-                        onsubmit="return confirm('Initiate mass broadcast to all subscribers?')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit"
-                            class="block text-center w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-600/20 transition-all mb-3 cursor-pointer">
-                            Broadcast Now
-                        </button>
-                    </form>
+                    <a href="/admin/newsletter/send/{{ newsletter.id }}"
+                        class="block text-center w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-600/20 transition-all mb-3">
+                        Review Broadcast
+                    </a>
                     {% endif %}
 
                 </div>

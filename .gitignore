@@ -44,6 +44,7 @@ wheels/
 
 # OS
 .DS_Store
+._*
 Thumbs.db
 
 # Logs
@@ -57,10 +58,22 @@ htmlcov/
 
 # Local vector store runtime state
 qdrant_data/
+qdrant_data_incompatible_*/
 
 # Deployment
 *.pid
 *.mp3
+*.bak
+
+# Runtime backups and generated artifacts
+/backups/
+/deploy-backups/
+/ops/backups/
+/ops/deploy-backups/
+/outputs/
+/static/img/social/
+/static/uploads/
+
 # Ensure images in static are NOT ignored
 !static/*.jpg
 !static/*.png

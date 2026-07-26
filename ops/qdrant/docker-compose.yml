@@ -1,0 +1,22 @@
+services:
+  dailyaiwire-qdrant:
+    image: qdrant/qdrant:v1.17.0
+    container_name: dailyaiwire-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6433:6333"
+      - "127.0.0.1:6434:6334"
+    environment:
+      QDRANT__SERVICE__API_KEY: "${QDRANT_API_KEY:?QDRANT_API_KEY is required}"
+    volumes:
+      - dailyaiwire_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/6333"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  dailyaiwire_qdrant_data:
+    name: dailyaiwire_qdrant_data

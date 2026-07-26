@@ -38,7 +38,7 @@ def migrate_sources():
         ("OpenAI", "https://openai.com/news/rss.xml", "Research Lab", 1),
         ("DeepMind", "https://deepmind.google/blog/rss.xml", "Research Lab", 1),
         ("BAIR Blog", "https://bair.berkeley.edu/blog/feed.xml", "Research Lab", 1),
-        ("Microsoft Research", "https://azure.microsoft.com/en-us/blog/feed/", "Research Lab", 1),
+        ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/", "Research Lab", 1),
         ("Anthropic", "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml", "Research Lab", 1),
         ("Cambridge University AI", "https://www.cam.ac.uk/taxonomy/term/51032/feed", "Research Lab", 1),
         
@@ -54,7 +54,7 @@ def migrate_sources():
         # INACTIVE / BROKEN (Kept for historical record or future fix)
         ("The Batch", "https://read.deeplearning.ai/the-batch/feed", "Primary Wire", 0),
         ("Ben's Bites", "https://bensbites.beehiiv.com/feed", "Primary Wire", 0),
-        ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml", "Research Lab", 0),
+        ("Meta AI (FAIR)", "https://ai.meta.com/blog/", "Research Lab", 0),
         ("AI Business", "https://aibusiness.com/rss.xml", "Enterprise", 0),
         ("ML Mastery", "https://machinelearningmastery.com/blog/feed/", "Dev Terminal", 0),
         ("Google News", "https://news.google.com/rss/search?q=Artificial+Intelligence+when:1d&hl=en-US&gl=US&ceid=US:en", "Aggregator", 0)

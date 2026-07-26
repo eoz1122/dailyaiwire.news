@@ -285,6 +285,7 @@ Google Gemini.{% endif %}{% endblock %}
 {% endblock %}
 
 {% block content %}
+<h1 class="sr-only">DailyAIWire AI Intelligence Feed</h1>
 <div class="max-w-6xl mx-auto px-4 py-4 md:py-5">
     <div class="category-rail-shell"
         data-category-rail="true"
@@ -480,6 +481,36 @@ Google Gemini.{% endif %}{% endblock %}
     </div>
     {% endif %}
 
+    {% if not q and not category and page == 1 %}
+        {% include 'partials/homepage_newsletter_cta.html' %}
+    {% endif %}
+
+    {% if reader_picks and not q and not category and page == 1 %}
+    <section data-reader-picks="true" class="mb-6 md:mb-8 lg:col-span-3" aria-labelledby="reader-picks-title">
+        <div class="flex items-end justify-between gap-4 mb-3">
+            <div>
+                <p class="text-blue-600 text-[10px] font-black uppercase tracking-[0.22em]">Reader validated</p>
+                <h2 id="reader-picks-title" class="text-xl sm:text-2xl font-black text-[var(--text-primary)] tracking-tight">Reader Picks</h2>
+            </div>
+            <p class="hidden sm:block max-w-md text-right text-xs text-[var(--text-secondary)]">Most-read analysis selected after verified reader activity.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {% for art in reader_picks %}
+            <a href="/article/{{ art.slug }}" data-reader-pick-slug="{{ art.slug }}"
+                class="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] p-3 shadow-sm transition-colors hover:border-blue-500">
+                <img src="{{ art.image or '/static/fallbacks/tools_0.jpg' }}" alt="" loading="lazy" decoding="async"
+                    class="h-16 w-20 shrink-0 rounded-lg object-cover"
+                    onerror="this.src='/static/fallbacks/tools_0.jpg'">
+                <span class="min-w-0">
+                    <span class="block text-[9px] font-black uppercase tracking-[0.16em] text-blue-600">{{ art.category }}</span>
+                    <span class="mt-1 block text-sm font-bold leading-snug text-[var(--text-primary)] group-hover:text-blue-600 line-clamp-2">{{ art.title }}</span>
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Phase 4: Trending Intelligence Section -->
     {% if trends and trends.has_trends and not q %}
     <div class="mb-6 hidden md:block">
@@ -511,85 +542,6 @@ Google Gemini.{% endif %}{% endblock %}
     <!-- Bento Grid (CSS Grid) -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 homepage-grid">
         {% for art in articles %}
-
-        <!-- INTEGRATED HERO: Newsletter Injection (Position 2) -->
-        {% if loop.index == 2 and not q and not category and page == 1 %}
-        <div class="h-full">
-            <div
-                class="glass-card h-full rounded-2xl p-5 sm:p-8 flex flex-col items-center text-center justify-center relative overflow-hidden group border border-blue-900/30 bg-blue-950/10">
-                <!-- Newsletter Content -->
-                <div
-                    class="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700">
-                </div>
-
-                <div class="relative z-10 animate-fade-in-up">
-                    <div
-                        class="mb-4 sm:mb-6 w-12 h-12 sm:w-16 sm:h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-blue-500/20">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 animate-pulse-slow"
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-xl sm:text-2xl font-black text-white mb-2 tracking-tight">The Signal, Not the Noise<span
-                            class="chameleon-cursor">|</span></h3>
-                    <p class="text-[13px] sm:text-sm text-zinc-400 mb-6 sm:mb-8 font-medium leading-relaxed max-w-xs mx-auto">Get the top 1% of
-                        AI intelligence in a 5-minute read. Join AI leaders weekly.</p>
-
-                    <form action="/subscribe" method="POST" class="w-full">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            {% set guard_id = 'inline-newsletter-website' %}
-            {% include 'partials/subscribe_guard_fields.html' %}
-                        <div class="flex flex-col gap-3">
-                            <label for="inline-newsletter-email" class="sr-only">Email address</label>
-                            <input type="email" name="email" placeholder="Enter your email" required autocomplete="email"
-                                id="inline-newsletter-email"
-                                class="w-full bg-zinc-100 border border-zinc-200 text-zinc-900 px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-sm font-bold text-center placeholder:text-zinc-400">
-                            <button type="submit"
-                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs py-3 rounded-xl shadow-lg hover:shadow-blue-600/25 transition-all transform hover:-translate-y-0.5">Join
-                                the Wire</button>
-                        </div>
-                    </form>
-                    <p class="mt-3 sm:mt-4 text-[8px] sm:text-[9px] text-zinc-600 uppercase tracking-widest font-bold">No-Spam Guarantee</p>
-                    <style>
-                        @keyframes chameleon {
-
-                            0%,
-                            100% {
-                                color: #3b82f6;
-                                opacity: 1;
-                            }
-
-                            25% {
-                                color: #a855f7;
-                                opacity: 1;
-                            }
-
-                            50% {
-                                color: #ec4899;
-                                opacity: 1;
-                            }
-
-                            75% {
-                                color: #22c55e;
-                                opacity: 1;
-                            }
-
-                            90% {
-                                opacity: 0;
-                            }
-                        }
-
-                        .chameleon-cursor {
-                            animation: chameleon 4s infinite;
-                            font-weight: 900;
-                            margin-left: 2px;
-                        }
-                    </style>
-                </div>
-            </div>
-        </div>
-        {% endif %}
 
         <!-- Article Item -->
         <div class="h-full">

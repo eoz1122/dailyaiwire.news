@@ -10,6 +10,19 @@ from services.indexing_audit import record_indexing_notification
 SCOPES = ["https://www.googleapis.com/auth/indexing"]
 ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 
+
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _skip_reason(url: str, action: str) -> str | None:
+    if _env_truthy("ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API"):
+        return None
+    return (
+        "unsupported Indexing API usage for general article URLs; "
+        "Google restricts this API to JobPosting and BroadcastEvent pages"
+    )
+
 def get_credentials():
     """Authenticates using the Service Account JSON key."""
     # Look for the key file in the same directory or a secure location
@@ -36,6 +49,17 @@ def notify_google_index(url: str, action="URL_UPDATED"):
         url (str): The URL to update or remove.
         action (str): "URL_UPDATED" or "URL_DELETED".
     """
+    reason = _skip_reason(url, action)
+    if reason:
+        print(f"⚠️ Indexing Skipped: {reason} [{url}]")
+        _record_indexing_audit(
+            url=url,
+            action=action,
+            status="skipped",
+            error=reason,
+        )
+        return
+
     creds = get_credentials()
     if not creds:
         _record_indexing_audit(

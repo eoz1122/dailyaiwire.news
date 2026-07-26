@@ -382,7 +382,13 @@
 
             <div class="article-list">
                 {% for art in articles %}
-                {% set summary_text = article_metadata.get(art.id|string) if article_metadata and article_metadata.get(art.id|string) else art.gist %}
+                {% if article_metadata and article_metadata.get(art.id|string) %}
+                {% set summary_text = article_metadata.get(art.id|string) %}
+                {% elif art.why_it_matters %}
+                {% set summary_text = art.why_it_matters %}
+                {% else %}
+                {% set summary_text = art.gist %}
+                {% endif %}
                 <div class="article-item{% if loop.last %} last{% endif %}">
                     <div class="article-header">
                         <span class="article-index">{{ "%02d"|format(loop.index) }}</span>
@@ -390,7 +396,7 @@
                     </div>
                     <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
                         class="article-title">{{ art.title }}</a>
-                    <p class="article-kicker">Strategic take</p>
+                    <p class="article-kicker">Why it matters</p>
                     <p class="article-summary">{{ summary_text }}</p>
                     <a href="https://dailyaiwire.news/article/{{ art.slug }}?utm_source=newsletter&utm_medium=email&utm_campaign=weekly_briefing"
                         class="article-link">read_full_intelligence();</a>
@@ -413,7 +419,7 @@
                 <p class="footer-copy">
                     &copy; 2026 DailyAIWire. All rights reserved.<br>
                     You are receiving this intelligence feed because you subscribed at dailyaiwire.news.<br>
-                    <a href="https://dailyaiwire.news/unsubscribe" class="footer-link">Unsubscribe</a> from this feed.
+                    <a href="{{ unsubscribe_url|default('https://dailyaiwire.news/unsubscribe', true) }}" class="footer-link">Unsubscribe</a> from this feed.
                 </p>
             </div>
         </div>

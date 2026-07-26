@@ -1,25 +1,24 @@
 
 import sqlite3
 import trafilatura
-import google.generativeai as genai
 import os
+import sys
 import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from slugify import slugify
 
-# Load environment variables
-load_dotenv()
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
-# Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 
-DB_PATH = "news.db"
+import ai_config
+from db import DB_PATH
+from services.ai_gateway import AIGateway
 
 def analyze_article(content, url):
     """Uses Gemini to generate title, summary, key details, bull/bear cases etc."""
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    
     prompt = f"""
     You are an elite Tech Investment Analyst. Analyze the following article and extract deep intelligence.
     
@@ -43,8 +42,16 @@ def analyze_article(content, url):
     """
     
     try:
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-        return json.loads(response.text)
+        gateway = AIGateway(
+            model_name=ai_config.DEFAULT_MODEL,
+            generation_config={"response_mime_type": "application/json"},
+            logger_name="manual_url_ingest",
+        )
+        response_text, _response = gateway.generate_text(
+            prompt,
+            prompt_type="manual_url_ingest",
+        )
+        return json.loads(response_text)
     except Exception as e:
         print(f"Error analyzing with AI: {e}")
         return None

@@ -279,6 +279,7 @@ def test_send_newsletter_uses_request_timeout(monkeypatch):
 
     monkeypatch.setattr(newsletter_sender, "DB_PATH", db_module.DB_PATH)
     monkeypatch.setattr(newsletter_sender, "RESEND_API_KEY", "test-key")
+    monkeypatch.setenv("SECRET_KEY", "ci-test-newsletter-secret")
     monkeypatch.setattr(newsletter_sender.requests, "post", fake_post)
     monkeypatch.setattr(newsletter_sender.time, "sleep", lambda *_args, **_kwargs: None)
 

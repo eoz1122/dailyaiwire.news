@@ -5,28 +5,29 @@ RSS fetching, source discovery, fuzzy dedup, and AI headline filter.
 import os
 import time
 import sqlite3
-import difflib
 import logging
 import re
 import html
 import feedparser
 import requests
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Dict, Tuple
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 import ai_config
+from services.story_dedup import canonical_research_paper_id, likely_same_story
 from db import DB_PATH
 from fetcher.db_init import get_last_scan_timestamp, get_recent_published_titles, log_processing_attempt
 from fetcher.spam import is_spam, is_ignored_source
 from services.ai_gateway import AIGateway
 
 logger = logging.getLogger('fetcher.sources')
-
-load_dotenv()
 
 # Budget Tracker
 from budget_tracker import BudgetTracker
@@ -38,8 +39,15 @@ budget = BudgetTracker(monthly_cap_usd=MONTHLY_BUDGET_USD)
 GITHUB_MIN_STARS = int(os.getenv("GITHUB_MIN_STARS", "10"))
 GITHUB_CACHE_HOURS = int(os.getenv("GITHUB_CACHE_HOURS", "24"))
 GITHUB_API_TIMEOUT_SECONDS = int(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "8"))
-HF_PAPERS_LIMIT = int(os.getenv("HF_PAPERS_LIMIT", "12"))
+HF_PAPERS_LIMIT = int(os.getenv("HF_PAPERS_LIMIT", "4"))
 HF_PAPERS_URL = os.getenv("HF_PAPERS_URL", "https://huggingface.co/papers")
+META_BLOG_LIMIT = int(os.getenv("META_BLOG_LIMIT", "5"))
+META_BLOG_URL = os.getenv("META_BLOG_URL", "https://ai.meta.com/blog/")
+META_BLOG_RECENCY_DAYS = int(os.getenv("META_BLOG_RECENCY_DAYS", "7"))
+HEADLINE_FILTER_RECENT_TITLES_LIMIT = int(os.getenv("HEADLINE_FILTER_RECENT_TITLES_LIMIT", "24"))
+HEADLINE_FILTER_MAX_RESEARCH_SHARE = float(
+    os.getenv("HEADLINE_FILTER_MAX_RESEARCH_SHARE", "0.4")
+)
 
 _GITHUB_RESERVED_PATHS = {
     "about", "blog", "collections", "contact", "events", "explore", "features",
@@ -48,6 +56,33 @@ _GITHUB_RESERVED_PATHS = {
     "topics", "trending", "users",
 }
 _HF_PAPER_PATH_RE = re.compile(r"^/papers/(\d{4}\.\d{4,5})$")
+_META_BLOG_PATH_RE = re.compile(r"^/blog/[^/]+/$")
+_META_BLOG_DATE_RE = re.compile(
+    r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
+    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|"
+    r"Dec(?:ember)?)\s+\d{1,2},\s+\d{4}\b"
+)
+
+_HIGH_SIGNAL_HEADLINE_TERMS = (
+    "benchmark", "breakthrough", "funding", "acquisition", "regulation", "regulatory",
+    "policy", "safety", "security", "breach", "open source", "open-source",
+    "research", "paper", "arxiv", "launches model", "releases model", "llm",
+    "robot", "robotics", "agent", "nvidia", "openai", "anthropic", "google",
+    "meta", "microsoft", "deepmind", "hugging face", "chip", "inference",
+)
+_LOW_SIGNAL_HEADLINE_TERMS = (
+    "webinar", "workshop", "conference recap", "how to", "guide", "tips", "top ",
+    "best ", "roundup", "review", "for marketers", "for sales", "for teams",
+    "all-in-one", "productivity", "crm", "seo", "landing page", "template",
+    "plugin", "chrome extension", "deal", "coupon", "discount", "affiliate",
+    "sponsored", "partner content",
+)
+_LOW_SIGNAL_SOURCE_TERMS = ("pr newswire", "business wire", "globenewswire", "accesswire")
+_RESEARCH_AGGREGATOR_SOURCE_TERMS = (
+    "arxiv",
+    "hugging face papers",
+    "papers with code",
+)
 
 # Known feed repairs for sources that changed endpoint format.
 _SOURCE_FEED_REPAIRS = {
@@ -56,13 +91,15 @@ _SOURCE_FEED_REPAIRS = {
     ("DeepMind", "https://deepmind.com/blog/feed/basic/"):
         "https://deepmind.google/blog/rss.xml",
     ("Meta AI (FAIR)", "https://ai.meta.com/blog/rss.xml"):
-        "https://research.facebook.com/feed/",
-    ("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/"):
-        "https://azure.microsoft.com/en-us/blog/feed/",
+        META_BLOG_URL,
+    ("Meta AI (FAIR)", "https://research.facebook.com/feed/"):
+        META_BLOG_URL,
+    ("Microsoft Research", "https://azure.microsoft.com/en-us/blog/feed/"):
+        "https://www.microsoft.com/en-us/research/feed/",
 }
 
 # Some sources are handled by dedicated extractors and should not be fetched as raw RSS feeds.
-_SPECIAL_SOURCE_HANDLERS = {"Papers with Code"}
+_SPECIAL_SOURCE_HANDLERS = {"Meta AI (FAIR)", "Papers with Code"}
 
 
 def _ensure_repo_quality_cache_schema(conn: sqlite3.Connection) -> None:
@@ -253,6 +290,186 @@ def _fetch_huggingface_papers() -> List[Dict]:
     return _extract_huggingface_papers_from_html(resp.text, max_items=HF_PAPERS_LIMIT)
 
 
+def _extract_meta_blog_posts_from_html(
+    html_text: str,
+    max_items: int = META_BLOG_LIMIT,
+) -> List[Dict]:
+    if not html_text:
+        return []
+
+    soup = BeautifulSoup(html_text, "html.parser")
+    grouped_links: Dict[str, List] = {}
+
+    for anchor in soup.select("a[href]"):
+        href = (anchor.get("href") or "").strip()
+        parsed = urlparse(href)
+        host = (parsed.netloc or "").lower().replace("www.", "")
+        if host and host != "ai.meta.com":
+            continue
+        if not _META_BLOG_PATH_RE.match(parsed.path or ""):
+            continue
+        canonical = f"https://ai.meta.com{parsed.path}"
+        grouped_links.setdefault(canonical, []).append(anchor)
+
+    items = []
+    ignored_labels = {"featured", "learn more", "mehr dazu"}
+    for canonical, anchors in grouped_links.items():
+        title_candidates = []
+        published_at = None
+
+        for anchor in anchors:
+            aria_label = " ".join((anchor.get("aria-label") or "").split())
+            if aria_label.lower().startswith("read "):
+                title_candidates.append(aria_label[5:].strip())
+
+            anchor_text = " ".join(anchor.get_text(" ", strip=True).split())
+            if len(anchor_text) >= 12 and anchor_text.lower() not in ignored_labels:
+                title_candidates.append(anchor_text)
+
+            node = anchor
+            for _ in range(4):
+                match = _META_BLOG_DATE_RE.search(
+                    " ".join(node.get_text(" ", strip=True).split())
+                )
+                if match:
+                    date_format = "%B %d, %Y" if len(match.group(0).split()[0]) > 3 else "%b %d, %Y"
+                    published_at = datetime.strptime(match.group(0), date_format)
+                    break
+                if node.parent is None:
+                    break
+                node = node.parent
+
+        if not title_candidates or published_at is None:
+            continue
+
+        items.append(
+            {
+                "title": max(title_candidates, key=len),
+                "source": "Meta AI",
+                "link": canonical,
+                "published": published_at.isoformat(),
+            }
+        )
+
+    items.sort(key=lambda item: item["published"], reverse=True)
+    return items[:max_items]
+
+
+def _fetch_meta_blog_posts() -> List[Dict]:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; DailyAIWireBot/1.0; +https://dailyaiwire.news)"
+    }
+    try:
+        response = requests.get(META_BLOG_URL, headers=headers, timeout=15)
+        response.raise_for_status()
+    except Exception as exc:
+        logger.warning("Meta AI blog fetch failed: %s", exc)
+        return []
+    return _extract_meta_blog_posts_from_html(
+        response.text,
+        max_items=META_BLOG_LIMIT,
+    )
+
+
+def _extract_meta_article_context(
+    html_text: str,
+    title: str,
+    max_chars: int,
+) -> str:
+    if not html_text or max_chars <= 0:
+        return ""
+
+    soup = BeautifulSoup(html_text, "html.parser")
+    title_terms = {
+        token
+        for token in re.findall(r"[a-z0-9]+", (title or "").lower())
+        if len(token) >= 4
+    }
+    signal_terms = (
+        "ai", "benchmark", "deployed", "dino", "gpu", "improved",
+        "launched", "meta", "minutes", "model", "month", "open-source",
+        "reduced", "released", "required", "result", "sam", "takes", "trained",
+    )
+    candidates = []
+    sentence_index = 0
+
+    for paragraph in soup.select("p"):
+        paragraph_text = " ".join(paragraph.get_text(" ", strip=True).split())
+        for sentence in re.split(r"(?<=[.!?])\s+", paragraph_text):
+            sentence = sentence.strip()
+            if len(sentence) < 40:
+                continue
+            lowered = sentence.lower()
+            if "subscribe to our newsletter" in lowered:
+                continue
+            sentence_terms = set(re.findall(r"[a-z0-9]+", lowered))
+            score = len(title_terms & sentence_terms)
+            score += sum(3 for term in signal_terms if term in lowered)
+            if re.search(r"\d", sentence):
+                score += 2
+            candidates.append((score, sentence_index, sentence))
+            sentence_index += 1
+
+    selected = []
+    used_chars = len(title) + len("Source title: \n")
+    for _score, index, sentence in sorted(
+        candidates,
+        key=lambda candidate: (-candidate[0], candidate[1]),
+    ):
+        separator_chars = 1 if selected else 0
+        if used_chars + separator_chars + len(sentence) > max_chars:
+            continue
+        selected.append((index, sentence))
+        used_chars += separator_chars + len(sentence)
+
+    selected.sort(key=lambda item: item[0])
+    context = f"Source title: {title}\n" + "\n".join(
+        sentence for _index, sentence in selected
+    )
+    return context[:max_chars]
+
+
+def _enrich_meta_blog_item(item: Dict) -> Dict:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; DailyAIWireBot/1.0; +https://dailyaiwire.news)"
+    }
+    try:
+        response = requests.get(item["link"], headers=headers, timeout=15)
+        response.raise_for_status()
+        context = _extract_meta_article_context(
+            response.text,
+            item.get("title", ""),
+            max_chars=ai_config.ARTICLE_SOURCE_CHAR_LIMIT,
+        )
+    except Exception as exc:
+        logger.warning("Meta AI article enrichment failed for %s: %s", item.get("link"), exc)
+        return item
+
+    if len(context) < 300:
+        return item
+
+    enriched = dict(item)
+    enriched["pre_extracted_content"] = context
+    return enriched
+
+
+def _recent_meta_blog_posts(
+    items: List[Dict],
+    now: datetime = None,
+    recency_days: int = META_BLOG_RECENCY_DAYS,
+) -> List[Dict]:
+    cutoff = (now or datetime.utcnow()) - timedelta(days=max(1, recency_days))
+    recent = []
+    for item in items:
+        try:
+            published_at = datetime.fromisoformat(item.get("published", ""))
+        except (TypeError, ValueError):
+            continue
+        if published_at >= cutoff:
+            recent.append(item)
+    return recent
+
+
 def _normalize_source_url(source_name: str, url: str) -> str:
     if not url:
         return ""
@@ -341,6 +558,97 @@ def _build_google_news_context(entry, title: str, source_name: str) -> str:
     return "\n".join(context_lines)
 
 
+def _headline_signal_score(article: Dict) -> int:
+    title = (article.get("title") or "").lower()
+    source = (article.get("source") or "").lower()
+    score = 0
+
+    for term in _HIGH_SIGNAL_HEADLINE_TERMS:
+        if term in title:
+            score += 2
+
+    for term in _LOW_SIGNAL_HEADLINE_TERMS:
+        if term in title:
+            score -= 3
+
+    if any(term in source for term in _LOW_SIGNAL_SOURCE_TERMS):
+        score -= 2
+
+    if re.search(r"\b(series a|series b|series c|raises \$|raises €|secures \$|secures €)\b", title):
+        score += 2
+    if re.search(r"\b(api|sdk|framework|model|dataset|benchmark|chip|gpu)\b", title):
+        score += 1
+    if re.search(r"\b(tool|assistant|copilot|platform|app)\b", title):
+        score -= 1
+
+    return score
+
+
+def _is_research_aggregator(article: Dict) -> bool:
+    source = (article.get("source") or "").lower()
+    return any(term in source for term in _RESEARCH_AGGREGATOR_SOURCE_TERMS)
+
+
+def _diversify_candidate_pool(
+    ranked_articles: List[Dict],
+    *,
+    pool_size: int,
+    max_research_share: float = HEADLINE_FILTER_MAX_RESEARCH_SHARE,
+) -> List[Dict]:
+    """Reserve candidate-pool space for non-research news without reducing volume."""
+    if pool_size <= 0:
+        return []
+
+    pool_size = min(pool_size, len(ranked_articles))
+    research_limit = max(0, min(pool_size, int(pool_size * max_research_share)))
+    selected = []
+    deferred_research = []
+    research_count = 0
+
+    for article in ranked_articles:
+        if _is_research_aggregator(article) and research_count >= research_limit:
+            deferred_research.append(article)
+            continue
+
+        selected.append(article)
+        if _is_research_aggregator(article):
+            research_count += 1
+        if len(selected) >= pool_size:
+            return selected
+
+    selected.extend(deferred_research[:pool_size - len(selected)])
+    return selected
+
+
+def _build_headline_filter_prompt(
+    candidate_articles: List[Dict],
+    recent_titles: List[str],
+    target_count: int,
+) -> str:
+    recent_titles = [title for title in recent_titles if title]
+    recent_titles = recent_titles[:HEADLINE_FILTER_RECENT_TITLES_LIMIT]
+    headline_list = "\n".join([f"{idx}: {a['title']}" for idx, a in enumerate(candidate_articles)])
+    recent_titles_block = "\n".join([f"- {t}" for t in recent_titles]) if recent_titles else "None"
+
+    return (
+        f"Select up to {target_count} AI news headlines worth full analysis.\n\n"
+        "Reject duplicates, spam, and low-signal product fluff.\n\n"
+        "Recently published titles:\n"
+        f"{recent_titles_block}\n\n"
+        "Candidate headlines (index: title):\n"
+        f"{headline_list}\n\n"
+        "Rules:\n"
+        "- Exclude stories that match or closely repeat a recently published title.\n"
+        '- Exclude Sponsored, Advertisement, Promoted, Affiliate, or Partner Content.\n'
+        "- Prioritize breakthroughs, strategic moves, security, policy, major research, and important infrastructure releases.\n"
+        "- Keep a balanced mix of research, business, policy, security, products, and infrastructure when qualified options exist.\n"
+        "- Allow product launches only for major infrastructure or meaningful open-source/model releases.\n"
+        "- Block generic B2B SaaS launches, wrapper apps, marketing tools, SEO tools, CRM tools, and listicles.\n"
+        "- Block suicide, murder, or violence stories unless they are critical geopolitical events.\n\n"
+        f"Return only comma-separated indices, for example: 0, 3, 4"
+    )
+
+
 def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> List[Dict]:
     """Uses Gemini to filter for high-value AI news headlines and exclude duplicates/similar stories."""
     if recent_titles is None:
@@ -355,46 +663,35 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> Li
         logger.info("Skipping AI filter (Small batch: %d articles). processing all.", len(articles))
         return articles
 
-    # Increase output size for larger batches to reduce under-publishing on high-volume cycles.
-    target_count = min(16, max(8, len(articles) // 3))
+    # Keep a moderate candidate flow now that article prompts stay in the cheap short-input bucket.
+    target_count = min(12, max(8, len(articles) // 4))
 
-    # Bundle headlines for efficient batch checking
-    headline_list = "\n".join([f"{idx}: {a['title']}" for idx, a in enumerate(articles)])
-    recent_titles_block = "\n".join([f"- {t}" for t in recent_titles]) if recent_titles else "None"
+    scored_articles = sorted(
+        [(_headline_signal_score(article), article) for article in articles],
+        key=lambda item: item[0],
+        reverse=True,
+    )
+    non_negative_articles = [article for score, article in scored_articles if score >= 0]
+    ranked_articles = [article for _score, article in scored_articles]
+    candidate_pool_size = min(len(ranked_articles), max(target_count * 2, 12))
+    if non_negative_articles:
+        candidate_articles = _diversify_candidate_pool(
+            non_negative_articles,
+            pool_size=candidate_pool_size,
+        )
+    else:
+        candidate_articles = _diversify_candidate_pool(
+            ranked_articles,
+            pool_size=candidate_pool_size,
+        )
+    if len(candidate_articles) < len(articles):
+        logger.info(
+            "Heuristic pre-filter trimmed %d headlines to top %d candidates before AI ranking.",
+            len(articles),
+            len(candidate_articles),
+        )
 
-    prompt = f"""
-    You are an elite AI Intelligence Officer. Your task is to select the TOP {target_count} MOST NEWSWORTHY and UNIQUE articles.
-    
-    RECENTLY PUBLISHED TITLES (IGNORE ANY NEW ARTICLES THAT ARE DUPLICATES OR SEMANTICALLY SIMILAR TO THESE):
-    {recent_titles_block}
-    
-    NEW HEADLINES TO ANALYZE (Format: Index: Title):
-    {headline_list}
-    
-    CRITICAL INSTRUCTIONS:
-    1. EXCLUDE any article that is the same story as one in the RECENTLY PUBLISHED list.
-    2. EXCLUDE "Sponsored", "Advertisement", "Promoted", "Affiliate", or "Partner Content".
-    3. PRIORITIZE major breakthroughs, strategic corporate shifts, and research milestones.
-    4. ALLOW "Product Launches" ONLY IF they are:
-       - Open Source / MIT Licensed / Hugging Face releases.
-       - A major infrastructure update (e.g. AWS, NVIDIA, OpenAI).
-    5. BLOCK generic B2B SaaS launches, "All-in-one" marketing tools, and paid wrapper apps.
-    6. BLOCK stories about SUICIDE, MURDER, or VIOLENCE unless they are critical geopolitical events (e.g. involving a head of state).
-    
-    Return up to {target_count} indices of the most important articles.
-    
-    Example Input:
-    - OpenAI releases Sora API [Keep]
-    - Local coffee shop uses AI for menu [Block]
-    - Invoce: AI Invoicing for Freelancers [Block - SaaS]
-    - Llama-3-70b release on Hugging Face [Keep - Open Source]
-    - Google announces Gemini 2.5 [Keep]
-    - [Sponsored] Best AI SEO Tools 2026 [Block]
-    Example Output: 0, 3, 4
-    
-    HEADLINES:
-    {headline_list}
-    """
+    prompt = _build_headline_filter_prompt(candidate_articles, recent_titles, target_count)
 
     try:
         model_name = ai_config.ROUTINE_MODEL
@@ -429,16 +726,38 @@ def filter_high_signal_headlines(articles: List[Dict], recent_titles=None) -> Li
         text = text.replace('Indices:', '').strip()
         indices = [int(i.strip()) for i in text.split(',') if i.strip().isdigit()]
 
-        filtered = [articles[i] for i in indices if i < len(articles)]
+        filtered = [candidate_articles[i] for i in indices if i < len(candidate_articles)]
         if not filtered:
             logger.warning("AI filter returned no valid indices. Falling back to top %d.", target_count)
-            return articles[:target_count]
+            return candidate_articles[:target_count]
         filtered = filtered[:target_count]
         logger.info("Filtered down to %d high-signal articles (target=%d).", len(filtered), target_count)
         return filtered
     except Exception as e:
         logger.error("Headline filtering failed: %s. Proceeding with first %d articles as fallback.", e, target_count)
-        return articles[:target_count]
+        return candidate_articles[:target_count]
+
+
+def _is_duplicate_of_recent_title(candidate_title: str, recent_title: str) -> bool:
+    return likely_same_story(candidate_title, recent_title)
+
+
+def _is_known_article_link(
+    link: str,
+    unique_articles: Dict[str, Dict],
+    existing_urls: set[str],
+    known_research_ids: set[str],
+) -> bool:
+    if link in unique_articles or link in existing_urls:
+        return True
+    paper_id = canonical_research_paper_id(link)
+    return bool(paper_id and paper_id in known_research_ids)
+
+
+def _remember_research_paper(link: str, known_research_ids: set[str]) -> None:
+    paper_id = canonical_research_paper_id(link)
+    if paper_id:
+        known_research_ids.add(paper_id)
 
 
 def fetch_all_sources() -> List[Dict]:
@@ -461,6 +780,7 @@ def fetch_all_sources() -> List[Dict]:
 
     # Runtime safety: filter out any sources with missing URLs
     sources = [(name, url) for name, url in sources if url and url.strip() and url.strip().lower() != 'none']
+    active_source_names = {name for name, _url in sources}
 
     if not sources:
         logger.warning("⚠️ No active sources found in DB.")
@@ -483,6 +803,11 @@ def fetch_all_sources() -> List[Dict]:
     cursor.execute("SELECT source_url FROM articles")
     existing_urls = {row[0] for row in cursor.fetchall()}
     conn.close()
+    known_research_ids = {
+        paper_id
+        for source_url in existing_urls
+        if (paper_id := canonical_research_paper_id(source_url))
+    }
 
     quality_conn = sqlite3.connect(DB_PATH)
     _ensure_repo_quality_cache_schema(quality_conn)
@@ -547,7 +872,12 @@ def fetch_all_sources() -> List[Dict]:
                     title = title.rsplit(" - ", 1)[0]
 
                 link = entry.link
-                if link not in unique_articles and link not in existing_urls:
+                if not _is_known_article_link(
+                    link,
+                    unique_articles,
+                    existing_urls,
+                    known_research_ids,
+                ):
                     time.sleep(4)  # Rate Limit Safety
                     # SMART SOURCE DISCOVERY
                     real_source = source_name
@@ -616,6 +946,7 @@ def fetch_all_sources() -> List[Dict]:
                         )
 
                     unique_articles[link] = article_dict
+                    _remember_research_paper(link, known_research_ids)
                     added_count += 1
 
             source_health["added"] += added_count
@@ -624,13 +955,38 @@ def fetch_all_sources() -> List[Dict]:
         except Exception as e:
             logger.error("Error fetching %s: %s", source_name, e)
 
+    if "Meta AI (FAIR)" in active_source_names:
+        meta_added = 0
+        meta_items = _recent_meta_blog_posts(_fetch_meta_blog_posts())
+        for item in meta_items:
+            item = _enrich_meta_blog_item(item)
+            link = item["link"]
+            if _is_known_article_link(
+                link,
+                unique_articles,
+                existing_urls,
+                known_research_ids,
+            ):
+                continue
+            unique_articles[link] = item
+            _remember_research_paper(link, known_research_ids)
+            meta_added += 1
+        logger.info("Added %d candidates from the Meta AI blog.", meta_added)
+        source_health["added"] += meta_added
+
     # Hugging Face papers ingestion improves coverage beyond blog posts only.
     hf_added = 0
     for item in _fetch_huggingface_papers():
         link = item["link"]
-        if link in unique_articles or link in existing_urls:
+        if _is_known_article_link(
+            link,
+            unique_articles,
+            existing_urls,
+            known_research_ids,
+        ):
             continue
         unique_articles[link] = item
+        _remember_research_paper(link, known_research_ids)
         hf_added += 1
     if hf_added:
         logger.info("Added %d candidates from Hugging Face papers.", hf_added)
@@ -695,8 +1051,7 @@ def fetch_all_sources() -> List[Dict]:
                 is_duplicate = True
                 break
 
-            ratio = difflib.SequenceMatcher(None, clean_title, recent.lower()).ratio()
-            if ratio > 0.85:
+            if _is_duplicate_of_recent_title(clean_title, recent):
                 is_duplicate = True
                 break
 

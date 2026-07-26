@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import date, datetime, timezone
 
 
 def _article(**overrides):
@@ -57,6 +58,7 @@ def test_indexability_score_rejects_thin_low_signal_article():
 
 def test_sitemap_core_uses_indexability_gate(client):
     import db as db_module
+    from services.indexing_promotions import promote_next_article
 
     conn = sqlite3.connect(db_module.DB_PATH)
     conn.execute(
@@ -122,46 +124,40 @@ def test_sitemap_core_uses_indexability_gate(client):
         ),
     )
     conn.commit()
+
+    promoted = promote_next_article(
+        target_day=date(2026, 4, 30),
+        as_of=datetime(2026, 4, 30, 14, 0, tzinfo=timezone.utc),
+        conn=conn,
+    )
     conn.close()
 
     resp = client.get("/sitemap-core.xml")
     xml = resp.get_data(as_text=True)
 
+    assert promoted["slug"] == "strong-indexable-sitemap-test"
     assert resp.status_code == 200
     assert "strong-indexable-sitemap-test" in xml
     assert "thin-low-signal-sitemap-test" not in xml
 
 
-def test_sitemap_append_helper_can_skip_first_eligible_page():
-    from routes.seo import _append_article_sitemap_pages
+def test_sitemap_core_only_lists_persisted_promotions(client, monkeypatch):
+    from routes import seo
 
-    strong_one = _article(slug="strong-one")
-    strong_two = _article(slug="strong-two")
-    weak = _article(
-        slug="weak-one",
-        deep_analysis="short",
-        why_it_matters="",
-        key_details="[]",
-        bull_case="",
-        bear_case="",
-        source="GitHub",
-        image="/static/fallbacks/tools_0.jpg",
-        importance_score=30,
-        compass_score=0.7,
-    )
-    rows = [strong_one, weak, strong_two]
-    pages = []
-
-    _append_article_sitemap_pages(
-        pages,
-        rows,
-        "https://dailyaiwire.news",
-        0.4,
-        "monthly",
-        "2026-04-29",
-        limit=1,
-        skip_eligible=1,
+    monkeypatch.setattr(
+        seo,
+        "fetch_promoted_articles",
+        lambda: [
+            {
+                "slug": "persisted-promotion",
+                "published_at": "2026-04-29T12:00:00",
+            }
+        ],
     )
 
-    assert len(pages) == 1
-    assert pages[0][0] == "https://dailyaiwire.news/article/strong-two"
+    resp = client.get("/sitemap-core.xml")
+    xml = resp.get_data(as_text=True)
+
+    assert resp.status_code == 200
+    assert "persisted-promotion" in xml
+    assert "unpromoted-article" not in xml
