@@ -3,7 +3,6 @@ Allow: /
 Disallow: /admin/
 Disallow: /login
 Disallow: /api/
-Disallow: /*?*
 
 # Sitemaps
 Sitemap: https://dailyaiwire.news/sitemap.xml

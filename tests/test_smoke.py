@@ -531,6 +531,10 @@ class TestSEORoutes:
         resp = client.get('/robots.txt')
         assert resp.status_code == 200
         text = resp.get_data(as_text=True)
+        assert 'Disallow: /admin/' in text
+        assert 'Disallow: /login' in text
+        assert 'Disallow: /api/' in text
+        assert 'Disallow: /*?*' not in text
         assert text.count('Sitemap:') == 1
         assert 'Sitemap: https://dailyaiwire.news/sitemap.xml' in text
         assert 'sitemap-core.xml' not in text
