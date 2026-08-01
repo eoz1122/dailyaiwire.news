@@ -13,7 +13,13 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from db import DB_PATH
-from services.instagram_browser_queue import ensure_schema, mark_failed, mark_posted, prepare_candidate
+from services.instagram_browser_queue import (
+    ensure_schema,
+    mark_failed,
+    mark_posted,
+    prepare_candidate,
+    replace_post_url,
+)
 
 
 def _connection() -> sqlite3.Connection:
@@ -42,6 +48,12 @@ def main() -> int:
     posted_parser.add_argument("--article-id", required=True, type=int)
     posted_parser.add_argument("--post-url", required=True)
 
+    replaced_parser = commands.add_parser(
+        "replaced", help="Replace the URL for a confirmed Instagram repost."
+    )
+    replaced_parser.add_argument("--article-id", required=True, type=int)
+    replaced_parser.add_argument("--post-url", required=True)
+
     failed_parser = commands.add_parser("failed", help="Record a failed browser post.")
     failed_parser.add_argument("--article-id", required=True, type=int)
     failed_parser.add_argument("--reason", required=True)
@@ -63,6 +75,13 @@ def main() -> int:
                 instagram_post_url=args.post_url,
             )
             print(json.dumps({"status": "POSTED", "article_id": args.article_id}))
+        elif args.command == "replaced":
+            replace_post_url(
+                conn,
+                article_id=args.article_id,
+                instagram_post_url=args.post_url,
+            )
+            print(json.dumps({"status": "REPLACED", "article_id": args.article_id}))
         else:
             mark_failed(conn, article_id=args.article_id, reason=args.reason)
             print(json.dumps({"status": "FAILED", "article_id": args.article_id}))
@@ -73,4 +92,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

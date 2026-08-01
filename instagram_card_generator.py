@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
@@ -16,7 +17,7 @@ ACCENT = (37, 99, 235)
 TEXT = (9, 9, 11)
 MUTED = (82, 82, 91)
 GRID = (228, 228, 231)
-CARD_VERSION = "instagram-v1"
+CARD_VERSION = "instagram-v2"
 
 
 def _font(size: int, bold: bool = False) -> ImageFont.ImageFont:
@@ -88,6 +89,42 @@ def _fit_title(text: str, *, max_width: int, max_height: int) -> dict[str, Any]:
     }
 
 
+def _fit_gist(text: str, *, max_width: int, max_lines: int = 3) -> dict[str, Any]:
+    """Fit whole sentences into the summary area without clipping the final one."""
+    clean_gist = " ".join(str(text or "").replace("**", "").split())
+    sentences = [
+        match.group(0).strip()
+        for match in re.finditer(r"[^.!?]+(?:[.!?]+(?=\s|$)|$)", clean_gist)
+        if match.group(0).strip()
+    ]
+
+    for size in range(29, 21, -1):
+        gist_font = _font(size)
+        selected: list[str] = []
+        selected_lines: list[str] = []
+        for sentence in sentences:
+            candidate = " ".join([*selected, sentence])
+            candidate_lines = _wrap_words(candidate, gist_font, max_width)
+            if len(candidate_lines) > max_lines:
+                break
+            selected.append(sentence)
+            selected_lines = candidate_lines
+        if selected_lines:
+            return {
+                "font": gist_font,
+                "font_size": size,
+                "lines": selected_lines,
+                "line_height": round(size * 1.45),
+            }
+
+    return {
+        "font": _font(22),
+        "font_size": 22,
+        "lines": [],
+        "line_height": 32,
+    }
+
+
 def generate_card(headline: str, slug: str, gist: str = "") -> str:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_path = os.path.join(OUTPUT_DIR, f"{slug}-{CARD_VERSION}.png")
@@ -116,14 +153,12 @@ def generate_card(headline: str, slug: str, gist: str = "") -> str:
         draw.text((72, y), line, font=title_layout["font"], fill=TEXT)
         y += title_layout["line_height"]
 
-    clean_gist = " ".join(str(gist or "").replace("**", "").split())
-    gist_font = _font(29)
-    gist_lines = _wrap_words(clean_gist, gist_font, 936)[:3]
-    if gist_lines:
+    gist_layout = _fit_gist(gist, max_width=936)
+    if gist_layout["lines"]:
         y += 36
-        for line in gist_lines:
-            draw.text((72, y), line, font=gist_font, fill=MUTED)
-            y += 42
+        for line in gist_layout["lines"]:
+            draw.text((72, y), line, font=gist_layout["font"], fill=MUTED)
+            y += gist_layout["line_height"]
 
     footer_top = 1190
     draw.rectangle([(0, footer_top), (1080, 1350)], fill=(244, 244, 245))
@@ -136,4 +171,3 @@ def generate_card(headline: str, slug: str, gist: str = "") -> str:
 
     image.save(output_path, "PNG", optimize=True)
     return output_path
-

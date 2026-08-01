@@ -191,3 +191,71 @@ def test_mark_failed_does_not_mark_article_shared(tmp_path):
         "failure_reason": "missing publication confirmation",
     }
 
+
+def test_replace_post_url_updates_existing_audit_without_duplicate(tmp_path):
+    from services.instagram_browser_queue import ensure_schema, mark_posted, replace_post_url
+
+    posted_at = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    replaced_at = posted_at + timedelta(hours=1)
+    conn = sqlite3.connect(tmp_path / "news.db")
+    conn.row_factory = sqlite3.Row
+    _create_articles_table(conn)
+    ensure_schema(conn)
+    article_id = _insert_article(conn, "replacement-instagram", "Models", 92, posted_at.isoformat())
+    conn.commit()
+    mark_posted(
+        conn,
+        article_id=article_id,
+        instagram_post_url="https://www.instagram.com/p/old123/",
+        posted_at=posted_at,
+    )
+
+    replace_post_url(
+        conn,
+        article_id=article_id,
+        instagram_post_url="https://www.instagram.com/p/new456/",
+        replaced_at=replaced_at,
+    )
+
+    audits = conn.execute(
+        "SELECT instagram_post_url, attempted_at, posted_at "
+        "FROM instagram_browser_post_audit WHERE article_id = ?",
+        (article_id,),
+    ).fetchall()
+    article = conn.execute(
+        "SELECT shared_on_ig, shared_on_ig_at FROM articles WHERE id = ?",
+        (article_id,),
+    ).fetchone()
+    assert [dict(row) for row in audits] == [
+        {
+            "instagram_post_url": "https://www.instagram.com/p/new456/",
+            "attempted_at": replaced_at.isoformat(),
+            "posted_at": replaced_at.isoformat(),
+        }
+    ]
+    assert dict(article) == {
+        "shared_on_ig": 1,
+        "shared_on_ig_at": replaced_at.isoformat(),
+    }
+
+
+def test_replace_post_url_requires_confirmed_existing_post(tmp_path):
+    import pytest
+
+    from services.instagram_browser_queue import ensure_schema, replace_post_url
+
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
+    conn = sqlite3.connect(tmp_path / "news.db")
+    conn.row_factory = sqlite3.Row
+    _create_articles_table(conn)
+    ensure_schema(conn)
+    article_id = _insert_article(conn, "unconfirmed-instagram", "Models", 92, now.isoformat())
+    conn.commit()
+
+    with pytest.raises(ValueError, match="confirmed Instagram post"):
+        replace_post_url(
+            conn,
+            article_id=article_id,
+            instagram_post_url="https://www.instagram.com/p/new456/",
+            replaced_at=now,
+        )

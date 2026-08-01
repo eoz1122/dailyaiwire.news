@@ -305,6 +305,61 @@ def mark_posted(
         raise
 
 
+def replace_post_url(
+    conn: sqlite3.Connection,
+    *,
+    article_id: int,
+    instagram_post_url: str,
+    replaced_at: datetime | None = None,
+) -> None:
+    """Replace a confirmed repost URL without creating a second audit event."""
+    if not _valid_instagram_post_url(instagram_post_url):
+        raise ValueError("A confirmed instagram.com post URL is required")
+
+    ensure_schema(conn)
+    replaced_at = replaced_at or datetime.now(timezone.utc)
+    timestamp = replaced_at.isoformat()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        article = conn.execute(
+            "SELECT COALESCE(shared_on_ig, 0) AS shared_on_ig FROM articles WHERE id = ?",
+            (article_id,),
+        ).fetchone()
+        if article is None:
+            raise ValueError(f"Article {article_id} does not exist")
+        article_data = _as_dict(article, ["shared_on_ig"])
+        audit = conn.execute(
+            """
+            SELECT id
+            FROM instagram_browser_post_audit
+            WHERE article_id = ? AND status = 'POSTED'
+            ORDER BY COALESCE(posted_at, attempted_at) DESC, id DESC
+            LIMIT 1
+            """,
+            (article_id,),
+        ).fetchone()
+        if not article_data["shared_on_ig"] or audit is None:
+            raise ValueError(f"Article {article_id} has no confirmed Instagram post")
+        audit_data = _as_dict(audit, ["id"])
+
+        conn.execute(
+            """
+            UPDATE instagram_browser_post_audit
+            SET instagram_post_url = ?, attempted_at = ?, posted_at = ?
+            WHERE id = ?
+            """,
+            (instagram_post_url, timestamp, timestamp, audit_data["id"]),
+        )
+        conn.execute(
+            "UPDATE articles SET shared_on_ig_at = ? WHERE id = ?",
+            (timestamp, article_id),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 def mark_failed(
     conn: sqlite3.Connection,
     *,
@@ -338,4 +393,3 @@ def mark_failed(
         ),
     )
     conn.commit()
-

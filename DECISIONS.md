@@ -2952,3 +2952,38 @@ Story creation or an "Add to story" destination in the complete Share dialog.
 - Remove the three new deployed code files and restore `news.db` from
   `/home/dailyai/dailyaiwire.news/ops/deploy-backups/instagram-browser-20260801T153127Z/news.db`.
 - No legacy Instagram API worker needs to be restarted.
+
+---
+
+## 2026-08-01T18:41:16+02:00 - Preserve Complete Instagram Card Summaries and Repost Audit State
+
+**Context**: The portrait card generator wrapped the article summary and then
+blindly kept its first three visual lines. This could cut a sentence halfway
+through in the published Instagram image. Replacing an affected post also left
+the browser-post audit pointing at the deleted permalink because the safe CLI
+only supported first publication.
+
+**Decision**:
+1. Version portrait cards as `instagram-v2` so corrected images do not reuse a
+   cached or already-published `instagram-v1` asset.
+2. Fit complete summary sentences into the three-line area, reduce the summary
+   font from 29 to no less than 22 pixels when necessary, and omit the summary
+   when even its first complete sentence cannot fit.
+3. Add a `replaced` CLI command that validates the new Instagram permalink and
+   atomically updates the latest confirmed audit row. It must not create a
+   duplicate publication event or accept an unconfirmed article.
+
+**Verification**:
+- Eleven focused generator and queue tests pass, including regressions for a
+  multi-sentence summary and an unfit single sentence.
+- The queue CLI compiles and exposes `next`, `posted`, `replaced`, and `failed`.
+- The corrected 1080 x 1350 card and replacement audit flow were verified on
+  the live post at `https://www.instagram.com/p/DbgQ65mAjmn/`.
+
+**Rollback**:
+- Revert this decision's implementation commit to restore `instagram-v1` card
+  generation and remove the `replaced` CLI command.
+- Existing `instagram-v2` image files can remain as immutable media or be
+  removed after confirming that no published Instagram post references them.
+- The last working production commit before the hotfix was
+  `35dfb1d37ac9b5230cc7c2a2d34f36d9e8493ea0`.
