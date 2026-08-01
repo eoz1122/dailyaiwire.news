@@ -2915,3 +2915,40 @@ The prompt did not receive category, source, source URL, or source-date context.
 - Remove `tests/test_weekly_curator.py` if rolling back the feature entirely.
 - No service restart or database restoration is required because the weekly
   systemd service starts a fresh Python process for each run.
+
+---
+
+## 2026-08-01T17:30:39+02:00 - Schedule Browser-Only Instagram Feed Publishing
+
+**Context**: DailyAIWire needs regular Instagram distribution without restoring
+the retired Meta API worker. Existing square social cards crop poorly in Instagram
+feed previews, and publication state must only change after visible confirmation.
+Instagram's signed-in desktop web UI exposes feed-post creation but does not expose
+Story creation or an "Add to story" destination in the complete Share dialog.
+
+**Decision**:
+1. Publish through the signed-in in-app browser as `@dailyaiwirenews` at 12:00 and
+   18:00 Europe/Berlin. Never call the Instagram or Meta API.
+2. Select only live, recent, source-fresh, important, unshared articles, with a
+   24-hour failed-attempt cooldown and recent-category diversity.
+3. Generate versioned 1080 x 1350 portrait cards with protected title and footer
+   areas for Instagram's 4:5 feed presentation.
+4. Mark an article shared only after a confirmed canonical Instagram post URL is
+   visible. Record blocked attempts without changing the share state.
+5. Do not automate Stories until the in-app browser exposes a visible creation and
+   publication-confirmation flow. Keep this limitation explicit instead of using
+   the retired API worker or claiming an unverified Story publication.
+
+**Verification**:
+- Seven focused queue and card tests pass.
+- The CLI compiles and exposes `next`, `posted`, and `failed` commands.
+- The signed-in browser account is `@dailyaiwirenews` and shows the Professional
+  Dashboard.
+- Browser inspection confirms feed-post creation is available and the full Share
+  dialog has no Story destination.
+
+**Rollback**:
+- Pause or delete the Instagram browser automation.
+- Remove the three new deployed code files and restore `news.db` from
+  `/home/dailyai/dailyaiwire.news/ops/deploy-backups/instagram-browser-20260801T153127Z/news.db`.
+- No legacy Instagram API worker needs to be restarted.
