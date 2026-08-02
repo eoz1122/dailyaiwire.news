@@ -28,8 +28,8 @@ from instagram_card_generator import (
 CAROUSEL_SIZE = (1080, 1350)
 REEL_SIZE = (1080, 1920)
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "static", "img", "social")
-CAROUSEL_VERSION = "instagram-carousel-v1"
-REEL_VERSION = "instagram-reel-v1"
+CAROUSEL_VERSION = "instagram-carousel-v2"
+REEL_VERSION = "instagram-reel-v2"
 BACKGROUND = (250, 250, 250)
 PANEL = (244, 244, 245)
 
@@ -74,22 +74,43 @@ def _fit_block(
     max_lines: int,
     start_size: int = 48,
     min_size: int = 28,
+    max_sentences: int | None = None,
 ) -> dict[str, Any]:
     clean_text = _clean(text)
+    sentences = [
+        match.group(0).strip()
+        for match in re.finditer(r"[^.!?]+(?:[.!?]+(?=\s|$)|$)", clean_text)
+        if match.group(0).strip()
+    ]
+    if max_sentences is not None:
+        sentences = sentences[:max_sentences]
+    best: dict[str, Any] | None = None
+    best_character_count = -1
     for size in range(start_size, min_size - 1, -2):
         font = _font(size, bold=False)
-        lines = _wrap_words(clean_text, font, max_width)
-        if len(lines) <= max_lines:
-            return {"font": font, "lines": lines, "line_height": round(size * 1.35)}
+        selected: list[str] = []
+        selected_lines: list[str] = []
+        for sentence in sentences:
+            candidate = " ".join([*selected, sentence])
+            candidate_lines = _wrap_words(candidate, font, max_width)
+            if len(candidate_lines) > max_lines:
+                break
+            selected.append(sentence)
+            selected_lines = candidate_lines
+        character_count = len(" ".join(selected))
+        if selected_lines and character_count > best_character_count:
+            best = {
+                "font": font,
+                "lines": selected_lines,
+                "line_height": round(size * 1.35),
+            }
+            best_character_count = character_count
 
-    font = _font(min_size)
-    lines = _wrap_words(clean_text, font, max_width)[:max_lines]
-    if lines and len(_wrap_words(clean_text, font, max_width)) > max_lines:
-        final = lines[-1]
-        while final and _line_width(f"{final}...", font) > max_width:
-            final = final.rsplit(" ", 1)[0] if " " in final else final[:-1]
-        lines[-1] = f"{final}..." if final else ""
-    return {"font": font, "lines": [line for line in lines if line], "line_height": round(min_size * 1.35)}
+    return best or {
+        "font": _font(min_size),
+        "lines": [],
+        "line_height": round(min_size * 1.35),
+    }
 
 
 def _draw_text_block(
@@ -100,9 +121,19 @@ def _draw_text_block(
     top: int,
     max_lines: int,
     max_width: int = 936,
+    start_size: int = 48,
+    min_size: int = 28,
+    max_sentences: int | None = None,
 ) -> int:
     draw.text((72, top), label.upper(), font=_font(25, bold=True), fill=ACCENT)
-    layout = _fit_block(text, max_width=max_width, max_lines=max_lines)
+    layout = _fit_block(
+        text,
+        max_width=max_width,
+        max_lines=max_lines,
+        start_size=start_size,
+        min_size=min_size,
+        max_sentences=max_sentences,
+    )
     y = top + 62
     for line in layout["lines"]:
         draw.text((72, y), line, font=layout["font"], fill=TEXT)
@@ -192,12 +223,48 @@ def _draw_reel_frame(article: dict[str, Any], *, frame_number: int) -> Image.Ima
             draw.text((72, y), line, font=layout["font"], fill=TEXT)
             y += layout["line_height"]
     elif frame_number == 2:
-        _draw_text_block(draw, label="The signal", text=gist, top=390, max_lines=11)
-        _draw_text_block(draw, label="Why it matters", text=why, top=1050, max_lines=8)
+        _draw_text_block(
+            draw,
+            label="The signal",
+            text=gist,
+            top=390,
+            max_lines=6,
+            start_size=54,
+            min_size=34,
+            max_sentences=1,
+        )
+        _draw_text_block(
+            draw,
+            label="Why it matters",
+            text=why,
+            top=1050,
+            max_lines=6,
+            start_size=54,
+            min_size=34,
+            max_sentences=1,
+        )
     elif frame_number == 3:
-        bottom = _draw_text_block(draw, label="Bull case", text=bull, top=390, max_lines=7)
+        bottom = _draw_text_block(
+            draw,
+            label="Bull case",
+            text=bull,
+            top=390,
+            max_lines=7,
+            start_size=54,
+            min_size=34,
+            max_sentences=1,
+        )
         draw.line([(72, bottom + 75), (1008, bottom + 75)], fill=GRID, width=3)
-        _draw_text_block(draw, label="Bear case", text=bear, top=bottom + 140, max_lines=7)
+        _draw_text_block(
+            draw,
+            label="Bear case",
+            text=bear,
+            top=bottom + 140,
+            max_lines=7,
+            start_size=54,
+            min_size=34,
+            max_sentences=1,
+        )
     else:
         draw.text((72, 560), "THE FULL SIGNAL", font=_font(30, bold=True), fill=ACCENT)
         draw.text((72, 650), "dailyaiwire.news", font=_font(72, bold=True), fill=TEXT)

@@ -122,7 +122,10 @@ def test_traffic_anomaly_summary_flags_volume_and_speed_without_identifiers():
                 INSERT INTO article_view_events (
                     id, article_id, visitor_hash, user_agent, is_bot,
                     counted_verified, viewed_at
-                ) VALUES (?, ?, ?, ?, 0, 1, datetime('now', ?))
+                ) VALUES (
+                    ?, ?, ?, ?, 0, 1,
+                    datetime('now', 'start of day', '-1 day', '+12 hours', ?)
+                )
                 """,
                 (
                     event_id,
