@@ -75,7 +75,7 @@ def test_instagram_carousel_has_five_safe_portrait_slides(tmp_path, monkeypatch)
 
     assert len(paths) == 5
     assert [path.rsplit("/", 1)[-1] for path in paths] == [
-        f"open-models-enterprise-ai-instagram-carousel-v1-{number:02d}.png"
+        f"open-models-enterprise-ai-instagram-carousel-v2-{number:02d}.png"
         for number in range(1, 6)
     ]
     for path in paths:
@@ -107,9 +107,39 @@ def test_instagram_reel_is_vertical_h264_video(tmp_path, monkeypatch):
     path = instagram_content_generator.generate_reel(article)
     probe = instagram_content_generator.probe_video(path)
 
-    assert path.endswith("ai-security-autonomous-detection-instagram-reel-v1.mp4")
+    assert path.endswith("ai-security-autonomous-detection-instagram-reel-v2.mp4")
     assert probe["width"] == 1080
     assert probe["height"] == 1920
     assert probe["codec_name"] == "h264"
     assert probe["pix_fmt"] == "yuv420p"
     assert 8 <= probe["duration"] <= 20
+
+
+def test_carousel_text_fit_keeps_only_complete_sentences():
+    from instagram_content_generator import _fit_block
+
+    layout = _fit_block(
+        "The first sentence fits safely. The second sentence is deliberately long "
+        "enough that it cannot fit in the remaining lines without being cut off.",
+        max_width=520,
+        max_lines=3,
+        start_size=40,
+        min_size=28,
+    )
+
+    assert " ".join(layout["lines"]) == "The first sentence fits safely."
+
+
+def test_reel_text_fit_can_limit_copy_to_one_complete_sentence():
+    from instagram_content_generator import _fit_block
+
+    layout = _fit_block(
+        "The first sentence is the strongest hook. The second sentence adds detail.",
+        max_width=936,
+        max_lines=7,
+        start_size=54,
+        min_size=34,
+        max_sentences=1,
+    )
+
+    assert " ".join(layout["lines"]) == "The first sentence is the strongest hook."

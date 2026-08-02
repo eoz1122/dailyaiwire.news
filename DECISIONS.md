@@ -3005,6 +3005,9 @@ returns one portrait PNG.
 3. Generate carousel copy only from stored article headline, gist, impact,
    bull-case, and bear-case fields. Produce a 1080 x 1920 H.264 Reel from the
    same verified fields with no synthetic voiceover.
+   Fit only complete sentences, limit Reel analysis blocks to one sentence for
+   mobile readability, and version the corrected assets as carousel v2 and
+   Reel v2 so cached v1 files cannot be reused.
 4. Return explicit format and media URL fields from the safe queue CLI. Continue
    marking an article shared only after a canonical Instagram permalink is
    visibly confirmed.
@@ -3019,7 +3022,8 @@ returns one portrait PNG.
 - Visual QA confirms all five carousel slides retain their complete text,
   header, and footer inside the 1080 x 1350 canvas.
 - Reel validation confirms H.264 video at 1080 x 1920, `yuv420p`, and about 12
-  seconds. Production provides both `/usr/bin/ffmpeg` and `/usr/bin/ffprobe`.
+  seconds. All analysis frames use complete, mobile-readable sentences.
+  Production provides both `/usr/bin/ffmpeg` and `/usr/bin/ffprobe`.
 - Production browser upload and live route smoke checks remain deployment gates.
 
 **Rollback**:
