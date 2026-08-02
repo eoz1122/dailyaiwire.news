@@ -55,3 +55,61 @@ def test_gist_layout_omits_text_instead_of_cutting_a_sentence():
     )
 
     assert layout["lines"] == []
+
+
+def test_instagram_carousel_has_five_safe_portrait_slides(tmp_path, monkeypatch):
+    import instagram_content_generator
+
+    monkeypatch.setattr(instagram_content_generator, "OUTPUT_DIR", str(tmp_path))
+    article = {
+        "title": "Open Models Reshape Enterprise AI Procurement",
+        "slug": "open-models-enterprise-ai",
+        "category": "Business",
+        "gist": "Open models are gaining adoption across enterprise AI teams.",
+        "why_it_matters": "Lower switching costs could reshape vendor negotiations.",
+        "bull_case": "Competition can reduce prices and speed up deployment.",
+        "bear_case": "Fragmentation can increase integration and governance work.",
+    }
+
+    paths = instagram_content_generator.generate_carousel(article)
+
+    assert len(paths) == 5
+    assert [path.rsplit("/", 1)[-1] for path in paths] == [
+        f"open-models-enterprise-ai-instagram-carousel-v1-{number:02d}.png"
+        for number in range(1, 6)
+    ]
+    for path in paths:
+        with Image.open(path) as image:
+            assert image.size == (1080, 1350)
+
+
+def test_instagram_reel_is_vertical_h264_video(tmp_path, monkeypatch):
+    import shutil
+
+    import pytest
+
+    import instagram_content_generator
+
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        pytest.skip("FFmpeg is required for Reel integration verification")
+
+    monkeypatch.setattr(instagram_content_generator, "OUTPUT_DIR", str(tmp_path))
+    article = {
+        "title": "AI Security Teams Shift Toward Autonomous Detection",
+        "slug": "ai-security-autonomous-detection",
+        "category": "Security",
+        "gist": "Security teams are testing autonomous detection workflows.",
+        "why_it_matters": "The shift changes response speed and oversight requirements.",
+        "bull_case": "Automation can shorten the time between detection and containment.",
+        "bear_case": "Weak oversight can amplify false positives and automated mistakes.",
+    }
+
+    path = instagram_content_generator.generate_reel(article)
+    probe = instagram_content_generator.probe_video(path)
+
+    assert path.endswith("ai-security-autonomous-detection-instagram-reel-v1.mp4")
+    assert probe["width"] == 1080
+    assert probe["height"] == 1920
+    assert probe["codec_name"] == "h264"
+    assert probe["pix_fmt"] == "yuv420p"
+    assert 8 <= probe["duration"] <= 20

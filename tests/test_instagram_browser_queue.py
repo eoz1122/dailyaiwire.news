@@ -11,7 +11,10 @@ def _create_articles_table(conn):
             slug TEXT UNIQUE NOT NULL,
             title TEXT NOT NULL,
             category TEXT,
+            gist TEXT,
             why_it_matters TEXT,
+            bull_case TEXT,
+            bear_case TEXT,
             hashtags TEXT,
             importance_score INTEGER DEFAULT 50,
             published_at TEXT NOT NULL,
@@ -29,15 +32,18 @@ def _insert_article(conn, slug, category, score, published_at, source_published_
     conn.execute(
         """
         INSERT INTO articles (
-            slug, title, category, why_it_matters, hashtags,
+            slug, title, category, gist, why_it_matters, bull_case, bear_case, hashtags,
             importance_score, published_at, source_published_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             slug,
             slug.replace("-", " ").title(),
             category,
+            f"{slug} is the core signal.",
             f"{slug} matters now.",
+            f"The upside case for {slug}.",
+            f"The downside case for {slug}.",
             json.dumps(["AI", category]),
             score,
             published_at,
@@ -130,6 +136,74 @@ def test_candidate_contains_deterministic_caption_and_image_url(tmp_path):
     assert "browser-instagram?utm_source=instagram" in candidate["caption"]
     assert "#DailyAIWire" in candidate["caption"]
     assert len(candidate["caption"]) <= 2200
+
+
+def test_carousel_candidate_contains_five_ordered_media_urls(tmp_path):
+    from services.instagram_browser_queue import ensure_schema, prepare_candidate
+
+    now = datetime(2026, 8, 1, 14, 0, tzinfo=timezone.utc)
+    conn = sqlite3.connect(tmp_path / "news.db")
+    conn.row_factory = sqlite3.Row
+    _create_articles_table(conn)
+    ensure_schema(conn)
+    _insert_article(conn, "carousel-instagram", "Models", 94, now.isoformat())
+    conn.commit()
+
+    candidate = prepare_candidate(
+        conn,
+        now=now,
+        content_format="carousel",
+        carousel_generator=lambda article: [
+            f"/srv/social/{article['slug']}-carousel-{number:02d}.png"
+            for number in range(1, 6)
+        ],
+    )
+
+    assert candidate["content_format"] == "carousel"
+    assert candidate["media_urls"] == [
+        f"https://dailyaiwire.news/social-image/carousel-instagram-carousel-{number:02d}.png"
+        for number in range(1, 6)
+    ]
+    assert candidate["gist"] == "carousel-instagram is the core signal."
+    assert candidate["bull_case"] == "The upside case for carousel-instagram."
+    assert candidate["bear_case"] == "The downside case for carousel-instagram."
+
+
+def test_reel_candidate_contains_video_url(tmp_path):
+    from services.instagram_browser_queue import ensure_schema, prepare_candidate
+
+    now = datetime(2026, 8, 1, 19, 0, tzinfo=timezone.utc)
+    conn = sqlite3.connect(tmp_path / "news.db")
+    conn.row_factory = sqlite3.Row
+    _create_articles_table(conn)
+    ensure_schema(conn)
+    _insert_article(conn, "reel-instagram", "Security", 95, now.isoformat())
+    conn.commit()
+
+    candidate = prepare_candidate(
+        conn,
+        now=now,
+        content_format="reel",
+        reel_generator=lambda article: f"/srv/social/{article['slug']}-reel-v1.mp4",
+    )
+
+    assert candidate["content_format"] == "reel"
+    assert candidate["video_url"] == (
+        "https://dailyaiwire.news/social-media/reel-instagram-reel-v1.mp4"
+    )
+    assert candidate["media_urls"] == [candidate["video_url"]]
+
+
+def test_candidate_rejects_unknown_content_format(tmp_path):
+    import pytest
+
+    from services.instagram_browser_queue import prepare_candidate
+
+    conn = sqlite3.connect(tmp_path / "news.db")
+    _create_articles_table(conn)
+
+    with pytest.raises(ValueError, match="Unsupported Instagram content format"):
+        prepare_candidate(conn, content_format="story")
 
 
 def test_mark_posted_is_transactional_and_validates_permalink(tmp_path):

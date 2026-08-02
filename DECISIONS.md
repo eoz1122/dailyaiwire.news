@@ -2987,3 +2987,44 @@ only supported first publication.
   removed after confirming that no published Instagram post references them.
 - The last working production commit before the hotfix was
   `35dfb1d37ac9b5230cc7c2a2d34f36d9e8493ea0`.
+
+---
+
+## 2026-08-02T02:57:58+02:00 - Expand Browser-only Instagram Publishing Formats
+
+**Context**: Three daily static posts provide consistent output but do not test
+the carousel saves/shares or Reel discovery surfaces that can improve
+non-follower reach. The existing publication audit is safe, but the queue only
+returns one portrait PNG.
+
+**Decision**:
+1. Keep browser-only publication and leave the retired Instagram and Meta API
+   workers disabled.
+2. Assign static posts to 09:00, five-slide carousels to 14:00, and silent
+   Reel-ready videos to 19:00 Europe/Berlin.
+3. Generate carousel copy only from stored article headline, gist, impact,
+   bull-case, and bear-case fields. Produce a 1080 x 1920 H.264 Reel from the
+   same verified fields with no synthetic voiceover.
+4. Return explicit format and media URL fields from the safe queue CLI. Continue
+   marking an article shared only after a canonical Instagram permalink is
+   visibly confirmed.
+5. Add the Instagram profile to organization structured data, the public
+   footer, article follow controls, and the weekly newsletter footer.
+6. Review Instagram insights weekly. Require enough posts per format before
+   recommending a schedule rebalance.
+
+**Verification**:
+- The complete repository suite passes with 432 tests and one FFmpeg-dependent
+  test skipped only when the binary is unavailable.
+- Visual QA confirms all five carousel slides retain their complete text,
+  header, and footer inside the 1080 x 1350 canvas.
+- Reel validation confirms H.264 video at 1080 x 1920, `yuv420p`, and about 12
+  seconds. Production provides both `/usr/bin/ffmpeg` and `/usr/bin/ffprobe`.
+- Production browser upload and live route smoke checks remain deployment gates.
+
+**Rollback**:
+- Restore the deployment backup recorded during rollout.
+- Return the Instagram automation to static-only
+  `next --lookback-hours 48`.
+- Keep already-published versioned media files until no live post references
+  them.

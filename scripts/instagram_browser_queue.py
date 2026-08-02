@@ -39,6 +39,12 @@ def main() -> int:
     next_parser = commands.add_parser("next", help="Return the next eligible article as JSON.")
     next_parser.add_argument("--lookback-hours", type=int, default=48)
     next_parser.add_argument(
+        "--format",
+        dest="content_format",
+        choices=("static", "carousel", "reel"),
+        default="static",
+    )
+    next_parser.add_argument(
         "--max-source-age-hours",
         type=int,
         default=int(os.getenv("INSTAGRAM_BROWSER_MAX_SOURCE_AGE_HOURS", "72")),
@@ -66,6 +72,7 @@ def main() -> int:
                 conn,
                 lookback_hours=args.lookback_hours,
                 max_source_age_hours=args.max_source_age_hours,
+                content_format=args.content_format,
             )
             print(json.dumps(candidate, ensure_ascii=True))
         elif args.command == "posted":
