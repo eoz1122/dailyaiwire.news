@@ -3032,3 +3032,34 @@ returns one portrait PNG.
   `next --lookback-hours 48`.
 - Keep already-published versioned media files until no live post references
   them.
+
+---
+
+## 2026-08-02T03:30:14+02:00 - Constrain Instagram Community Engagement
+
+**Context**: DailyAIWire needs consistent, useful participation in relevant AI
+conversations to improve discovery and follower growth. Browser automation can
+publish comments, but unconstrained engagement risks spam, factual errors, and
+brand damage.
+
+**Decision**:
+1. Run one browser-only engagement session at 14:00 Europe/Berlin as part of
+   the existing Instagram publishing automation.
+2. Reply to no more than three genuine comments on DailyAIWire posts and leave
+   comments on no more than two credible external AI posts per session.
+3. Require every comment to be specific to visible content, factually grounded,
+   useful, and limited to one or two natural sentences.
+4. Prohibit generic praise, repeated templates, promotion, links, hashtags,
+   follow requests, direct messages, account follows, controversial topics,
+   private data, and unsupported claims.
+5. Skip engagement when no safe high-quality opportunity is visible, and report
+   the number of replies and external comments completed.
+
+**Verification**:
+- The active automation retains its 09:00, 14:00, and 19:00 schedule.
+- Its stored prompt contains the daily limits, pre-submit checks, prohibited
+  topics and actions, and a safe skip path.
+
+**Rollback**:
+- Remove only the targeted-engagement section from the Instagram automation
+  prompt. Publishing and the weekly growth review remain unchanged.
