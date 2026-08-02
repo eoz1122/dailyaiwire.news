@@ -102,7 +102,7 @@ def select_next_candidate(
     rows = conn.execute(
         """
         SELECT
-            id, slug, title, category, why_it_matters, hashtags,
+            id, slug, title, category, gist, why_it_matters, bull_case, bear_case, hashtags,
             importance_score, published_at, source_published_at
         FROM articles
         WHERE is_published = 1
@@ -138,7 +138,10 @@ def select_next_candidate(
         "slug",
         "title",
         "category",
+        "gist",
         "why_it_matters",
+        "bull_case",
+        "bear_case",
         "hashtags",
         "importance_score",
         "published_at",
@@ -215,8 +218,14 @@ def prepare_candidate(
     lookback_hours: int = 48,
     max_source_age_hours: int = 72,
     base_url: str = DEFAULT_BASE_URL,
+    content_format: str = "static",
     card_generator: Callable[[str, str, str], str] | None = None,
+    carousel_generator: Callable[[dict[str, Any]], list[str]] | None = None,
+    reel_generator: Callable[[dict[str, Any]], str] | None = None,
 ) -> dict[str, Any] | None:
+    if content_format not in {"static", "carousel", "reel"}:
+        raise ValueError(f"Unsupported Instagram content format: {content_format}")
+
     candidate = select_next_candidate(
         conn,
         now=now,
@@ -226,17 +235,42 @@ def prepare_candidate(
     if candidate is None:
         return None
 
-    if card_generator is None:
-        from instagram_card_generator import generate_card
+    candidate["content_format"] = content_format
+    if content_format == "static":
+        if card_generator is None:
+            from instagram_card_generator import generate_card
 
-        card_generator = generate_card
-    card_path = card_generator(
-        candidate["title"],
-        candidate["slug"],
-        candidate.get("why_it_matters") or "",
-    )
-    filename = os.path.basename(card_path)
-    candidate["image_url"] = f"{base_url.rstrip('/')}/social-image/{filename}"
+            card_generator = generate_card
+        card_path = card_generator(
+            candidate["title"],
+            candidate["slug"],
+            candidate.get("why_it_matters") or "",
+        )
+        filename = os.path.basename(card_path)
+        candidate["image_url"] = f"{base_url.rstrip('/')}/social-image/{filename}"
+        candidate["media_urls"] = [candidate["image_url"]]
+    elif content_format == "carousel":
+        if carousel_generator is None:
+            from instagram_content_generator import generate_carousel
+
+            carousel_generator = generate_carousel
+        paths = carousel_generator(candidate)
+        if len(paths) != 5:
+            raise ValueError("Instagram carousel generation must return exactly five slides")
+        candidate["media_urls"] = [
+            f"{base_url.rstrip('/')}/social-image/{os.path.basename(path)}"
+            for path in paths
+        ]
+    else:
+        if reel_generator is None:
+            from instagram_content_generator import generate_reel
+
+            reel_generator = generate_reel
+        reel_path = reel_generator(candidate)
+        candidate["video_url"] = (
+            f"{base_url.rstrip('/')}/social-media/{os.path.basename(reel_path)}"
+        )
+        candidate["media_urls"] = [candidate["video_url"]]
     candidate["caption"] = build_caption(candidate, base_url=base_url)
     return candidate
 

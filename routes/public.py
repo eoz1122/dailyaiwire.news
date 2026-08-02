@@ -31,10 +31,13 @@ from services.subscribers import (
     record_subscriber_event,
 )
 import logging
+import os
 
 logger = logging.getLogger('public')
 
 public_bp = Blueprint('public', __name__)
+
+SOCIAL_MEDIA_DIR = os.path.join("static", "img", "social")
 
 VIEW_DEDUPE_MINUTES = 30
 ANALYTICS_DB_TIMEOUT_SECONDS = 0.25
@@ -53,6 +56,24 @@ def social_image(filename):
         abort(404)
     response = send_from_directory(
         "static/img/social",
+        filename,
+        max_age=31536000,
+    )
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    response.headers.pop("X-Robots-Tag", None)
+    return response
+
+
+@public_bp.route('/social-media/<path:filename>')
+def social_media(filename):
+    if (
+        "/" in filename
+        or "\\" in filename
+        or not filename.lower().endswith((".png", ".mp4"))
+    ):
+        abort(404)
+    response = send_from_directory(
+        SOCIAL_MEDIA_DIR,
         filename,
         max_age=31536000,
     )

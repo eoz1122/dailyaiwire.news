@@ -78,6 +78,27 @@ def test_social_image_route_rejects_path_traversal(client):
     assert resp.status_code == 404
 
 
+def test_social_media_route_serves_reel_video(client, tmp_path, monkeypatch):
+    from routes import public as public_routes
+
+    media_dir = tmp_path / "social"
+    media_dir.mkdir()
+    (media_dir / "safe-reel.mp4").write_bytes(b"video")
+    monkeypatch.setattr(public_routes, "SOCIAL_MEDIA_DIR", str(media_dir))
+
+    response = client.get("/social-media/safe-reel.mp4")
+
+    assert response.status_code == 200
+    assert response.mimetype == "video/mp4"
+    assert response.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+
+
+def test_social_media_route_rejects_non_media_files(client):
+    response = client.get("/social-media/secrets.env")
+
+    assert response.status_code == 404
+
+
 def test_nginx_static_images_do_not_send_x_robots_noindex():
     with open("nginx_optimized.conf", encoding="utf-8") as fh:
         conf = fh.read()
