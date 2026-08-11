@@ -16,7 +16,7 @@ from slugify import slugify
 
 from db import DB_PATH, get_db_connection
 from social_distributor import SocialDistributor
-from google_indexer import notify_google_index
+from google_indexer import google_indexing_enabled, notify_google_index
 from qa_monitor import run_post_publication_audit
 from services.image_fallbacks import select_category_fallback
 from services.story_dedup import canonical_research_paper_id, likely_same_story
@@ -453,9 +453,12 @@ def save_to_db(processed_articles: List[Dict], original_batch: List[Dict], distr
             conn.commit()
             articles_saved += 1
 
-            # TRIGGER GOOGLE INDEXING (Instant Crawl)
             local_url = f"https://dailyaiwire.news/article/{final_slug}"
-            notify_google_index(local_url)
+            # Automatic Google Indexing API notifications are opt-in. General
+            # article URLs are not supported by that API; sitemap discovery is
+            # the normal indexing path.
+            if google_indexing_enabled():
+                notify_google_index(local_url)
 
             # RUN QA AUDIT (Self-Correction)
             run_post_publication_audit(local_url)

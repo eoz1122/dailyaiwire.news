@@ -15,6 +15,11 @@ def _env_truthy(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def google_indexing_enabled() -> bool:
+    """Return whether automatic Google Indexing API notifications are enabled."""
+    return _env_truthy("ENABLE_GOOGLE_INDEXING_API")
+
+
 def _skip_reason(url: str, action: str) -> str | None:
     if _env_truthy("ALLOW_UNSUPPORTED_GOOGLE_INDEXING_API"):
         return None

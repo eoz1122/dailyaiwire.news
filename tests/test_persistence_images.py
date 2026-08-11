@@ -183,6 +183,7 @@ def test_save_to_db_commits_article_before_indexing_side_effects(monkeypatch):
             conn.close()
         observed["visible_during_indexing"] = row is not None
 
+    monkeypatch.setenv("ENABLE_GOOGLE_INDEXING_API", "true")
     monkeypatch.setattr(persistence, "DB_PATH", db_module.DB_PATH)
     monkeypatch.setitem(sys.modules, "embedding_service", fake_embedding)
     monkeypatch.setattr(persistence, "notify_google_index", _assert_article_visible)
@@ -192,6 +193,37 @@ def test_save_to_db_commits_article_before_indexing_side_effects(monkeypatch):
     persistence.save_to_db([_processed_article(slug)], [_original_article(slug)])
 
     assert observed["visible_during_indexing"] is True
+
+
+def test_save_to_db_does_not_notify_google_indexing_by_default(monkeypatch):
+    import db as db_module
+    import fetcher.persistence as persistence
+    import ig_card_generator
+
+    slug = "agent-benchmarks-no-google-notify"
+    called = {"value": False}
+
+    fake_embedding = SimpleNamespace(
+        score_ad_likelihood=lambda *args, **kwargs: 0.0,
+        find_duplicates=lambda *args, **kwargs: None,
+        score_article=lambda *args, **kwargs: (0.8, []),
+        index_article=lambda *args, **kwargs: None,
+    )
+
+    def _unexpected_indexing_notification(*args, **kwargs):
+        called["value"] = True
+
+    monkeypatch.delenv("ENABLE_GOOGLE_INDEXING_API", raising=False)
+    monkeypatch.setattr(persistence, "DB_PATH", db_module.DB_PATH)
+    monkeypatch.setitem(sys.modules, "embedding_service", fake_embedding)
+    monkeypatch.setattr(persistence, "notify_google_index", _unexpected_indexing_notification)
+    monkeypatch.setattr(persistence, "run_post_publication_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(ig_card_generator, "generate_card", lambda *args, **kwargs: None)
+
+    result = persistence.save_to_db([_processed_article(slug)], [_original_article(slug)])
+
+    assert result.articles_saved == 1
+    assert called["value"] is False
 
 
 def test_save_to_db_blocks_recent_cross_source_story_duplicate(monkeypatch):
